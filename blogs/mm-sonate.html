@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MM-SONATE · 论文解读</title>
+<meta name="description" content="多模态条件可控的音视频联合生成，支持零样本音色克隆。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2025 · Preprint</div>
+    <h1>MM-SONATE</h1>
+    <p class="hero-tagline">多模态可控音视频生成 × 零样本音色克隆</p>
+    <p class="hero-desc">多模态条件可控的音视频联合生成，支持零样本音色克隆。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MM-SONATE"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="90" y="90" width="180" height="70" rx="12" fill="#1B4B6F" stroke="#1B4B6F" stroke-width="2"/><text x="180.0" y="131.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Video Tokens</text><rect x="90" y="250" width="180" height="70" rx="12" fill="#5A8F7B" stroke="#5A8F7B" stroke-width="2"/><text x="180.0" y="291.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Audio Tokens</text><rect x="560" y="170" width="180" height="70" rx="12" fill="#2C3E50" stroke="#2C3E50" stroke-width="2"/><text x="650.0" y="211.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Joint DiT</text><line x1="285" y1="125" x2="555" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><line x1="285" y1="285" x2="555" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><text x="410" y="150" text-anchor="middle" font-family="Noto Sans SC" font-size="15" fill="#E85D4E" font-weight="700">Joint / Cross Attention</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：多模态可控 + 零样本音色克隆</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#av-foundation">av-foundation</a><span class="sep">/</span>MM-SONATE</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂：联合生成补上「声学可控」这块短板</a></li><li><a href="#s2">02 范式定位：级联 / 联合 / 可控联合</a></li><li><a href="#s3">03 系统分解：20B MM-DiT 与「冻结—训练」边界</a></li><li><a href="#s4">04 统一指令-音素输入与随机模态掩码</a></li><li><a href="#s5">05 零样本音色克隆：音色注入与多说话人控制</a></li><li><a href="#s6">06 噪声负条件：标准 CFG 在声学侧为什么失效</a></li><li><a href="#s7">07 数据策略：合成音色数据集 + 一亿对齐语料</a></li><li><a href="#s8">08 实验证据：VerseBench 主对比、TTS/TTM 对标与主观评测</a></li><li><a href="#s9">09 深度洞察与批判评估：可控联合的代价与边界</a></li><li><a href="#s10">10 自主科研问题</a></li><li><a href="#s11">11 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂：联合生成补上「声学可控」这块短板</h2>
+  <p class="lead">MM-SONATE 的核心主张：<strong>把「可控的音视频联合生成」与「零样本音色克隆」装进同一个流匹配框架</strong>。它针对的缺口非常具体——级联式系统（先视频后音频）在细粒度时间对齐上先天吃亏；而现有统一式联合生成模型（如 Ovi）能生成语义相关的声音，却<strong>无法控制说话人身份（音色）、无法从参考片段克隆声音</strong>，因此无法充当高保真的个性化语音合成器。MM-SONATE 用三件套回应：统一指令-音素输入（unified instruction-phoneme input）强制语言学与时间对齐、音色注入机制（timbre injection）解耦说话人身份与语言内容、以及噪声负条件策略（noise-based negative conditioning）修补多模态场景下标准 CFG 的失效。</p>
+  <p>论文的自我定位写得很硬：「the first joint generation model capable of zero-shot voice cloning」——第一个能在联合生成框架内做零样本音色克隆的模型。在 VerseBench 上，它在主对比的 11 项指标中胜出 9 项（原文 Figure 1 表述：outperforms baselines (Ovi, CosyVoice2) on 9/11 metrics），尤其在唇同步（SyncNet Confidence 6.51 vs Ovi 4.28）与语音可懂度（WER 0.020，比 JavisDiT 0.256、OpenSora+See&amp;Hear 0.337 低一个数量级）上拉开差距；音色克隆保真度接近专用 TTS 系统，同时<strong>还同步生成视频</strong>。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>问题不在「会不会发声」，而在「声学模态没有旋钮」</h4>
+    <p>联合音视频生成的发展主线一直在同步性上卷（JavisDiT 的层级先验、Ovi 的对称双骨干）。MM-SONATE 换了靶心：当视频侧可以被文本/图像精细控制时，<strong>音频侧却只剩「一段语义描述」这种粗粒度旋钮</strong>——谁在说、什么音色、什么情绪，既不可指定也不可克隆。这使联合生成器无法进入配音、数字人、个性化内容这类真正需要「声音身份」的场景。把「身份」提升为一等控制变量，是这篇论文对任务定义本身的修订，而不只是模型指标的改进。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 范式定位：级联 / 联合 / 可控联合</h2>
+  <p>论文在引言里画了一条清晰的谱系。<strong>级联派</strong>（先生成视频再条件生成音频，如 Diff-Foley、Kling-Foley 一路）的根本困难是时间错位——音频模型以已生成帧为条件，细粒度对齐只能靠后期修补。<strong>联合派</strong>从 MM-Diffusion（耦合 U-Net，数据仅约 10 小时量级）起步，经 UniForm（单塔拼接 token）、AV-DiT（图像 DiT + 轻量适配器）、JavisDiT（层级时空先验）、SyncFlow（双 DiT + Rectified Flow）、Ovi（对称双骨干强耦合）演化；另一条路是编排预训练单模态专家（MMDisCo 的判别器协作引导、Universe-1 的块级专家拼接）。但如论文所言，多数模型「confined to generating general sound effects or music」——<strong>同步语音 + 视频仍是被低估的难题</strong>，因为它要求帧级唇音对齐。</p>
+  <p>音色克隆侧的三条既有范式被论文归纳为：(1) 纯音频 prompt 的上下文学习（保真但特征纠缠、不可控）；(2) 说话人嵌入引导（部分可控）；(3) 文本指令描述目标变化（灵活但未充分探索）。而「跨域（音乐、音效）与多模态生成中的音色克隆」几乎空白——MM-SONATE 正是切这个空档。</p>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="28" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">三种范式：从级联到可控联合</text>
+    <rect x="30" y="56" width="230" height="270" rx="10" fill="#F4F7FA" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="145" y="82" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" font-weight="bold">(a) 级联</text>
+    <rect x="55" y="100" width="180" height="44" rx="6" fill="#1B4B6F"/><text x="145" y="118" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">文本 → 视频</text><text x="145" y="134" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#BFD3E0">（OpenSora 等）</text>
+    <path d="M145 148 l0 26" stroke="#2C3E50" stroke-width="1.5"/><path d="M145 178 l-6 -10 l12 0 z" fill="#2C3E50"/>
+    <rect x="55" y="182" width="180" height="44" rx="6" fill="#5A8F7B"/><text x="145" y="200" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">视频 → 音频</text><text x="145" y="216" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#D8E8E0">（FoleyGen / See&amp;Hear）</text>
+    <text x="145" y="256" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">时间错位 · 无音色控制</text>
+    <text x="145" y="278" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">WER 0.337（See&amp;Hear）</text>
+    <text x="145" y="300" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">SNC 2.68–2.85</text>
+    <rect x="285" y="56" width="230" height="270" rx="10" fill="#F4F7FA" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="400" y="82" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#8A6D2F" font-weight="bold">(b) 联合生成</text>
+    <rect x="310" y="100" width="180" height="86" rx="6" fill="#C9A86C"/><text x="400" y="128" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">单一/双骨干联合建模</text><text x="400" y="148" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FBF3E2">MM-Diffusion · JavisDiT</text><text x="400" y="166" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FBF3E2">Ovi · UniForm · SyncFlow</text>
+    <text x="400" y="216" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">同步性好（Ovi SNC 4.28）</text>
+    <text x="400" y="240" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">音频仅语义描述级控制</text>
+    <text x="400" y="262" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">不能控制音色 / 不能克隆</text>
+    <text x="400" y="300" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">声音多限于音效/音乐</text>
+    <rect x="540" y="56" width="230" height="270" rx="10" fill="#F4F7FA" stroke="#E85D4E" stroke-width="2"/>
+    <text x="655" y="82" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E" font-weight="bold">(c) 可控联合（MM-SONATE）</text>
+    <rect x="565" y="100" width="180" height="86" rx="6" fill="#E85D4E"/><text x="655" y="126" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">指令-音素 + 音色注入</text><text x="655" y="146" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FBE3DF">T2VA / TI2VA / TA2VA / TIA2VA</text><text x="655" y="164" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FBE3DF">+ 噪声负条件 CFG</text>
+    <text x="655" y="216" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">WER 0.020 · SNC 6.51</text>
+    <text x="655" y="240" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">零样本音色克隆（含跨物种）</text>
+    <text x="655" y="262" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">说话/歌曲/音效全可控</text>
+    <text x="655" y="300" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">11 指标中 9 项领先（论文表述）</text>
+    <path d="M268 190 l14 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M286 190 l-10 -6 l0 12 z" fill="#2C3E50"/>
+    <path d="M523 190 l14 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M541 190 l-10 -6 l0 12 z" fill="#2C3E50"/>
+    <text x="400" y="356" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">演进轴：同步性 → 声学可控性；MM-SONATE 把「谁在说」补成一等条件</text>
+  </svg><div class="figcap"><b>图 1</b> · 三代范式的「能力阶梯」：级联输在时间轴、联合赢回同步、可控联合再把声学身份补上。抽象的「范式代际」被画成三栏可对比的能力账本，每栏都带论文中的指标锚点。</div></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>级联</th><th>既有联合</th><th>MM-SONATE</th></tr></thead>
+    <tbody>
+      <tr><td class="route">音画对齐</td><td>后补，易异步</td><td>联合建模，较好</td><td>音素级约束 + 联合建模（SNC 6.51）</td></tr>
+      <tr><td class="route">音色控制</td><td>无 / 依赖 TTS 外挂</td><td>无（Ovi 不能克隆）</td><td>参考音频零样本克隆 + 指令可控</td></tr>
+      <tr><td class="route">语言准确度</td><td>取决于音频模型</td><td>易含糊（WER 0.18–0.34）</td><td>音素输入（WER 0.020）</td></tr>
+      <tr><td class="route">任务覆盖</td><td>单一链路</td><td>多限音效/音乐</td><td>说话 / 对话 / 歌曲 / 音效 + 视频</td></tr>
+    </tbody>
+  </table></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>音素输入是「对齐问题」的降维打击</h4>
+    <p>唇同步的本质困难是：文本是离散符号、唇动是连续运动，两者的时间对应关系没有显式监督。MM-SONATE 不让模型自己从语义描述里「猜」发音，而是经 G2P 直接给出<strong>音素序列</strong>——把「何时张口、闭唇、送气」变成可逐帧对齐的确定信号。这解释了 WER 与 SNC 两个数量级式的领先：当对齐先验被写进输入格式，联合生成器不再需要花容量去发现「字怎么读」，可以把容量全部用在「怎么演」。与 Vorch-Human 用角色元数据解「条件语义」相比，MM-SONATE 是在解「内容的时序粒度」——两条互补的表示层路线。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 系统分解：20B MM-DiT 与「冻结—训练」边界</h2>
+  <p>MM-SONATE 建立在 SD3 式 MM-DiT 架构与流匹配之上：<strong>20B 参数、32 层联合扩散 Transformer、RoPE 位置编码、流匹配前馈维 4096</strong>；文本侧是前馈维 512 的音素编码器 + Qwen2.5-7B 作为 caption 编码器。音视频 latent 各有专用 codec：音频沿用其先前 SecoustiCodec 框架的 Mel-VAE（mel 编码器/解码器 + 判别器），输入 44.1 kHz 波形、<strong>1024 倍下采样得到 43 Hz 嵌入</strong>；视频用 CogVideoX 的 3D 因果时序编码器，<strong>16× 空间压缩、3 Hz 时间率</strong>。</p>
+  <p>训练边界划得很清楚（原文 Figure 2）：<strong>冻结</strong>——指令编码器、说话人编码器、视频编解码器、音频编解码器；<strong>可训练</strong>——各投影器与联合扩散 Transformer。文本模态条件是「时序拼接的指令嵌入 + 音素嵌入」，音视频模态输入是加噪的 mel-VAE latent 与视频 VAE latent。跨模态融合由 MM-Joint Attention 完成：视频 token/视频文本、音频 token/音频文本各自成流，在联合注意力里交换信息。</p>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="26" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">MM-SONATE 架构：冻结编码器 + 可训练联合 DiT</text>
+    <rect x="30" y="56" width="180" height="60" rx="8" fill="#8FA8BC"/><text x="120" y="80" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">Caption 编码器（冻结）</text><text x="120" y="100" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">Qwen2.5-7B</text>
+    <rect x="30" y="128" width="180" height="60" rx="8" fill="#8FA8BC"/><text x="120" y="152" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">音素编码器（G2P）</text><text x="120" y="172" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">FFN 512</text>
+    <rect x="30" y="200" width="180" height="60" rx="8" fill="#8FA8BC"/><text x="120" y="224" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">说话人编码器（冻结）</text><text x="120" y="244" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">参考音频 → S ∈ R^(B×D)</text>
+    <rect x="30" y="272" width="180" height="60" rx="8" fill="#8FA8BC"/><text x="120" y="296" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">视频 / 音频 VAE（冻结）</text><text x="120" y="316" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">16× 空间 3 Hz / 44.1k→43 Hz</text>
+    <path d="M215 86 l45 40" stroke="#2C3E50" stroke-width="1.5"/><path d="M215 158 l45 -32" stroke="#2C3E50" stroke-width="1.5"/><path d="M215 230 l45 -104" stroke="#2C3E50" stroke-width="1.5"/><path d="M215 302 l45 -176" stroke="#2C3E50" stroke-width="1.5"/>
+    <rect x="262" y="70" width="34" height="230" rx="6" fill="#C9A86C"/><text x="279" y="180" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF" transform="rotate(-90 279 180)">投影器（可训练）</text>
+    <rect x="310" y="56" width="250" height="286" rx="10" fill="#1B4B6F"/>
+    <text x="435" y="84" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" font-weight="bold">联合扩散 Transformer ×32</text>
+    <text x="435" y="104" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#BFD3E0">MM-DiT · RoPE · FFN 4096 · 20B</text>
+    <rect x="326" y="120" width="218" height="40" rx="6" fill="#5A8F7B"/><text x="435" y="145" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">MM-Joint Attention（Q/K/V 跨流）</text>
+    <rect x="326" y="172" width="218" height="40" rx="6" fill="#E85D4E"/><text x="435" y="197" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">音色注入：P = P + S (+ I)</text>
+    <rect x="326" y="224" width="218" height="40" rx="6" fill="#C9A86C"/><text x="435" y="249" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">随机模态掩码 → 可学习占位 token</text>
+    <rect x="326" y="276" width="218" height="46" rx="6" fill="#FFFFFF"/><text x="435" y="298" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">输出：加噪视频 latent + mel latent</text><text x="435" y="314" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">流匹配速度场 v_θ(t, C, x)</text>
+    <path d="M565 190 l48 0" stroke="#2C3E50" stroke-width="2"/><path d="M617 190 l-12 -7 l0 14 z" fill="#2C3E50"/>
+    <rect x="622" y="120" width="150" height="60" rx="8" fill="#8FA8BC"/><text x="697" y="146" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">视频解码器（冻结）</text><text x="697" y="164" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">3D 因果 VAE</text>
+    <rect x="622" y="200" width="150" height="60" rx="8" fill="#8FA8BC"/><text x="697" y="226" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">音频解码器（冻结）</text><text x="697" y="244" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">Mel-VAE（SecoustiCodec 系）</text>
+  </svg><div class="figcap"><b>图 2</b> · 「冻结—训练」边界图：灰色为冻结模块、彩色为可训练通路。整个模型的可控性创新都发生在「投影器 + 联合 DiT」这一窄腰上——设计哲学是用最小的可训练面撬动最大的条件表达力。</div></div>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">音频 latent：Mel-VAE</div>
+      <div class="dd">Mel 编码器/解码器 + 判别器；44.1 kHz 输入、1024× 下采样到 43 Hz 连续嵌入；沿用 SecoustiCodec 架构并为重建质量做了修改。<span class="alt">替代方案：离散 codec token——连续 latent 更适配流匹配的 ODE 求解，但论文承认高压缩会损失瞬态细节。</span></div></div>
+    <div class="def-item"><div class="dt">视频 latent：CogVideoX 3D 因果 VAE</div>
+      <div class="dd">H×W×T → h×w×t，16× 空间压缩、3 Hz 时间率；解码器用转置卷积镜像编码器。<span class="alt">替代方案：自训视频 codec——复用成熟 VAE 省下大量训练成本，但压缩率与高频纹理损失被限制在既有选择上。</span></div></div>
+    <div class="def-item"><div class="dt">文本条件：指令 + 音素</div>
+      <div class="dd">视频指令描述 + 音频指令描述 + G2P 音素序列时序拼接后输入；对话场景用 [S0]/[S1] 特殊 token 区分说话人（图 2 标注为 &lt;id0&gt;/&lt;id1&gt;，论文表述）。</div></div>
+    <div class="def-item"><div class="dt">训练与推理口径</div>
+      <div class="dd">流匹配 OT 路径；推理用 Euler 积分、步长 0.05（即 20 步）；条件全丢弃概率约 10% 以支持 CFG。</div></div>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 统一指令-音素输入与随机模态掩码</h2>
+  <p>MM-SONATE 的「统一」与 Vorch-Human 走的不是同一条路：它不靠 token 元数据，而靠<strong>标准化文本模态输入格式</strong>。每个任务的文本侧固定为三件套：<strong>视频指令描述</strong>（完整视觉场景）、<strong>音频指令描述</strong>（声学属性：性别、年龄、情绪、风格、口音；音乐则为歌手音色、曲风、配器、旋律、情感；音效则为声学场景）、<strong>音素序列</strong>（语音文本或歌词经 G2P 转换）。对话场景给两个说话人各写一段描述并前置 [S0]/[S1] 区分轮次。</p>
+  <p>一个关键的语义开关写在原文里：<strong>T2VA/TI2VA 里音色只由音频指令描述控制；TA2VA/TIA2VA 里音色来自输入参考音频</strong>——且两路可以叠加（参考音频 + 「this woman speaks happily and surprisingly…」这类指令）。多任务能力靠<strong>随机模态掩码</strong>实现：不把数据切成任务子集，而是对每个完整样本 (文本, 参考图, 参考音) 独立做布尔掩码，被掩掉的模态换成可学习占位 token，优化目标写成 p(V, A | C_active)，C_active ⊆ {c_text, c_image, c_audio}。一次前向同时模拟 T2VA（掩图+音）、TI2VA（掩音）、TA2VA（掩图）、TIA2VA（不掩）。</p>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="26" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">随机模态掩码：一次前向模拟四种任务</text>
+    <rect x="30" y="56" width="200" height="120" rx="10" fill="#F4F7FA" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="130" y="82" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" font-weight="bold">完整样本</text>
+    <text x="46" y="108" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#1B4B6F">c_text：指令 + 音素</text>
+    <text x="46" y="130" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#5A8F7B">c_image：参考/首帧</text>
+    <text x="46" y="152" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">c_audio：参考音频</text>
+    <path d="M235 116 l40 0" stroke="#2C3E50" stroke-width="2"/><path d="M279 116 l-12 -7 l0 14 z" fill="#2C3E50"/>
+    <rect x="285" y="56" width="180" height="120" rx="10" fill="#C9A86C"/>
+    <text x="375" y="86" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">独立布尔掩码</text>
+    <text x="375" y="112" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FBF3E2">被掩模态 → 可学习占位 token</text>
+    <text x="375" y="134" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FBF3E2">约 10% 概率全丢（CFG 用）</text>
+    <text x="375" y="156" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FBF3E2">→ p(V, A | C_active)</text>
+    <path d="M470 76 l40 14" stroke="#2C3E50" stroke-width="1.5"/><path d="M470 116 l40 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M470 156 l40 -14" stroke="#2C3E50" stroke-width="1.5"/>
+    <rect x="515" y="56" width="125" height="46" rx="8" fill="#1B4B6F"/><text x="577" y="84" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">T2VA（掩图+音）</text>
+    <rect x="515" y="112" width="125" height="46" rx="8" fill="#5A8F7B"/><text x="577" y="140" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">TI2VA / TA2VA（掩一）</text>
+    <rect x="515" y="168" width="125" height="46" rx="8" fill="#E85D4E"/><text x="577" y="196" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">TIA2VA（不掩）</text>
+    <rect x="660" y="56" width="112" height="158" rx="8" fill="#FFFFFF" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="716" y="90" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">同一模型</text>
+    <text x="716" y="112" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">同一损失</text>
+    <text x="716" y="134" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">任务切换 =</text>
+    <text x="716" y="152" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">条件开关</text>
+    <rect x="30" y="206" width="742" height="106" rx="10" fill="#F4F7FA" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="400" y="232" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F" font-weight="bold">文本模态三件套（所有任务同构）</text>
+    <rect x="55" y="248" width="215" height="48" rx="6" fill="#1B4B6F"/><text x="162" y="270" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">视频指令：场景/构图/动作</text><text x="162" y="286" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#BFD3E0">（视觉语义）</text>
+    <rect x="292" y="248" width="215" height="48" rx="6" fill="#5A8F7B"/><text x="399" y="270" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">音频指令：性别/年龄/情绪/风格/口音</text><text x="399" y="286" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#D8E8E0">（声学属性）</text>
+    <rect x="529" y="248" width="215" height="48" rx="6" fill="#E85D4E"/><text x="636" y="270" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">音素序列（G2P）：文本/歌词</text><text x="636" y="286" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FBE3DF">（精确内容与节奏）</text>
+  </svg><div class="figcap"><b>图 3</b> · 随机模态掩码把「任务切换」变成「条件开关」：抽象的条件分布 p(V,A|C_active) 被画成一条掩码分发流水线，四种任务共享同一次训练前向。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>占位 token 是「缺席」的显式化</h4>
+    <p>缺席模态不是补零、不是遮注意力，而是换成<strong>可学习占位 token</strong>——「没有参考音频」本身成为一个可训练的表征。这与后续的 CFG 设计有微妙联动：训练里零向量说话人嵌入被定义为「T2VA 模式」的信号（随机/上下文合适的音色），于是「无条件」不再等于「无声学信息」，而等于「走 T2VA 分支」。这个语义混淆正是第 6 节噪声负条件要解决的问题——<strong>占位 token 让缺席可见，却也让「无条件」变得有名无实</strong>。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>模态掩码概率「pre-defined」但未公开</h4>
+    <p>论文写明掩码依据「pre-defined probabilities」独立施加、全条件丢弃概率「e.g., 10%」，但各模态的具体掩码概率、以及它们对 T2VA/TI2VA/TA2VA/TIA2VA 混合比例的影响<strong>没有给出，也没有消融</strong>。任务混合比例会直接决定哪些任务被优先优化（Table 2 里中文 ZH WER 2.768% 明显弱于英文 2.065%，或许与语种/任务配比有关，但论文未分析）。这是复现该训练配方时的最大暗箱。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 零样本音色克隆：音色注入与多说话人控制</h2>
+  <p>音色注入机制的设计哲学是「简单到可以全序列广播」：预训练（说话人分类任务）的说话人编码器从参考音频抽出<strong>全局说话人嵌入 S ∈ R<sup>B×D</sup></strong>；音素向量 P ∈ R<sup>B×L×D</sup> 按序列长度把 S 复制上采样到 R<sup>B×L×D</sup>，然后<strong>逐元素相加</strong>注入：</p>
+  <div class="formula-card"><div class="f-label">Eq.T · 音色注入（原文 4.3.1 节）</div>
+    <div>$$ P = P + S \in \mathbb{R}^{B \times L \times D} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>把「谁在说」作为加性偏置写进每一个音素 token——内容（P 的原始成分）与身份（S）在表示上被显式分解，模型要「用这个音色读这段音素」。对不做克隆的 T2VA/TI2VA，S 直接换成<strong>同形状零向量</strong>，使两种模式共享同一计算图。替代方案是把参考音频当上下文窗口做 in-context 学习（Chen et al. 一系）——保真但「deeply entangled and uncontrollable」（论文原话），无法单独翻动「身份」旋钮。</div></div>
+  <p>多说话人对话再加一层：<strong>可学习说话人 ID 嵌入</strong>。双人对话时两段话的音素向量 P0/P1 分别吸收各自的说话人嵌入 S0/S1（按各自音素长度上采样）与各自可学习 ID 嵌入 I0/I1：</p>
+  <div class="formula-card"><div class="f-label">Eq.D · 多说话人对话控制（原文 4.3.2 节）</div>
+    <div>$$ P_0 = P_0 + S_0 + I_0 \in \mathbb{R}^{B \times L_0 \times D}, \qquad P_1 = P_1 + S_1 + I_1 \in \mathbb{R}^{B \times L_1 \times D} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>S 负责「像谁」（来自参考音频），I 负责「是第几号说话人」（可学习、任务无关）。两者的分工让「同一个人在两段里保持一致」与「两个人不被混淆」成为可分别控制的轴；论文指出 ID 嵌入<strong>即使在 T2VA/TI2VA 无克隆任务上也提升控制稳定性</strong>——它像 Vorch-Human 的主体索引一样，是「指代绑定」的低层保障。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="26" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">音色注入 + 多说话人：加性分解的表示几何</text>
+    <rect x="30" y="60" width="150" height="64" rx="8" fill="#1B4B6F"/><text x="105" y="86" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">参考音频 1</text><text x="105" y="106" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#BFD3E0">→ 说话人编码器</text>
+    <rect x="30" y="150" width="150" height="64" rx="8" fill="#1B4B6F"/><text x="105" y="176" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">参考音频 2</text><text x="105" y="196" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#BFD3E0">→ 说话人编码器</text>
+    <rect x="210" y="60" width="120" height="64" rx="8" fill="#5A8F7B"/><text x="270" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">S0 ∈ R^(B×D)</text><text x="270" y="106" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#D8E8E0">上采样到 L0</text>
+    <rect x="210" y="150" width="120" height="64" rx="8" fill="#5A8F7B"/><text x="270" y="178" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">S1 ∈ R^(B×D)</text><text x="270" y="196" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#D8E8E0">上采样到 L1</text>
+    <rect x="210" y="240" width="120" height="54" rx="8" fill="#C9A86C"/><text x="270" y="264" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">I0 / I1</text><text x="270" y="282" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FBF3E2">可学习 ID 嵌入</text>
+    <rect x="370" y="60" width="180" height="64" rx="8" fill="#8FA8BC"/><text x="460" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">P0（话轮 1 音素）</text><text x="460" y="106" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">+ S0 + I0</text>
+    <rect x="370" y="150" width="180" height="64" rx="8" fill="#8FA8BC"/><text x="460" y="178" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">P1（话轮 2 音素）</text><text x="460" y="196" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">+ S1 + I1</text>
+    <text x="460" y="242" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">无克隆任务：S ← 零向量（T2VA 信号）</text>
+    <text x="460" y="266" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">指令描述可叠加情绪/风格控制</text>
+    <path d="M335 92 l30 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M369 92 l-10 -6 l0 12 z" fill="#2C3E50"/>
+    <path d="M335 182 l30 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M369 182 l-10 -6 l0 12 z" fill="#2C3E50"/>
+    <path d="M335 267 l60 -60" stroke="#2C3E50" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <rect x="580" y="60" width="190" height="234" rx="10" fill="#FFFFFF" stroke="#E85D4E" stroke-width="2"/>
+    <text x="675" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E" font-weight="bold">注入后进入 MM-Joint Attention</text>
+    <text x="596" y="116" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">身份（S）与内容（P）</text>
+    <text x="596" y="134" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">在加性分解下共存：</text>
+    <text x="596" y="158" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">· 换 S = 换音色</text>
+    <text x="596" y="178" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">· 换 P = 换台词</text>
+    <text x="596" y="198" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">· 换 I = 换说话人编号</text>
+    <text x="596" y="228" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">与视频 token 联合去噪，</text>
+    <text x="596" y="246" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">唇动自然对齐音素时序</text>
+    <text x="596" y="276" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">实测：跨物种音色也可克隆</text>
+  </svg><div class="figcap"><b>图 4</b> · 把「P + S + I」的加性分解画成三条正交控制轴：内容、身份、编号各来自一处、各自可换。抽象的「解耦」由此变成一张可操作的旋钮图。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>跨物种克隆暴露了「声音源身份」的抽象层级</h4>
+    <p>定性结果（原文 Figure 7b）显示：以狗叫、羊叫为参考音频时，MM-SONATE 不仅复刻音色纹理，还生成<strong>下颌运动与呼吸节律与声学脉冲物理匹配</strong>的动物视频。论文由此推断模型学到的是广义「sound source identity」表征，而非人类音素专属的映射。这把音色注入的意义从「TTS 技巧」抬升到「声源身份条件化」：S 向量编码的不是「像哪个说话人」，而是「像哪个发声体」——与语音合成中把 speaker embedding 当作发音器官隐变量的观点遥相呼应。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>加性注入的表达力上限未被检验</h4>
+    <p>P + S 把全局向量广播到全长序列，天然牺牲<strong>时变音色</strong>（情绪起伏、耳语—喊叫转换、同一句内的音色漂移）；指令描述虽然可以叠情绪，但那是「换一段风格」而非「沿时间轴调制」。对照 Vorch-Human 把音色参考作为独立 token 组参与注意力（可被逐帧检索），加性注入更省参数但更「钝」。论文自己也承认：低质量、含噪参考音频下，模块难以把背景噪声与音色解耦。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 噪声负条件：标准 CFG 在声学侧为什么失效</h2>
+  <p>这是全文最有「研究味」的一节。标准 CFG 用条件估计与无条件估计外推：</p>
+  <div class="formula-card"><div class="f-label">Eq.2 · Classifier-Free Guidance（原文式 (2)）</div>
+    <div>$$ \tilde{\epsilon} = \epsilon_{uncond} + w \cdot (\epsilon_{cond} - \epsilon_{uncond}) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>w 是引导强度；传统做法把无条件分支构造为 null 字符串或负提示。但 MM-SONATE 的声学条件走说话人编码器，负提示必须跨出文本域。<strong>关键发现：零向量负嵌入是语义错位的</strong>——训练里 S=0 专指 T2VA 任务（从文本生成随机/上下文合适的音色），所以拿零向量当负条件，只是让模型「远离随机音色模式」，而不是「远离低质量音频」。</div></div>
+  <p>论文的替代方案：<strong>把自然采集噪声喂进预训练说话人编码器</strong>，得到负说话人嵌入 S_neg——在嵌入空间里对「无结构声学特征」形成排斥力。为找最优负先验，论文系统扫了八种策略：零向量基线、六档递进能量的高斯白噪声、自然采集白噪声。结果（原文 Figure 4/5）：自然噪声拿下<strong>最低 WER 2.06%</strong>（最差设置 3.17%，相对改善 1.11%），代价仅是 SyncNet 置信度从最优 6.12 微降到 5.94（−0.18），说话人一致性保持稳健（各策略间 0.813–0.815 量级，差异甚微，论文表述）。论文用<strong>流形假说</strong>解释：自然噪声比合成高斯或零向量更接近训练数据里真实背景噪声的分布，说话人编码器把它映射到嵌入空间中更「有意义」的区域，从而给流匹配一个更有效的「负参考」。</p>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="26" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">负条件嵌入空间：零向量的语义陷阱与自然噪声的排斥方向</text>
+    <ellipse cx="220" cy="180" rx="170" ry="110" fill="#F4F7FA" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="220" y="60" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">说话人编码器嵌入空间</text>
+    <rect x="120" y="120" width="120" height="50" rx="25" fill="#5A8F7B"/><text x="180" y="141" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">真实说话人流形</text><text x="180" y="158" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#D8E8E0">（音色可辨识区）</text>
+    <rect x="120" y="200" width="120" height="44" rx="22" fill="#C9A86C"/><text x="180" y="220" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">零向量 = T2VA 信号</text><text x="180" y="236" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FBF3E2">「随机音色」模式</text>
+    <rect x="270" y="240" width="120" height="44" rx="22" fill="#E85D4E"/><text x="330" y="260" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">自然噪声嵌入</text><text x="330" y="276" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FBE3DF">（更近真实噪声分布）</text>
+    <path d="M395 232 l60 -30" stroke="#E85D4E" stroke-width="2"/><path d="M458 200 l-13 -1 l3 10 z" fill="#E85D4E"/>
+    <text x="430" y="228" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#E85D4E">排斥「无结构声学」</text>
+    <path d="M245 172 l60 -20" stroke="#2C3E50" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="282" y="146" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">CFG 外推方向</text>
+    <rect x="480" y="60" width="290" height="250" rx="10" fill="#FFFFFF" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="625" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" font-weight="bold">八种负条件策略（原文 Figure 4/5）</text>
+    <text x="500" y="116" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">零向量基线：WER 2.91%</text>
+    <text x="500" y="138" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">高斯白噪声 6 档能量：</text>
+    <text x="500" y="158" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">  WER 2.53–3.17%（随能量微升 SNC 微降）</text>
+    <text x="500" y="184" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">自然采集白噪声：WER 2.06%（最优）</text>
+    <text x="500" y="206" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">  SNC 5.94（vs 最优 6.12，−0.18）</text>
+    <text x="500" y="228" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">  说话人一致性 ~0.814（各策略近似）</text>
+    <text x="500" y="256" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">结论：负先验的「真实性」&gt;「能量大小」</text>
+    <text x="500" y="280" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">解释：流形假说（论文表述）</text>
+  </svg><div class="figcap"><b>图 5</b> · 把「负条件选谁」画成嵌入空间里的站位问题：零向量指向任务语义（T2VA），自然噪声才指向「低质量/无结构」的排斥方向。CFG 这个被当作默认开关的组件，在多模态条件下变成了一个必须显式设计的自由度。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「无条件」在多任务训练下是一个被污染的概念</h4>
+    <p>这节的深层教训超出本文：当训练用占位/零嵌入编码「某模态缺席」时，<strong>无条件分布与「某种任务模式」发生了语义碰撞</strong>。CFG 的外推方向 ε_cond − ε_uncond 因此不再指向「质量轴」，而指向「任务轴」。MM-SONATE 用「更真实的负样本」绕开碰撞；更彻底的解法或许是给无条件分支一个独立于任务编码的专用表征。<strong>凡是用条件嵌入做任务路由的模型（包括 Vorch-Human 的角色嵌入路线）都应检查同类污染</strong>——这是一个可迁移的设计教训。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>能量扫描被浪费了：真正的变量是「分布真实性」</h4>
+    <p>六档高斯能量的扫描结果几乎平坦（WER 2.53–3.17% 无单调规律，SNC 变化 ≤ 0.08），说明<strong>负嵌入的 RMS 能量不是有效旋钮</strong>；换到自然噪声（能量未必更高）后 WER 才显著改善。这提示说话人编码器的输入分布先验主导了嵌入几何——与其调负样本的「音量」，不如调负样本的「出身」。对做条件扩散的实践者：负条件应当从训练数据的真实退化分布中采样，而不是用数学上方便的零/高斯。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 数据策略：合成音色数据集 + 一亿对齐语料</h2>
+  <p>零样本音色克隆要求把「音色」从情绪、背景噪声等声学因素中解耦出来，同时保持身份相似度——为此论文造了一条严苛的<strong>合成数据流水线</strong>（原文 Figure 3）：从内部仓库采样原始语音/音乐 → 类别分类（speech/song）→ 专有分离工具去噪、从音乐提取干声（保证参考音色无环境残留）→ 用 <strong>DMP-TTS</strong>（零样本 TTS）以预定义的<strong>情绪中性文本</strong>合成语音并显式指令生成中性风格（消除情绪泄漏）→ <strong>WavLM-large 说话人验证</strong>计算合成语音与真值提示的说话人嵌入余弦相似度，低于严格阈值即丢弃。第二块是<strong>约 1 亿对齐样本的多模态预训练语料</strong>：每条是 (视频, 音频, caption, 转写/歌词) 四元组，覆盖人声、环境音效、音乐，时长 3–15 秒，音频 16–44.1 kHz，视频 240p–720p，标注全部由专有自动工具生成或校验。</p>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="26" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">高保真合成音色数据集流水线（原文 Figure 3）</text>
+    <rect x="30" y="70" width="140" height="56" rx="8" fill="#2C3E50"/><text x="100" y="94" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">野外语音 / 音乐</text><text x="100" y="112" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#D5DDE3">内部仓库采样</text>
+    <rect x="195" y="70" width="140" height="56" rx="8" fill="#1B4B6F"/><text x="265" y="94" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">去噪 / 人声分离</text><text x="265" y="112" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#BFD3E0">提取干净音色提示</text>
+    <rect x="360" y="70" width="140" height="56" rx="8" fill="#5A8F7B"/><text x="430" y="94" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">DMP-TTS 合成</text><text x="430" y="112" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#D8E8E0">中性文本 + 中性风格指令</text>
+    <rect x="525" y="70" width="140" height="56" rx="8" fill="#C9A86C"/><text x="595" y="94" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">WavLM 说话人验证</text><text x="595" y="112" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FBF3E2">余弦相似度过阈值筛选</text>
+    <rect x="690" y="70" width="80" height="56" rx="8" fill="#E85D4E"/><text x="730" y="94" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">音色</text><text x="730" y="112" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FBE3DF">训练集</text>
+    <path d="M172 98 l20 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M194 98 l-8 -5 l0 10 z" fill="#2C3E50"/>
+    <path d="M337 98 l20 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M359 98 l-8 -5 l0 10 z" fill="#2C3E50"/>
+    <path d="M502 98 l20 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M524 98 l-8 -5 l0 10 z" fill="#2C3E50"/>
+    <path d="M667 98 l20 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M689 98 l-8 -5 l0 10 z" fill="#2C3E50"/>
+    <rect x="30" y="152" width="740" height="52" rx="8" fill="#F4F7FA" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="400" y="174" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B" font-weight="bold">设计约束：音色与情绪/噪声解耦 · 身份相似度过滤 · 参考提示必须干净</text>
+    <text x="400" y="194" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">合成语音基于预定义中性文本 —— 防止「情绪泄漏」污染音色表示</text>
+    <rect x="30" y="222" width="740" height="86" rx="8" fill="#FFFFFF" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="400" y="248" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F" font-weight="bold">大规模多模态预训练语料：约 1 亿对齐样本（视频/音频/caption/转写）</text>
+    <text x="400" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">域：人声 + 环境音效 + 音乐 · 时长 3–15 s · 音频 16–44.1 kHz · 视频 240p–720p</text>
+    <text x="400" y="294" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">作用：世界知识 + 多模态对齐先验 —— 歌曲/音效能力的来源</text>
+    <text x="400" y="326" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">双数据策略：专用合成集管「身份保真」，海量语料管「通用对齐」——分工明确、互不替代</text>
+  </svg><div class="figcap"><b>图 6</b> · 把「合成音色数据集」画成五级漏斗并标注每级的解耦目的（去环境、去情绪、验身份），再与亿级语料并置成「保真 vs 通用」的双轨数据策略。</div></div>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">情绪泄漏的处理</div>
+      <div class="dd">用预定义中性文本 + 显式中性风格指令合成，让「音色」通道里只剩身份。<span class="alt">替代方案：直接用野外数据训练音色编码器——情绪/噪声与身份纠缠，克隆时会把情绪一起抄走。</span></div></div>
+    <div class="def-item"><div class="dt">身份保真过滤</div>
+      <div class="dd">WavLM-large 说话人验证 + 严格余弦阈值，合成样本与真值提示不一致即弃。<span class="alt">替代方案：只靠 TTS 模型自评——自评与人耳的身份感知经常脱节。</span></div></div>
+    <div class="def-item"><div class="dt">四元组对齐语料</div>
+      <div class="dd">(视频, 音频, caption, 转写/歌词) 全对齐；转写/歌词使 G2P 音素监督可得——这是 WER 0.020 的数据地基。<span class="alt">替代方案：无转写的音视频对——音素监督缺失，唇音对齐只能靠弱相关信号学。</span></div></div>
+    <div class="def-item"><div class="dt">时长/分辨率档位</div>
+      <div class="dd">3–15 s、240p–720p、16–44.1 kHz：覆盖广但均属短片段——与局限「长内容仍具挑战」互为因果。</div></div>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 实验证据：VerseBench 主对比、TTS/TTM 对标与主观评测</h2>
+  <p>主对比（原文 Table 1，VerseBench）涵盖级联系统（AudioLDM+TemoTkn、OpenSora+FoleyGen、OpenSora+See&amp;Hear）与统一模型（JavisDiT、SVG、Universe-1、Ovi）。MM-SONATE 的成绩单：<strong>FD 1.43、KL 1.16（音频保真最优，超过 Ovi 的 1.50/1.19）、CLAP 0.242、WER 0.020、AV-A 0.76、SNC 6.51（Ovi 4.28）、IB 0.27、AS 0.56、ID 0.59</strong>——11 项指标中 9 项领先（论文表述）；唯一明确让出的是运动分 MS（0.48 vs Ovi 0.58）。</p>
+  <p>因为「现有 T2VA 模型不支持音色克隆」，语音克隆对标直接打<strong>专用 TTS</strong>（SeedTTS 协议，SIM-o 用 WavLM-large）：MM-Sonate EN SIM-o 0.604 / ZH 0.691，WER EN 2.065% / ZH 2.768%；MaskGCT（EN 0.713）、CosyVoice2（ZH 0.748）在相似度上更高，但 MM-Sonate 的英文 WER 2.065% 优于 CosyVoice2 的 2.57%、接近真值 2.14%——<strong>且它同时在生成视频</strong>。音乐对标（SongEval）：Coherence 3.00 / Musicality 3.01 / Memorability 2.98 / Clarity 2.88 / Naturalness 2.72，五项全胜 ACE-Step 与 DiffRhythm+。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>证据线</th><th>关键数字</th><th>解读</th></tr></thead>
+    <tbody>
+      <tr><td class="route">联合生成主表</td><td>WER 0.020 · SNC 6.51 · FD 1.43 · 9/11 领先</td><td>音素输入 + 联合建模在可懂度/唇同步上拉开量级</td></tr>
+      <tr><td class="route">TTS 对标</td><td>EN SIM-o 0.604（MaskGCT 0.713）· EN WER 2.065%</td><td>相似度略让、可懂度反超——「带视频的 TTS」竞争力成立</td></tr>
+      <tr><td class="route">TTM 对标</td><td>SongEval 五项 3.00/3.01/2.98/2.88/2.72 全胜</td><td>多模态预训练提供了比纯音频更丰富的结构先验</td></tr>
+      <tr><td class="route">主观克隆一致性</td><td>单人 ZH 91.3% / EN 85.0%；对话 ZH 81.3% / EN 75.0%</td><td>多说话人对话的通过率下降 ~10pt，控制更难</td></tr>
+      <tr><td class="route">音色模块代价</td><td>GSB 0.89（ZH）/ 0.83（EN）</td><td>加音色注入对标准任务轻微退化，换来克隆能力</td></tr>
+    </tbody>
+  </table></div>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="26" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">WER / SNC 的量级差：音素约束的直接回报</text>
+    <line x1="90" y1="260" x2="760" y2="260" stroke="#2C3E50" stroke-width="1.5"/>
+    <line x1="90" y1="60" x2="90" y2="260" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="60" y="264" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">0</text>
+    <text x="52" y="196" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">0.12</text>
+    <text x="52" y="128" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">0.25</text>
+    <text x="52" y="72" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">0.34</text>
+    <text x="128" y="284" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">See&amp;Hear</text>
+    <rect x="105" y="70" width="46" height="190" rx="4" fill="#2C3E50"/><text x="128" y="62" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">0.337</text>
+    <text x="238" y="284" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">JavisDiT</text>
+    <rect x="215" y="122" width="46" height="138" rx="4" fill="#1B4B6F"/><text x="238" y="114" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#1B4B6F">0.256</text>
+    <text x="348" y="284" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">Ovi</text>
+    <rect x="325" y="241" width="46" height="19" rx="4" fill="#5A8F7B"/><text x="348" y="233" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#5A8F7B">0.035</text>
+    <text x="458" y="284" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">MM-SONATE</text>
+    <rect x="435" y="249" width="46" height="11" rx="4" fill="#E85D4E"/><text x="458" y="241" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">0.020</text>
+    <line x1="540" y1="70" x2="540" y2="260" stroke="#C9A86C" stroke-width="1" stroke-dasharray="5 4"/>
+    <text x="600" y="94" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#8A6D2F">右侧：SyncNet 置信度（SNC）</text>
+    <text x="600" y="126" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">Ovi 4.28 → MM-SONATE 6.51</text>
+    <text x="600" y="150" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">级联基线 2.68–2.85</text>
+    <text x="600" y="182" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">WER：0.337 → 0.020</text>
+    <text x="600" y="206" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">≈ 一个数量级的可懂度差</text>
+    <text x="600" y="238" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">音素输入是主因（论文归因）</text>
+    <text x="425" y="310" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">数据取自原文 Table 1 / 6.4.2 节</text>
+  </svg><div class="figcap"><b>图 7</b> · 把主表里最悬殊的两个维度画成条形对比：WER 的量级差与 SNC 的大幅领先一起，把「音素约束生效」从叙述变成可视化证据。</div></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>克隆保真度仍是「可接受的代价」而非优势</h4>
+    <p>与专用 TTS 相比，MM-Sonate 的 SIM-o（EN 0.604 / ZH 0.691）明显低于 MaskGCT（0.713/0.773）与 CosyVoice2（0.652/0.748），中文 WER 2.768% 也劣于多数基线（ZipVoice 1.40%、M3-TTS 1.31%）。论文的辩护是「同时生成同步视频、任务更难」——成立，但意味着<strong>「音色克隆 comparable to specialized TTS」这句结论只在「考虑任务难度修正」后才成立</strong>。对只需要声音的用户，专用 TTS 仍更优。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>指标口径与正文/图表的小出入</h4>
+    <p>（1）正文称单人克隆通过率「91.3% (ZH)」「81.3%」，原文 Figure 6(a) 标注为 91.2 / 81.2（论文表述）——差异微小但说明数字口径未统一；（2）Table 1 的 WER 与 Table 2 的 WER 协议不同（前者 VerseBench 联合生成、后者 SeedTTS 协议百分比），0.020 与 2.065% 不可直接比较，行文容易误读；（3）主观评测仅给通过率/偏好率，未给评审人数与置信区间；（4）<strong>8 种负条件策略的最优解（自然噪声）在主表里被默认使用，但主表各基线是否也获得等价的调参待遇未知</strong>——SNC 6.51 对 4.28 的差距中，有多少来自架构、多少来自推理侧调优，论文没有拆分。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s9" ><span class="num">09</span> 深度洞察与批判评估：可控联合的代价与边界</h2>
+  <p>把 MM-SONATE 放回两条研究脉络的交汇点看：它一边继承联合生成的同步性红利，一边移植 TTS 的条件化技术（说话人嵌入、G2P、零样本 prompt）。其独有贡献不是单点指标，而是<strong>证明「联合生成器可以兼任个性化语音合成器」这条路走得通</strong>。代价与边界同样清晰。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>三种控制条件的「语义正交性」是可控联合的设计准则</h4>
+    <p>MM-SONATE 的条件栈可以按语义轴拆开：文本/音素管<strong>内容</strong>，音频指令管<strong>风格属性</strong>，参考音频（S）管<strong>身份</strong>，ID 嵌入（I）管<strong>指代</strong>，首帧管<strong>视觉初始状态</strong>。加性分解（P+S+I）与拼接分解（指令+音素）共同保证各轴尽量正交。对照之下，纯 prompt 方案把所有轴塞进一段自然语言（纠缠且不可靠），纯 in-context 方案把内容与身份绑死。这条「先正交化、再注入」的准则，与 Vorch-Human「先解耦 driving/voice、再统一编排」是<strong>同一种设计哲学在不同层的实现</strong>。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>跨物种克隆是「泛化」的免费探针</h4>
+    <p>狗叫/羊叫克隆不是噱头：它是模型「音色通道 = 声源身份而非人类说话人模板」的反事实证据。如果音色注入只是记忆了人类说话人簇，跨物种输入应落到簇外而失败；实际却连下颌运动都跟着声学脉冲走，说明 S 的语义是<strong>发声体级</strong>的。这对评估零样本方法是一个启示：跨域/跨物种测试用例能便宜地探测表示的抽象层级，比再多一组 SIM-o 数字更有诊断力。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>技术局限（论文自陈）与结构性短板</h4>
+    <p>论文自陈四条：3–15 秒外长内容语义/时序一致性待解（需长上下文注意力或自回归外推）；高压缩损失高频细节（纹理瑕疵、音乐瞬态）；极端头姿/快速运镜/重遮挡下唇部失同步或伪影；低质量参考音频下音色与噪声难解耦。结构性短板还包括：<strong>20B 规模 + 1 亿私有语料 + 专有分离/标注工具</strong>使复现门槛极高；评测仅 VerseBench 单一基准；多说话人对话通过率比单人低约 10 个百分点，说明「多说话人 × 长对话」仍是开放问题。此外流匹配目标写作 u_t(x|x1) = x1 − (1−t)x0（论文表述）——标准 OT 路径的速度场通常为 x1 − x0，此处式形存疑，读者实现时应回归 x_t = t x1 + (1−t)x0 的标准推导核对。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>安全机制是这篇论文少见的「做实」部分，但仍是猫鼠游戏</h4>
+    <p>与多数论文的立场声明不同，MM-SONATE 给了具体机制：输入/输出双向安全分类器、高风险公众人物生成限制、参考音色使用权验证（探索中）、抗压缩/裁剪的不可见水印、API 分级访问而非开放权重。值得肯定。但水印的鲁棒性没有给出量化（抗攻击成功率未报），「限制高风险人物」的判定标准未披露——深度伪造防护的可验证性仍然缺位。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s10" ><span class="num">10</span> 自主科研问题</h2>
+  <p>以下问题聚焦「多模态可控 + 零样本音色克隆」交叉处的理论空白与可操作路线。</p>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>加性音色注入 P+S 的表达力边界与时变音色缺失</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>全局向量广播保证了「同一音色贯穿全长」，但真实语音的音色随情绪、气声、喊叫沿时间变化；P+S 是否系统性抹平了这些变化、能否扩展为逐帧 S_t，未知。</p>
+    <p><strong>理论分析：</strong>把音色视为发音器官的隐变量轨迹 s(t)，P+S 等于对 s(t) 施加常数约束；若生成分布需要非平凡 s(t)，则模型只能在残差里偷偷编码时变信息，造成「指令情绪」与「参考音色」的隐性冲突。</p>
+    <p><strong>连接：</strong>与风格迁移中的全局/局部风格调制（AdaIN vs 动态滤波）、语音合成中的 prosody 探针、可控生成的解耦表征理论相连。</p>
+    <p><strong>探究方向：</strong>构造同句内情绪转换的测试集，测 P+S vs P+S(t)（时变注入）的音色轨迹保真；用线性探针检查残差是否携带时变音色；尝试把参考音频切窗提取 S_t 序列并做插值注入。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>CFG 负条件的「语义污染」能否被一般化地检测与修复？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>零向量负嵌入因与 T2VA 任务模式重合而失效，靠自然噪声缓解；但「无条件分布被任务编码污染」是所有条件嵌入式路由模型的通病，目前只有个案发现、没有诊断工具。</p>
+    <p><strong>理论分析：</strong>若无条件表征 e_∅ 与任务模式表征 e_task 的内积不为零，CFG 外推方向就混入任务轴分量；可定义「条件正交性度量」预测 CFG 的失效程度，并要求 e_∅ 与所有 e_task 正交。</p>
+    <p><strong>连接：</strong>与 CFG 的理论分析（能量视角/贝叶斯视角）、概念擦除（concept erasure）、对抗样本的负空间设计相通。</p>
+    <p><strong>探究方向：</strong>在 Vorch-Human 式角色嵌入、指令调制模型上复现同类失效；扫不同负表征（零/高斯/自然噪声/学习负嵌入）拟合「负样本真实性 vs 生成质量」曲线；设计与任务编码正交的无条件分支并对比。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>「声音源身份」表征的抽象层级：跨物种克隆的机理</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>跨物种克隆（狗叫/羊叫）暗示 S 编码发声体级身份，但没有证据说明它编码的是「声源物理」（声道形状、下颌运动）还是「频谱纹理」——两者对未来可控性含义完全不同。</p>
+    <p><strong>理论分析：</strong>若 S 近似编码发声器官隐变量，则换 S 应连带改变生成视频中的口型/下颌动态（论文定性观察到）；若只编码频谱统计，则视觉侧不应随 S 系统变化。这是一个可证伪的干预实验。</p>
+    <p><strong>连接：</strong>与语音产生机理建模（声源-滤波器理论）、音频-视觉因果表征、解耦生成的干预式评估（do-操作视角）相连。</p>
+    <p><strong>探究方向：</strong>固定文本/指令、只干预 S，测视频中口型参数的响应；对 S 做属性探针（性别/年龄/体型/物种）；尝试用声学物理参数回归 S 的可解释方向。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>音素约束与联合生成的容量分配：谁为唇同步买单？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>WER 0.020 / SNC 6.51 的领先被归因于音素输入，但没有消融（音素 vs 纯文本；音素 + 粗时间戳 vs 音素无时间戳）拆分贡献，也没有测量音素监督占用的模型容量对画质（MS 0.48 落后 Ovi）的挤压。</p>
+    <p><strong>理论分析：</strong>音素序列提供了近乎确定的内容-时间对应，模型可把容量从「发现发音」转向「渲染表演」；但总容量有限，若同步约束过强，可能以牺牲运动丰富度为代价（MS 落后或非偶然）。</p>
+    <p><strong>连接：</strong>与多任务容量竞争、可控生成中的控制强度-多样性权衡、信息瓶颈视角下的条件带宽研究相连。</p>
+    <p><strong>探究方向：</strong>做「文本/音素/音素+时长」三档输入消融，测 WER-SNC-MS 三维权衡曲线；扫描音素条件的丢弃率观察容量再分配；用梯度/注意力分析看音素 token 占据的容量份额。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q5</span>
+    <h4>合成音色数据的「过滤阈值—克隆泛化」权衡曲线</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>WavLM 相似度阈值越高数据越纯，但可用说话人/音色多样性越窄；阈值如何影响零样本克隆对「分布外音色」的泛化，论文未给扫描。</p>
+    <p><strong>理论分析：</strong>过滤是偏差-方差交易：阈值过高 → 训练音色流形变窄 → 分布外参考的嵌入外推失效；阈值过低 → 身份噪声监督 → 克隆相似度上限下降。最优阈值应随目标泛化域而变。</p>
+    <p><strong>连接：</strong>与数据筛选（data curation）对泛化的影响、零样本学习的支撑集多样性理论、噪声标签学习相连。</p>
+    <p><strong>探究方向：</strong>按阈值分档训练小型复现模型，扫 SIM-o 对参考音色距离的响应曲线；报告「可用说话人数 vs 泛化半径」的帕累托前沿；探索软权重（按相似度加权）替代硬阈值。</p></div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s11" ><span class="num">11</span> 代码附录</h2>
+  <p>以下代码为<strong>依据论文机制复原的示意性实现</strong>（符号沿用原文：P/S/I 与式 (1)(2)），非官方开源代码。</p>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 音色注入 + 多说话人 + 随机模态掩码 —— 复原自 4.3/4.4 节</span>
+<span class="kw">def</span> <span class="fn">build_text_conditions</span>(sample, mask_probs, training=<span class="kw">True</span>):
+    <span class="cm"># sample: 视频指令、音频指令、文本/歌词、参考图、参考音频、说话人分段</span>
+    phonemes = g2p(sample.text_or_lyrics)                <span class="cm"># G2P → 音素序列</span>
+    P = phoneme_encoder(phonemes)                        <span class="cm"># ∈ R^(B×L×D), FFN 512</span>
+    <span class="kw">if</span> sample.ref_audio <span class="kw">is not</span> <span class="kw">None</span>:                    <span class="cm"># TA2VA / TIA2VA</span>
+        S = speaker_encoder(sample.ref_audio)            <span class="cm"># 冻结，∈ R^(B×D)</span>
+    <span class="kw">else</span>:
+        S = zeros(B, D)                                  <span class="cm"># T2VA/TI2VA：零向量 = 「随机音色」任务信号</span>
+    P = P + upsample_to_len(S, L)                        <span class="cm"># 式: P = P + S</span>
+    <span class="kw">if</span> sample.num_speakers &gt; 1:
+        P_k = P_k + upsample_to_len(ID_emb[k], L_k)      <span class="cm"># 每话轮再加可学习 ID 嵌入</span>
+    instr = concat(video_caption, audio_caption, P)      <span class="cm"># 统一指令-音素输入</span>
+    <span class="kw">if</span> training:
+        <span class="kw">for</span> m <span class="kw">in</span> (c_image, c_audio):                      <span class="cm"># 随机模态掩码</span>
+            <span class="kw">if</span> rand() &lt; mask_probs[m]:
+                m = learnable_placeholder[m]             <span class="cm"># 缺席模态 → 可学习占位 token</span>
+        <span class="kw">if</span> rand() &lt; 0.10:
+            cond = learnable_placeholder[ALL]            <span class="cm"># 全丢 → 近似无条件（CFG 用）</span>
+    <span class="kw">return</span> instr, cond</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 噪声负条件 CFG + Euler 积分采样 —— 复原自式 (1)(2) 与 6.1/6.4.1 节</span>
+<span class="kw">def</span> <span class="fn">sample_av</span>(model, cond, neg_strategy=<span class="fn">"natural_noise"</span>, w=5.0, steps=20):
+    <span class="cm"># 流匹配 OT 路径 x_t = t·x1 + (1−t)·x0；推理用 Euler、步长 0.05</span>
+    x = randn_like(audio_video_latents)
+    S_neg = <span class="kw">None</span>
+    <span class="kw">if</span> neg_strategy == <span class="fn">"zero"</span>:
+        S_neg = zeros_like(cond.S)                       <span class="cm"># 语义错位：指向 T2VA 而非低质量</span>
+    <span class="kw">elif</span> neg_strategy == <span class="fn">"natural_noise"</span>:
+        S_neg = speaker_encoder(natural_white_noise())   <span class="cm"># 流形假说：更真实的负先验</span>
+    cond_neg = cond.with_speaker(S_neg)                  <span class="cm"># 负分支只换声学条件</span>
+    <span class="kw">for</span> t <span class="kw">in</span> arange(0.0, 1.0, 0.05):
+        e_c = model(t, cond,     x)                      <span class="cm"># 条件估计</span>
+        e_u = model(t, cond_neg, x)                      <span class="cm"># 「无条件」估计</span>
+        e   = e_u + w * (e_c - e_u)                      <span class="cm"># 式 (2): ε̃ = ε_uncond + w(ε_cond − ε_uncond)</span>
+        x   = x + 0.05 * e                              <span class="cm"># Euler 步</span>
+    <span class="kw">return</span> video_decoder(x.v), audio_decoder(x.a)        <span class="cm"># 3D 因果 VAE / Mel-VAE（均冻结）</span></pre>
+  <p class="lead">如果只记住三件事：<strong>① 统一指令-音素输入把「说什么」精确到音素、把「什么声学属性」交给指令、把「谁说」交给参考音频——三种条件语义正交；② 音色注入 P+S(+I) 是加性解耦，零样本克隆由此免费获得、并泛化到跨物种发声体；③ 标准 CFG 的「无条件」在任务编码下会被污染，自然噪声负先验是便宜有效的修补——但克隆保真仍逊于专用 TTS，长内容、极端姿态、可复现性都是未偿债务。</strong></p>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

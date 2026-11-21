@@ -1,0 +1,281 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂：从「会动的画面」到「会说话的画面」</h2>
+  <p class="lead">过去两年，文生视频（T2V）把「画面是否真实」推到了很高水位；但绝大多数模型交出的是<strong>无声</strong>视频。LTX-2 的问题意识正落在这里：真实世界的视频从来不只有像素，还有语义、情绪与氛围——而这些几乎全部由<strong>声音</strong>承载。它的答案是：不做级联（先生成视频再配音），而是让视频流与音频流在同一去噪过程中互为条件，联合生成长达 20 秒、带同步立体声的音视频内容。</p>
+  <p>用一句话概括它的技术主张：<strong>把「音视频联合生成」当作基础模型的第一性形态，而不是视频模型的下游插件</strong>。为此它给出了一个非对称双流 Transformer（14B 视频 + 5B 音频）、一个因果音频 VAE、以及一个可分别调节跨模态语义与时间对齐的 modality-CFG。</p>
+  <div class="pipeline">
+    <span class="pipe-step">Text</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step alt">Silent T2V</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">无声音视频</span>
+    <span class="pipe-arrow">⇢ 级联补音频（误差累积）</span>
+  </div>
+  <p>上一条是行业惯性路线：先出画面，再用 T2A/A2V 补声音。问题是后补的声音看不到画面的细粒度事件（物体撞击的瞬间、角色的口型），只能做<em>事后对齐</em>。LTX-2 选择直接绕开它。</p>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 范式定位：级联 / 单向条件 / 联合去噪</h2>
+  <p>要理解 LTX-2 的位置，需要把音视频生成拆成三种范式。三者的差别不在「用什么网络」，而在<strong>两路信息在什么时候相遇</strong>。</p>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="380" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="30" font-family="Noto Sans SC,sans-serif" font-size="15" font-weight="700" fill="#2C3E50">三种范式的信息相遇时机</text>
+    <!-- row 1 -->
+    <text x="20" y="72" font-family="JetBrains Mono,monospace" font-size="12" fill="#E85D4E">A · 级联</text>
+    <rect x="110" y="52" width="110" height="34" rx="8" fill="#1B4B6F"/><text x="165" y="74" text-anchor="middle" font-size="12" fill="#fff" font-family="Noto Sans SC">视频生成</text>
+    <text x="232" y="74" fill="#E85D4E" font-size="16">→</text>
+    <rect x="252" y="52" width="110" height="34" rx="8" fill="#95A5A6"/><text x="307" y="74" text-anchor="middle" font-size="12" fill="#fff" font-family="Noto Sans SC">事后配音</text>
+    <text x="380" y="74" font-size="12" fill="#5D6D7E" font-family="Noto Sans SC">声音看不到画面细节，误差累积</text>
+    <!-- row 2 -->
+    <text x="20" y="152" font-family="JetBrains Mono,monospace" font-size="12" fill="#E85D4E">B · 单向条件</text>
+    <rect x="110" y="132" width="110" height="34" rx="8" fill="#5A8F7B"/><text x="165" y="154" text-anchor="middle" font-size="12" fill="#fff" font-family="Noto Sans SC">音频驱动视频</text>
+    <text x="232" y="154" fill="#E85D4E" font-size="16">→</text>
+    <rect x="252" y="132" width="110" height="34" rx="8" fill="#1B4B6F"/><text x="307" y="154" text-anchor="middle" font-size="12" fill="#fff" font-family="Noto Sans SC">口型/动作</text>
+    <text x="380" y="154" font-size="12" fill="#5D6D7E" font-family="Noto Sans SC">只覆盖说话头等窄场景</text>
+    <!-- row 3 -->
+    <text x="20" y="240" font-family="JetBrains Mono,monospace" font-size="12" fill="#C9A86C">C · 联合去噪（LTX-2）</text>
+    <rect x="110" y="215" width="120" height="34" rx="8" fill="#1B4B6F"/><text x="170" y="237" text-anchor="middle" font-size="12" fill="#fff" font-family="Noto Sans SC">视频流 14B</text>
+    <rect x="110" y="258" width="120" height="34" rx="8" fill="#5A8F7B"/><text x="170" y="280" text-anchor="middle" font-size="12" fill="#fff" font-family="Noto Sans SC">音频流 5B</text>
+    <rect x="280" y="228" width="140" height="46" rx="10" fill="#C9A86C" opacity="0.25" stroke="#C9A86C" stroke-width="2"/>
+    <text x="350" y="256" text-anchor="middle" font-size="12" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">双向交叉注意力</text>
+    <line x1="232" y1="232" x2="278" y2="245" stroke="#E85D4E" stroke-width="2" marker-end="url(#a1)"/>
+    <line x1="232" y1="275" x2="278" y2="258" stroke="#E85D4E" stroke-width="2" marker-end="url(#a1)"/>
+    <text x="440" y="256" font-size="12" fill="#5D6D7E" font-family="Noto Sans SC">每一次去噪都在交换信息：同步是「生成出来」的，不是「对上去」的</text>
+    <defs><marker id="a1" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#E85D4E"/></marker></defs>
+    <line x1="20" y1="320" x2="780" y2="320" stroke="#E8E8E4" stroke-width="1"/>
+    <text x="20" y="348" font-size="12" fill="#95A5A6" font-family="Noto Sans SC">判据：两种模态在哪一步「见面」—— 越早、越深、越双向，同步越可能内生于生成过程</text>
+  </svg><div class="figcap"><b>图 1</b> · 级联、单向条件与联合去噪的范式对比：LTX-2 落在 C 类</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「联合」不只是架构选择，而是误差结构的改变</h4>
+    <p>级联路线的误差是<strong>乘法式</strong>累积的：视频先定稿，音频只能在其残差上拟合；而联合去噪的误差在每一步都被两路互相约束，等价于在训练分布上做联合建模。这也解释了为什么级联系统即便单个模块很强，仍在「声音与画面事件不一致」上系统性掉分。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> 系统分解：非对称双流如何长在一起</h2>
+  <p>LTX-2 的主体是一个 <strong>19B 非对称双流 Transformer</strong>：视频流 14B、音频流 5B。非对称是刻意的——论文的表述是「为视频分配比音频更多的容量」。两个流通过三层机制耦合：</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">耦合 1 · 双向音视频交叉注意力</div>
+      <div class="dd">贯穿模型深度，让视觉线索映射到听觉事件（如物体撞击 → 对应拟音）。<span class="alt">替代方案：只在浅层或末层交互（Ovi 用逐层 blockwise 交换）；代价是细粒度事件对应变弱。</span></div></div>
+    <div class="def-item"><div class="dt">耦合 2 · 1D 时间 RoPE</div>
+      <div class="dd">给跨模态注意力注入时间位置，使两路在<em>时间轴</em>上可对齐。<span class="alt">替代方案：绝对时间嵌入拼接；RoPE 的优势是可外推、相对位置更稳。</span></div></div>
+    <div class="def-item"><div class="dt">耦合 3 · cross-modality AdaLN</div>
+      <div class="dd">用共享的时间步条件调制两个流，保证它们在同一「噪声进度」上协同去噪。<span class="alt">替代方案：各自独立的时间步嵌入；但两流进度不一致会导致同步漂移。</span></div></div>
+    <div class="def-item"><div class="dt">文本侧 · 多语言编码器</div>
+      <div class="dd">Gemma 3 多语言文本编码器 + 多层特征抽取 + 多 token 预测 + 专用文本处理块，用于支撑高保真台词与口型。<span class="alt">替代方案：单层 T5/CLIP 文本条件；对「说什么」的语言学约束不足。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="360" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">LTX-2 双流结构与三个耦合点</text>
+    <!-- text encoder -->
+    <rect x="30" y="150" width="96" height="52" rx="8" fill="#C9A86C"/><text x="78" y="181" text-anchor="middle" font-size="12" fill="#fff" font-family="Noto Sans SC">Text (Gemma3)</text>
+    <!-- video stream stack -->
+    <rect x="180" y="60" width="150" height="230" rx="10" fill="#1B4B6F" opacity="0.12" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="255" y="84" text-anchor="middle" font-size="13" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">视频流 14B</text>
+    <rect x="200" y="100" width="110" height="34" rx="6" fill="#1B4B6F"/><text x="255" y="122" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Self-Attn</text>
+    <rect x="200" y="146" width="110" height="34" rx="6" fill="#1B4B6F"/><text x="255" y="168" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Text Cross-Attn</text>
+    <rect x="200" y="192" width="110" height="34" rx="6" fill="#C9A86C"/><text x="255" y="214" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">AV Cross-Attn</text>
+    <rect x="200" y="238" width="110" height="34" rx="6" fill="#5D6D7E"/><text x="255" y="260" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">AdaLN(t)</text>
+    <!-- audio stream stack -->
+    <rect x="440" y="60" width="150" height="230" rx="10" fill="#5A8F7B" opacity="0.14" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="515" y="84" text-anchor="middle" font-size="13" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">音频流 5B</text>
+    <rect x="460" y="100" width="110" height="34" rx="6" fill="#5A8F7B"/><text x="515" y="122" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Self-Attn</text>
+    <rect x="460" y="146" width="110" height="34" rx="6" fill="#5A8F7B"/><text x="515" y="168" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Text Cross-Attn</text>
+    <rect x="460" y="192" width="110" height="34" rx="6" fill="#C9A86C"/><text x="515" y="214" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">AV Cross-Attn</text>
+    <rect x="460" y="238" width="110" height="34" rx="6" fill="#5D6D7E"/><text x="515" y="260" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">AdaLN(t)</text>
+    <!-- coupling arrows -->
+    <line x1="315" y1="209" x2="455" y2="209" stroke="#E85D4E" stroke-width="2.5" marker-end="url(#a2)"/>
+    <line x1="455" y1="222" x2="315" y2="222" stroke="#E85D4E" stroke-width="2.5" marker-end="url(#a2)"/>
+    <text x="385" y="200" text-anchor="middle" font-size="11" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">双向</text>
+    <line x1="128" y1="176" x2="196" y2="163" stroke="#C9A86C" stroke-width="2" marker-end="url(#a3)"/>
+    <line x1="128" y1="176" x2="456" y2="163" stroke="#C9A86C" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a3)"/>
+    <line x1="196" y1="255" x2="456" y2="255" stroke="#5D6D7E" stroke-width="1.5" stroke-dasharray="4 4"/>
+    <text x="326" y="248" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">共享 timestep</text>
+    <!-- outputs -->
+    <rect x="630" y="120" width="140" height="40" rx="8" fill="#1B4B6F"/><text x="700" y="145" text-anchor="middle" font-size="12" fill="#fff" font-family="Noto Sans SC">视频 VAE 解码</text>
+    <rect x="630" y="200" width="140" height="40" rx="8" fill="#5A8F7B"/><text x="700" y="225" text-anchor="middle" font-size="12" fill="#fff" font-family="Noto Sans SC">音频 VAE+Vocoder</text>
+    <line x1="592" y1="140" x2="626" y2="140" stroke="#1B4B6F" stroke-width="2" marker-end="url(#a4)"/>
+    <line x1="592" y1="220" x2="626" y2="220" stroke="#5A8F7B" stroke-width="2" marker-end="url(#a4)"/>
+    <defs>
+      <marker id="a2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#E85D4E"/></marker>
+      <marker id="a3" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#C9A86C"/></marker>
+      <marker id="a4" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#1B4B6F"/></marker>
+    </defs>
+  </svg><div class="figcap"><b>图 2</b> · 非对称双流 + 三个耦合点（AV 交叉注意力 / 时间 RoPE / 共享 AdaLN）</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 关键公式：modality-CFG 把「听话」与「对齐」拆成两根旋钮</h2>
+  <p>标准 CFG 只有一根「文本遵循」旋钮。LTX-2 的关键设计是把引导拆成<strong>两个可分离的方向</strong>：文本条件 vs 跨模态（音↔视频）条件。原文给出的形式为：</p>
+  <div class="formula-card"><div class="f-label">Eq.1 · modality-aware CFG</div>
+    <div>$$ M(x,t,m)=M(x,t,m)+s_t\big(M(x,t,m)-M(x,\varnothing,m)\big)+s_m\big(M(x,t,m)-M(x,t,\varnothing)\big) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>第一项是条件预测；第二项沿「文本」方向放大（<span class="kbd-term">s_t</span>）；第三项沿「跨模态」方向放大（<span class="kbd-term">s_m</span>）。原文公式左右同名（排版所致），左边应读作<em>引导后的预测</em>，右边首项为条件预测的基准。<br>
+    <strong>实测取值：</strong>视频流 <span class="kbd-term">s_t=3, s_m=3</span>；音频流 <span class="kbd-term">s_t=7, s_m=3</span>。音频的文本引导更强（7），说明「说什么」比「怎么对齐」更需要被推。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">两根旋钮的作用面（示意，非原图）</text>
+    <!-- axes -->
+    <line x1="110" y1="240" x2="420" y2="240" stroke="#5D6D7E" stroke-width="2"/>
+    <line x1="110" y1="240" x2="110" y2="70" stroke="#5D6D7E" stroke-width="2"/>
+    <text x="265" y="272" text-anchor="middle" font-size="12" fill="#5D6D7E" font-family="Noto Sans SC">s_t（文本遵循）</text>
+    <text x="80" y="160" text-anchor="middle" font-size="12" fill="#5D6D7E" font-family="Noto Sans SC" transform="rotate(-90 80 160)">s_m（跨模态对齐）</text>
+    <text x="120" y="60" font-size="11" fill="#95A5A6" font-family="Noto Sans SC">高</text>
+    <text x="400" y="258" font-size="11" fill="#95A5A6" font-family="Noto Sans SC">高</text>
+    <!-- hint region -->
+    <rect x="120" y="72" width="290" height="160" fill="#1B4B6F" opacity="0.06"/>
+    <circle cx="180" cy="190" r="7" fill="#1B4B6F"/><text x="192" y="194" font-size="11" fill="#1B4B6F" font-family="Noto Sans SC">视频：s_t=3, s_m=3</text>
+    <circle cx="300" cy="150" r="7" fill="#5A8F7B"/><text x="312" y="154" font-size="11" fill="#5A8F7B" font-family="Noto Sans SC">音频：s_t=7, s_m=3</text>
+    <text x="470" y="90" font-size="12" fill="#E85D4E" font-weight="700" font-family="Noto Sans SC">解耦的含义：</text>
+    <text x="470" y="114" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">s_t 推「文本说什么」，s_m 推「音画怎么对应」。</text>
+    <text x="470" y="138" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">二者同高会过饱和（画面过锐、声音过紧）；</text>
+    <text x="470" y="162" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">音频更吃 s_t：台词准确性靠文本先验扛。</text>
+    <text x="470" y="196" font-size="11.5" fill="#C9A86C" font-family="Noto Sans SC">↑ 这是「可分离性假设」，是批判点之一</text>
+  </svg><div class="figcap"><b>图 3</b> · modality-CFG 的两根旋钮与其作用面</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>为什么把「时间对齐」交给 RoPE，把「语义对齐」交给 CFG</h4>
+    <p>这是两个正交的控制面：RoPE 决定<em>两路 token 如何被比较</em>（结构性），CFG 决定<em>生成分布被推向哪里</em>（采样性）。把结构性对齐放进架构、把分布性偏置放进采样，好处是推理期可调而无需重训——这也是 modality-CFG 能在开源权重上「即插即调」的原因。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> 表示与解码：1/25 秒一个 token 的因果音频 VAE</h2>
+  <p>音频侧的表示是这篇最容易被忽略、却决定成败的一环。LTX-2 用一个<strong>因果音频 VAE</strong>把波形压成 1D latent：每个 token 对应约 <span class="kbd-term">1/25 秒</span>音频，用 <span class="kbd-term">128 维</span> 特征表示。解码端是改进的 HiFi-GAN 声码器，支持<strong>联合立体声合成与上采样</strong>。</p>
+  <div class="figure"><svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="260" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">音频 latent 的时间网格：25 token / 秒</text>
+    <line x1="60" y1="120" x2="740" y2="120" stroke="#5D6D7E" stroke-width="2"/>
+    <text x="60" y="150" font-size="11" fill="#95A5A6" font-family="JetBrains Mono,monospace">t=0</text>
+    <text x="700" y="150" font-size="11" fill="#95A5A6" font-family="JetBrains Mono,monospace">t=1s</text>
+    <g>
+      <rect x="60" y="96" width="680" height="24" fill="#5A8F7B" opacity="0.18" stroke="#5A8F7B" stroke-width="1.5" rx="4"/>
+      <g stroke="#5A8F7B" stroke-width="1" opacity="0.7">
+        <line x1="87" y1="96" x2="87" y2="120"/><line x1="114" y1="96" x2="114" y2="120"/><line x1="141" y1="96" x2="141" y2="120"/>
+        <line x1="168" y1="96" x2="168" y2="120"/><line x1="195" y1="96" x2="195" y2="120"/><line x1="222" y1="96" x2="222" y2="120"/>
+        <line x1="249" y1="96" x2="249" y2="120"/><line x1="276" y1="96" x2="276" y2="120"/><line x1="303" y1="96" x2="303" y2="120"/>
+      </g>
+      <text x="400" y="86" text-anchor="middle" font-size="11" fill="#5A8F7B" font-family="Noto Sans SC">每格 = 1 token ≈ 40ms ≈ 128-d 向量（示意画法，仅显示前若干格）</text>
+    </g>
+    <text x="60" y="196" font-size="12" fill="#2C3E50" font-family="Noto Sans SC">因果（causal）意味着：解码第 i 个 token 不依赖未来 —— 这才让流式/长时生成成为可能。</text>
+    <rect x="60" y="210" width="230" height="30" rx="6" fill="#1B4B6F"/><text x="175" y="230" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">波形 → Causal VAE → 1D latent</text>
+    <text x="300" y="230" font-size="14" fill="#E85D4E">→</text>
+    <rect x="330" y="210" width="230" height="30" rx="6" fill="#5A8F7B"/><text x="445" y="230" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">latent → HiFi-GAN 立体声 Vocoder</text>
+    <text x="575" y="230" font-size="12" fill="#95A5A6" font-family="Noto Sans SC">（联合立体声合成 + 上采样）</text>
+  </svg><div class="figcap"><b>图 4</b> · 因果音频 VAE 的时间网格与解码链</div></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1/25 秒的网格，对「瞬态」是够还是不够？</h4>
+    <p>40ms 的 token 粒度对语音音素与多数拟音够用，但对<strong>强瞬态</strong>（打击、爆裂、门响的起音）会偏粗：起音的能量包络往往落在 5–10ms 量级。论文没有给出针对瞬态误差的专门指标（如 onset 偏差分布），这让人无法判断「同步」在瞬态事件上到底有多紧。这是一个可验证的缺口，而非否定性结论。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 效率之谜：19B 为什么比 14B 快 18 倍</h2>
+  <p>论文 Table 1 给出的数字是全文最反直觉的一处：在 H100 上、121 帧 720p、单步 Euler、CFG=1 的基准下，<strong>Wan 2.2-14B 每步 22.30 秒，而 LTX-2（19B，音视频）每步 1.22 秒</strong>，约 18× 差距。</p>
+  <div class="figure"><svg viewBox="0 0 800 240" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="240" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">Table 1 重绘：H100 上每扩散步耗时（秒，越低越好）</text>
+    <text x="20" y="76" font-size="12" fill="#5D6D7E" font-family="Noto Sans SC">Wan 2.2-14B（仅视频）</text>
+    <rect x="220" y="60" width="520" height="26" rx="4" fill="#95A5A6"/>
+    <text x="748" y="79" text-anchor="end" font-size="12" fill="#fff" font-family="JetBrains Mono,monospace">22.30s</text>
+    <text x="20" y="136" font-size="12" fill="#5D6D7E" font-family="Noto Sans SC">LTX-2（19B，音+视频）</text>
+    <rect x="220" y="120" width="28" height="26" rx="4" fill="#1B4B6F"/>
+    <text x="258" y="139" font-size="12" fill="#1B4B6F" font-family="JetBrains Mono,monospace">1.22s</text>
+    <text x="20" y="190" font-size="12.5" fill="#E85D4E" font-family="Noto Sans SC" font-weight="700">≈18× 更快</text>
+    <text x="20" y="212" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">注意口径：这是「每步」耗时，不是端到端延迟；总延迟还取决于采样步数。</text>
+  </svg><div class="figcap"><b>图 5</b> · 每扩散步耗时对比（数据取自原文 Table 1）</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「更少算力」来自 latent 空间，而不是更小的网络</h4>
+    <p>参数量更大却更快，说明瓶颈不在权重规模，而在<strong>每个 token 要算多少、序列有多长</strong>。论文把原因归到「优化的 latent 空间机制」——即用更高压缩率、更短序列的 latent 表达同样的时长。这带来一个可检验的推论：<em>效率优势应随分辨率与时长增大而扩大</em>（论文也如此陈述）。但它同时埋下代价：压缩越狠，高频细节与瞬态越容易丢，这与第 05 节的担忧同源。</p>
+  </div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>「18×」不能直接读作「体验快 18 倍」</h4>
+    <p>每步耗时只覆盖单次前向。真实体验还含：采样步数（若用多步蒸馏则另算）、VAE 解码、声码器、文本编码。论文的对比是<strong>同口径单步</strong>，这本身是合理设计，但读者容易误读为端到端 18×。这是一个典型的「指标口径陷阱」，值得在任何引用该数字的场合标注清楚。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 优势与证据：20 秒 + 全开源 + 人评对标闭源</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>LTX-2 的陈述</th><th>可核对的证据形态</th></tr></thead>
+    <tbody>
+      <tr><td class="route">时长</td><td>最长 20 秒连续视频 + 同步立体声</td><td>对比 Veo 3（12s）、Sora 2（16s）、Ovi（10s）、Wan 2.5（10s）</td></tr>
+      <tr><td class="route">音频内容</td><td>不止语音：环境声、foley 拟音随角色/环境/风格/情绪变化</td><td>摘要与引言陈述</td></tr>
+      <tr><td class="route">人评</td><td>视觉真实感、音频保真、时间同步（口型/拟音）三维度偏好研究</td><td>优于开源（如 Ovi）<；与 Veo 3 / Sora 2 相当</td></tr>
+      <tr><td class="route">效率</td><td>每步 1.22s vs Wan 2.2 的 22.30s</td><td>Table 1（121 帧 @720p，单步 Euler，CFG=1）</td></tr>
+      <tr><td class="route">开放性</td><td>权重与代码全部公开</td><td>论文声明</td></tr>
+    </tbody></table></div>
+  <p>把五项放在一起看，LTX-2 的定位很清楚：<strong>它是「开源阵营里第一个把音视频联合生成做到可对标闭源」的基座</strong>。对人评三维度的选择（真实感 / 保真 / 同步）也说明作者认为「同步」是与画质并列的一等公民，而不是附属指标。</p>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">08</span> 批判评估：四个需要追问的地方</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 14 : 5 的容量分配，是结论还是选择？</h4>
+    <p>论文把非对称说成「为视频分配更多容量」的合理性，但没有给出容量比例的缩放实验（如 12:7、16:3 会怎样）。在缺少这一消融时，「14:5 最优」只是一个<strong>设计选择</strong>而非被验证的结论。若音频任务（多说话人、复杂声景）变难，这个比例可能需要重估。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 人评是主证据，但缺自动指标的完整报告</h4>
+    <p>摘要强调人评与闭源相当，但公开文本中没有看到系统性的自动同步/音频质量指标表（如 Sync-C/D、FAD 之类的完整对照）。人评主观、样本量与小样本方差都不透明，这让「可比肩闭源」难以被第三方复核。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 20 秒仍是「短片」，长时一致性未解</h4>
+    <p>20 秒相对同行是领先，但对「对话、剧情、直播」这类真实需求仍是量级不足。更关键的是：模型没有显式记忆机制，超过训练窗口后身份/场景漂移如何控制，论文没有回答。这恰好是后面 Omni-LiveAvatar / Salt++ 一类工作要接的棒。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. modality-CFG 的可分离性只是经验假设</h4>
+    <p>把引导拆成 s_t 与 s_m 隐含「文本方向」与「跨模态方向」线性无关。但从扩散引导理论看，两个方向在同一 score field 上未必正交，可能存在交互项。论文给了取值（3/3、7/3），但没有给出二维网格的系统扫描，因此「拆开更好」缺少机制层面的证明。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">09</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>非对称容量分配是否存在可预测的最优比例？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>14:5 是手选。若存在「按任务声景复杂度决定音频容量占比」的规律，基座设计就能从试错变为可计算。</p>
+      <p><strong>理论分析：</strong>可把两流的容量视为信息瓶颈的两个通道：视频的信息熵主要由空间/运动维度决定，音频由时间×频谱维度决定。设音频 token 率 r_a、视频 token 率 r_v，则容量比应与 r_a·d_a 和 r_v·d_v 的「有效秩」之比相关。若音频 VAE 的 40ms/128-d 网格固定，则容量分配问题可写成在固定总参数下最小化联合重建误差的拉格朗日问题。</p>
+      <p><strong>连接：</strong>与 MOVA 的「audio latent 远比 video latent 稠密」观察直接相关——稠密度不同意味着等参数量下两流的有效感受野不同。</p>
+      <p><strong>探究方向：</strong>固定总算力，扫描 12:7 / 14:5 / 16:3，同时报告 Sync 与 FAD；用 scaling law 拟合「音频容量 → 同步误差」曲线。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>人评三维度与自动同步指标之间是否存在稳定映射？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>如果人评的「同步感」不能被 Sync-C/Sync-D 之类指标解释，那么整个领域的自动评测都建立在沙地上。</p>
+      <p><strong>理论分析：</strong>可把「感知同步」建模为事件级对齐误差的加权积分，权重由人类对瞬态的敏感度决定（近似在起音处加权）。若自动指标是帧级/片段级的，它的积分核与人感核不同，就会出现系统性偏差——这可用核回归拟合检验。</p>
+      <p><strong>连接：</strong>这正是 AVC-Reward 试图解决的「事件级 vs 帧级」问题；也是 JavisDiT 提出专用同步指标的动机。</p>
+      <p><strong>探究方向：</strong>在 LTX-2 输出上做「人为注入固定 onset 偏移」的受控实验，测人评与各指标对偏移的敏感曲线，比较斜率与阈值。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>突破 20 秒需要什么样的记忆结构？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>20 秒是当前窗口上限；真实对话/直播要求分钟级。</p>
+      <p><strong>理论分析：</strong>长时一致性可分解为「身份」与「场景」两类状态。若把状态显式建模为低维隐变量并在窗口间传递，误差累积可被约束在状态更新算子的谱半径内——这给出了「何时会漂移」的可分析条件。</p>
+      <p><strong>连接：</strong>Omni-LiveAvatar 的分钟级流式、Salt++ 的少步流式后训练、FlowLong 的训练无关键窗融合，是三条不同的记忆路线；LTX-2 的因果音频 VAE 已为流式预留了结构。</p>
+      <p><strong>探究方向：</strong>在 LTX-2 上做「窗口重叠 + 状态重注入」的最小改动实验，测 60s 时的 Face-Sim 与音频身份一致性衰减曲线。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">10</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># modality-aware CFG（依据论文 Eq.1 与取值重建，非官方实现）</span>
+<span class="kw">def</span> <span class="fn">modality_cfg</span>(model, x, t, cond, uncond_text, uncond_modal, s_t, s_m):
+    <span class="cm"># 三项预测：条件 / 去文本 / 去跨模态</span>
+    p_c   = model(x, t, cond)                 <span class="cm"># M(x,t,m)</span>
+    p_noT = model(x, t, cond, drop_text=<span class="kw">True</span>)  <span class="cm"># M(x,∅,m)</span>
+    p_noM = model(x, t, cond, drop_modal=<span class="kw">True</span>) <span class="cm"># M(x,t,∅)</span>
+    <span class="kw">return</span> p_c + s_t * (p_c - p_noT) + s_m * (p_c - p_noM)
+
+<span class="cm"># 论文取值：视频 s_t=3, s_m=3 ；音频 s_t=7, s_m=3</span>
+VIDEO_CFG = dict(s_t=<span class="st">3.0</span>, s_m=<span class="st">3.0</span>)
+AUDIO_CFG = dict(s_t=<span class="st">7.0</span>, s_m=<span class="st">3.0</span>)</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 音频 latent 时间网格与解码链（依据论文 3.3 节描述重建）</span>
+SAMPLE_RATE   = <span class="st">44100</span>          <span class="cm"># 论文提到 44.1kHz 级波形输出</span>
+TOKENS_PER_S  = <span class="st">25</span>              <span class="cm"># 每 token ≈ 1/25 s</span>
+LATENT_DIM    = <span class="st">128</span>             <span class="cm"># 每 token 128 维</span>
+
+<span class="kw">def</span> <span class="fn">audio_latent_len</span>(seconds): <span class="kw">return</span> <span class="fn">round</span>(seconds * TOKENS_PER_S)
+<span class="kw">def</span> <span class="fn">decode_audio</span>(latent):
+    <span class="cm"># causal VAE decode → mel/波形特征 → HiFi-GAN 立体声 vocoder</span>
+    feats = causal_audio_vae.decode(latent)      <span class="cm"># [T, 128] → 频谱特征</span>
+    wav   = hifigan_stereo_vocoder(feats)        <span class="cm"># 联合立体声合成 + 上采样</span>
+    <span class="kw">assert</span> wav.shape[-<span class="st">1</span>] == <span class="st">2</span>          <span class="cm"># 立体声双声道</span>
+    <span class="kw">return</span> wav</pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>因果音频 VAE 是「流式能力」的地基</h4>
+    <p>很多人把 LTX-2 的贡献记成「双流 + CFG」，但真正决定它能否走向实时的是<strong>因果</strong>音频 VAE：因果意味着第 i 个 token 的解码不依赖未来 token，因此可以边生成边解码。没有这一点，即便生成端是流式的，解码端仍要等整段音频——这会成为实时化的隐性瓶颈。</p>
+  </div>
+</section>

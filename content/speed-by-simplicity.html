@@ -1,0 +1,269 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂 &amp; 问题动机</h2>
+  <p class="lead">Speed by Simplicity 的主张可以用一句话压缩：<strong>音视频联合生成的「快」，可以从架构的「简」里长出来</strong>。开源工作 daVinci-MagiHuman 用一个 15B 参数、40 层的<strong>单流 Transformer</strong>（single-stream）在统一 token 序列里以<strong>纯 self-attention</strong> 联合去噪文本、视频、音频——没有独立跨注意力、没有融合模块、没有专用对齐层——再叠加蒸馏、latent 空间超分、Turbo VAE 解码器与全图编译，做到单张 H100 上 <strong>2 秒生成 5 秒 256p 视频</strong>、38.4 秒生成 5 秒 1080p 视频。</p>
+  <p>动机来自开源生态的缺口。闭源模型（Veo 3、Sora 2、Kling 3.0）展示了音视频联动生成的上限，但开源进展（Ovi、LTX-2 等）受限，且这些领先开源模型普遍依赖<strong>重度特化的多流设计</strong>：文本与视频走部分分离的分支，靠 cross-attention 或专用模块融合；到了音视频生成，视频与音频的时序结构和语义模式差异更大，于是出现独立通路、专用融合块、模态专用对齐模块。论文的判断是：这种复杂度不只是模型设计问题——<strong>多流架构引入更不规则的计算模式，使实现与优化在工程上难得多</strong>。单流设计让模型层面简单、且易于与训练/推理基础设施联合优化，更适合未来研究与社区发展。</p>
+  <p>效果侧的三个锚点数字（论文表述）：自动评测上视觉质量与文本对齐领先、语音可懂度 WER 最低 <strong>14.60%</strong>（Ovi 1.1 为 40.45%，LTX 2.3 为 19.23%）；2,000 次成对人类评测中对 Ovi 1.1 胜率 <strong>80.0%</strong>、对 LTX 2.3 胜率 <strong>60.9%</strong>；完整开源基座、蒸馏、超分模型与推理代码栈。多语言覆盖中文（普通话与粤语）、英语、日语、韩语、德语、法语。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「简单」在这篇论文里不是审美，而是可量化的工程资产</h4>
+    <p>大多数论文把架构简单当卖点陈述，本文则给出了因果链：单流 → 计算图规整 → 算子融合与通信合并更容易（MagiCompiler 全图编译拿到约 1.2× 的 H100 加速）→ 训练与推理基础设施可以<strong>联合</strong>优化。换言之，「简单」的收益不止参数效率，更是<strong>优化器与编译器的可达性</strong>。这是一个常被学术论文忽略、但在部署中往往决定生死的维度：不规则的多流计算图会让任何图级优化碎片化。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 范式对比：单流（single-stream）vs 双流/多流（dual/multi-stream）</h2>
+  <p>先把两种范式摆在同一张图上。多流范式（论文以 Ovi 的双骨干跨模态融合、LTX-2 及多数开源视频/音视频模型为代表）为不同模态维护部分或完全独立的通路，再用 cross-attention 或专用融合/对齐模块汇合；单流范式把文本、视频、音频 token 放进一条共享骨干，用统一的 self-attention 栈建模，模态差异只在输入/输出边界处用模态专用投影与归一化处理。论文对代价的表述很直接：多流“make the overall architecture substantially more complex”，且“more irregular computation patterns, making implementation and optimization much harder in practice”（论文表述）。</p>
+  <div class="figure"><svg viewBox="0 0 800 430" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="430" fill="#F7F4EC"/>
+    <text x="20" y="32" font-family="Noto Sans SC,sans-serif" font-size="19" font-weight="bold" fill="#1B4B6F">范式对比 · 双流/多流 vs 单流（daVinci-MagiHuman 的选择）</text>
+    <text x="30" y="64" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#E85D4E">（a）双流 / 多流：模态分路 + 融合/对齐模块</text>
+    <rect x="30" y="80" width="150" height="40" fill="#2C3E50"/><text x="62" y="105" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">文本 tokens</text>
+    <rect x="30" y="132" width="150" height="40" fill="#1B4B6F"/><text x="62" y="157" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">视频 tokens</text>
+    <rect x="30" y="184" width="150" height="40" fill="#5A8F7B"/><text x="62" y="209" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">音频 tokens</text>
+    <rect x="210" y="80" width="130" height="40" fill="#C9A86C"/><text x="222" y="105" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">文本分支</text>
+    <rect x="210" y="132" width="130" height="40" fill="#C9A86C"/><text x="222" y="157" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">视频分支</text>
+    <rect x="210" y="184" width="130" height="40" fill="#C9A86C"/><text x="222" y="209" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">音频分支</text>
+    <rect x="370" y="122" width="120" height="56" fill="#E85D4E"/><text x="382" y="146" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">cross-attention</text><text x="382" y="166" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">/ 融合块 / 对齐层</text>
+    <line x1="340" y1="100" x2="370" y2="135" stroke="#2C3E50" stroke-width="2"/>
+    <line x1="340" y1="152" x2="370" y2="152" stroke="#2C3E50" stroke-width="2"/>
+    <line x1="340" y1="204" x2="370" y2="169" stroke="#2C3E50" stroke-width="2"/>
+    <rect x="520" y="132" width="140" height="40" fill="#2C3E50"/><text x="540" y="157" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">视频 + 音频输出</text>
+    <line x1="490" y1="150" x2="518" y2="150" stroke="#2C3E50" stroke-width="2"/><polygon points="518,145 528,150 518,155" fill="#2C3E50"/>
+    <text x="30" y="250" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">代价：分支+融合模块使架构复杂；计算模式不规则 → 实现/优化难（论文表述）</text>
+    <line x1="30" y1="270" x2="770" y2="270" stroke="#C9A86C" stroke-width="2" stroke-dasharray="8,5"/>
+    <text x="30" y="300" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#1B4B6F">（b）单流：统一 token 序列 + 纯 self-attention（本文）</text>
+    <rect x="30" y="316" width="130" height="36" fill="#2C3E50"/><text x="52" y="339" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">文本 tokens</text>
+    <rect x="168" y="316" width="150" height="36" fill="#1B4B6F"/><text x="190" y="339" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">视频 tokens（含噪）</text>
+    <rect x="326" y="316" width="150" height="36" fill="#5A8F7B"/><text x="348" y="339" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">音频 tokens（含噪）</text>
+    <rect x="484" y="316" width="140" height="36" fill="#C9A86C"/><text x="500" y="339" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">参考图 latent（可选）</text>
+    <rect x="30" y="368" width="740" height="42" fill="#1B4B6F"/><text x="200" y="394" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">统一 40 层单流 Transformer · 全部模态一条 token 序列 · self-attention only · 联合去噪视频与音频</text>
+  </svg><div class="figcap"><b>图 1</b> · 范式对比图：双流把模态差异显式建模成「分支 + 融合」，单流把它折叠进「统一序列 + 共享权重」——工程规整性正是从这张图右半边的极简连线里来的。</div></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>双流 / 多流（cross-attention 系）</th><th>单流（daVinci-MagiHuman）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">模态通路</td><td>文本/视频/音频部分或完全分离的分支（论文表述）</td><td>统一 token 序列、共享权重骨干</td></tr>
+      <tr><td class="route">融合机制</td><td>cross-attention、专用融合块、模态专用对齐模块</td><td>纯 self-attention，无独立融合模块</td></tr>
+      <tr><td class="route">模态特化位置</td><td>贯穿网络（分支全程）</td><td>仅首/末各 4 层的模态专用投影与 RMSNorm（sandwich）</td></tr>
+      <tr><td class="route">计算图规整性</td><td>不规则计算模式，实现与优化更难（论文表述）</td><td>规整，利于算子融合与通信合并（MagiCompiler 约 1.2× 加速）</td></tr>
+      <tr><td class="route">条件接口</td><td>任务专用条件分支/融合模块</td><td>统一条件接口：去噪 token、文本、可选图像条件同一 latent/token 空间</td></tr>
+      <tr><td class="route">风险</td><td>复杂度高、工程成本高</td><td>模态干扰风险由 sandwich 边界层部分吸收（论文未消融，标注：本文推断）</td></tr>
+      <tr><td class="route">代表工作</td><td>Ovi（双骨干跨模态融合）、LTX-2 及多数开源 AV 模型（论文表述）</td><td>daVinci-MagiHuman（15B、40 层）</td></tr>
+    </tbody></table></div>
+  <p>值得强调的是论文对「简单」的<strong>双重定义</strong>：模型层面简单（没有专用模块族），且<strong>与基础设施协同简单</strong>（standard training and inference infrastructure 即可优化）。第二点才是它区别于「小模型」的地方——它主张的是大规模（15B）下单流更可扩展，而不是小规模下单流更省。</p>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> 系统分解：sandwich 布局、无时间步去噪、逐头门控</h2>
+  <p>40 层单流骨干并非完全同质，论文用了三个极简但关键的设计。<strong>（1）Sandwich 架构布局</strong>：首 4 层与末 4 层使用模态专用的投影与 RMSNorm 参数，中间 32 层跨模态共享主 Transformer 参数——模态敏感处理保留在输入/输出边界，大部分计算在公共表示空间里做深度多模态融合。<strong>（2）无时间步去噪（Timestep-Free Denoising）</strong>：不同于原始 DiT 用显式 timestep embedding 或 AdaLN 注入扩散时间信息，该去噪器<strong>没有专用时间步通路</strong>，直接从含噪视频/音频 latent 推断去噪状态（论文引 Sun et al. 2025、Tang et al. 2025 的近期观察）。<strong>（3）逐头门控（Per-Head Gating）</strong>：每个注意力头在输出投影前乘一个 sigmoid 门控标量，借鉴 LLM 的 gated attention 实践，用于提升训练数值稳定性与可表示性，架构开销极小。<strong>（4）统一条件接口</strong>：去噪视频/音频 token、文本、可选图像条件全部在同一 latent/token 空间，由同一模型处理，不做任务专用融合模块。</p>
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="330" fill="#F7F4EC"/>
+    <text x="20" y="32" font-family="Noto Sans SC,sans-serif" font-size="19" font-weight="bold" fill="#1B4B6F">架构流 · 40 层 sandwich 单流骨干</text>
+    <rect x="30" y="60" width="740" height="34" fill="#2C3E50"/><text x="240" y="82" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">统一 token 序列：文本 + 参考图 latent + 含噪视频 + 含噪音频</text>
+    <rect x="30" y="112" width="740" height="52" fill="#C9A86C"/><text x="46" y="134" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">前 4 层 · 模态专用投影 + 模态专用 RMSNorm</text><text x="46" y="154" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">（模态敏感的输入边界）</text>
+    <rect x="30" y="182" width="740" height="72" fill="#1B4B6F"/><text x="46" y="210" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">中间 32 层 · 跨模态共享主 Transformer 参数</text><text x="46" y="232" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">每块：self-attention（逐头门控 õ_h = σ(g_h)·o_h）+ FFN；无 timestep/AdaLN 通路</text>
+    <rect x="30" y="272" width="740" height="42" fill="#C9A86C"/><text x="46" y="298" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">后 4 层 · 模态专用投影 + RMSNorm → 联合输出视频与音频的去噪预测</text>
+    <text x="640" y="142" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">模态特化仅在边界</text>
+    <text x="640" y="216" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">共享 = 融合</text>
+    <text x="600" y="298" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">15B 参数 · 40 层</text>
+  </svg><div class="figcap"><b>图 2</b> · sandwich 布局把「模态差异」压缩到首尾 8 层，中间 32 层的参数共享本身就是融合机制——这是对「双流需要专用融合模块」的直接回答。</div></div>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">Sandwich 架构布局</div>
+      <div class="dd">首/末各 4 层模态专用投影与 RMSNorm，中间 32 层共享。<span class="alt">替代方案：全程共享（模态干扰无缓冲）或全程分路（退回多流复杂度）。</span></div></div>
+    <div class="def-item"><div class="dt">无时间步去噪</div>
+      <div class="dd">无专用 timestep 通路，从含噪 latent 本身推断去噪状态（论文表述，引 Sun et al. 2025；Tang et al. 2025）。<span class="alt">替代方案：DiT 式显式 timestep embedding / AdaLN 条件。</span></div></div>
+    <div class="def-item"><div class="dt">逐头门控</div>
+      <div class="dd">每个注意力头输出乘 σ(g_h) 门控后过输出投影，动机是训练数值稳定性与可表示性，开销极小。<span class="alt">替代方案：无门控注意力或全局标量门控。</span></div></div>
+    <div class="def-item"><div class="dt">统一条件接口</div>
+      <div class="dd">去噪 token、文本、可选图像条件同空间同模型，支持多种条件/生成设置而不加任务专用模块。<span class="alt">替代方案：按任务挂独立条件分支。</span></div></div>
+    <div class="def-item"><div class="dt">Latent 与解码</div>
+      <div class="dd">Wan2.2 VAE 编码（高压缩比）；推理时用轻量重训的 Turbo VAE 解码器替换原视频解码器，降低关键路径上的解码开销。<span class="alt">替代方案：像素空间超分（需 VAE 解码-编码往返）。</span></div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">DMD-2 蒸馏基座生成器，蒸馏后 8 步去噪、无需 CFG（延迟数字默认用蒸馏模型）；完整开源基座/蒸馏/超分模型与推理代码。<span class="alt">替代方案：保留 CFG 的多步采样（延迟翻倍量级）。</span></div></div>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 关键公式：逐头门控与「token 数随分辨率暴涨」的成本律</h2>
+  <p>论文正文给出的显式公式只有一条——逐头门控；但效率故事的另一半可以从其分辨率-成本叙述中严格读出。两条都值得放进公式卡。</p>
+  <div class="formula-card"><div class="f-label">Eq.1 · 逐头门控（原文公式，系数核对：σ(·) 为 sigmoid，g_h 为可学习标量）</div>
+    <div>$$ \tilde{o}_h = \sigma(g_h)\, o_h $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>o_h 是第 h 个注意力头的输出，g_h 是对应的可学习门控标量，门控在<strong>输出投影之前</strong>施加。相比逐 token 的门控，逐头门控只加 H 个标量（H 为头数），却让每个头学会自己的增益，类似 LLM gated attention 的做法；论文给出的动机是训练数值稳定性与模型可表示性，而非表达力的大升级。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.2 · 视频 token 数与空间分辨率的关系（由原文表述推导：「video token count grows quickly with spatial resolution」）</div>
+    <div>$$ N_{\text{token}} \propto \frac{H \times W}{p^2} \quad\Longrightarrow\quad C_{\text{attn}},\, C_{\text{FFN}} \propto N_{\text{token}} \ (\text{FFN/线性}),\ \ O(N_{\text{token}}^2)\ (\text{全图 self-attention}) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>p 为 patch 尺寸。这解释了本文与 TaoMate-HD 同源的动机：直接从零生成高分辨率视频昂贵，所以基座只在 256p 生成、高分辨率靠 latent 超分补。1080p 超分阶段在许多层打开<strong>局部注意力</strong>，就是把 O(N²) 项降下来的具体手段（论文表述）。注意系数（patch 尺寸、层数、头数）原文未给，故此式只记比例关系。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.3 · 端到端延迟分解（由原文 Table 2 数值核对）</div>
+    <div>$$ T_{\text{total}} = T_{\text{base}} + T_{\text{SR}} + T_{\text{decode}} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>代入 Table 2（5 秒视频、单 H100、基座恒为 256p 蒸馏模型、Turbo 解码）：256p：1.6 + 0 + 0.4 = <strong>2.0s</strong>；540p：1.6 + 5.1 + 1.3 = <strong>8.0s</strong>；1080p：1.6 + 31.0 + 5.8 = <strong>38.4s</strong>。基座项不随输出分辨率变，高分辨率成本几乎全部落在超分与解码两项——这既是「latent 超分让基座成本恒定」的收益证明，也暴露了下一步优化的靶子（31.0s 的超分）。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>无时间步去噪与少步蒸馏是共生关系</h4>
+    <p>去掉 timestep/AdaLN 通路看似只是删模块，但在 DMD-2 蒸馏出的 <strong>8 步无 CFG</strong> 采样下有结构性意义：步数越少，相邻去噪态之间的 σ 间隔越粗，显式时间嵌入提供的「细粒度进度信号」越冗余；而模型从含噪输入本身推断状态，天然与「每步都要能一步到位估计干净端点」的蒸馏目标对齐。TaoMate-HD 的式 1（x̂ = u + σ·v̂）也依赖这种「从当前状态读出进度」的能力——两篇论文在这一点上殊途同归。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> 高效推理栈：latent 超分、Turbo 解码、全图编译、蒸馏</h2>
+  <p>单流骨干之外，论文叠加四个互补的推理技术。<strong>Latent 空间超分</strong>：基座先在低基座分辨率（256p）生成视频与音频 latent，超分阶段在更高分辨率精修；在 latent 而非像素空间做，理由是与扩散原生表示对齐、复用同一骨干架构、避免 VAE 解码-编码往返。具体做法：三线性插值上采样视频 latent → 注入噪声 → 用专用超分检查点<strong>只做 5 步去噪</strong>；1080p 设置下超分模型在许多层启用局部注意力控制成本。值得注意的细节：超分阶段仍吃音频 latent token 并在同一骨干内联合预测视频与音频，但<strong>实践中只有视频 latent 被显式更新</strong>，基座的音频 latent 以加噪形式作为辅助输入复用——这让精修过程与音频信号保持耦合，在基座分辨率很粗、唇同步容易丢失时尤其有用（论文表述）。<strong>Turbo VAE 解码器</strong>（Turbo-VAED 一系的轻量重训版）替换原视频解码器，因为解码同时位于基座与超分管线的关键路径。<strong>MagiCompiler 全图编译</strong>：跨 Transformer 层边界融合算子、把分布式通信合并为更少的集合通信调用，在 H100 上约 1.2× 加速。<strong>蒸馏</strong>：DMD-2 蒸馏基座，8 步去噪、无 CFG。</p>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="320" fill="#F7F4EC"/>
+    <text x="20" y="32" font-family="Noto Sans SC,sans-serif" font-size="19" font-weight="bold" fill="#1B4B6F">推理管线 · 基座恒定 + 超分/解码承担分辨率成本</text>
+    <rect x="30" y="70" width="180" height="70" fill="#1B4B6F"/><text x="44" y="98" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">基座生成（恒定）</text><text x="44" y="118" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">256p · 蒸馏 8 步 · 无 CFG</text><text x="44" y="133" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">视频+音频 latent</text>
+    <line x1="210" y1="105" x2="248" y2="105" stroke="#2C3E50" stroke-width="2"/><polygon points="248,100 258,105 248,110" fill="#2C3E50"/>
+    <rect x="258" y="70" width="220" height="70" fill="#C9A86C"/><text x="272" y="98" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">Latent 超分（540p/1080p）</text><text x="272" y="118" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">三线性上采样 + 注噪 + 5 步精修</text><text x="272" y="133" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">1080p：多层局部注意力</text>
+    <line x1="478" y1="105" x2="516" y2="105" stroke="#2C3E50" stroke-width="2"/><polygon points="516,100 526,105 516,110" fill="#2C3E50"/>
+    <rect x="526" y="70" width="180" height="70" fill="#5A8F7B"/><text x="540" y="98" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">Turbo VAE 解码</text><text x="540" y="118" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">轻量重训解码器</text><text x="540" y="133" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">位于关键路径</text>
+    <rect x="30" y="180" width="676" height="44" fill="#E85D4E" opacity="0.9"/><text x="46" y="207" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">音频耦合：超分阶段以加噪形式复用基座音频 latent 作辅助输入（只读），仅显式更新视频 latent → 保唇同步</text>
+    <rect x="30" y="244" width="676" height="44" fill="#2C3E50"/><text x="46" y="271" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">MagiCompiler 全图编译（跨层算子融合 + 通信合并，H100 约 1.2×）＋ DMD-2 蒸馏（8 步、无 CFG）</text>
+  </svg><div class="figcap"><b>图 3</b> · 推理管线图：把「高分辨率贵」拆成三段后，基座成本被冻结在 256p，分辨率成本被压缩进超分与解码——音频以加噪只读的方式留在超分回路里，是这条管线里最容易被忽略的设计。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="280" fill="#F7F4EC"/>
+    <text x="20" y="32" font-family="Noto Sans SC,sans-serif" font-size="19" font-weight="bold" fill="#1B4B6F">延迟分解 · Table 2 的堆叠视图（5 秒视频，单 H100）</text>
+    <text x="30" y="76" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">256p</text>
+    <rect x="120" y="58" width="130" height="30" fill="#1B4B6F"/><text x="126" y="78" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">基座 1.6s</text>
+    <rect x="250" y="58" width="33" height="30" fill="#5A8F7B"/><text x="256" y="78" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">0.4</text>
+    <text x="300" y="78" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">合计 2.0s</text>
+    <text x="30" y="130" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">540p</text>
+    <rect x="120" y="112" width="130" height="30" fill="#1B4B6F"/><text x="126" y="132" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">基座 1.6s</text>
+    <rect x="250" y="112" width="415" height="30" fill="#C9A86C"/><text x="256" y="132" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">超分 5.1s</text>
+    <rect x="665" y="112" width="105" height="30" fill="#5A8F7B"/><text x="671" y="132" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">解码 1.3</text>
+    <text x="30" y="184" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">1080p</text>
+    <rect x="120" y="166" width="130" height="30" fill="#1B4B6F"/><text x="126" y="186" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">基座 1.6s</text>
+    <rect x="250" y="166" width="500" height="30" fill="#C9A86C"/><text x="256" y="186" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">超分 31.0s</text>
+    <rect x="750" y="166" width="46" height="30" fill="#5A8F7B"/>
+    <text x="30" y="226" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">1080p 合计 38.4s：81% 的时间在超分——「快」的边界清楚地停在 256p/540p 区间</text>
+    <text x="30" y="252" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">条宽按秒数等比绘制；基座项不随分辨率变，印证「基座成本恒定」的设计目标</text>
+  </svg><div class="figcap"><b>图 4</b> · 延迟堆叠图：把 Table 2 的三行数字画成条形后，「哪一段该被下一个优化打」一目了然——超分是新的关键路径。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「音频只读」的超分设计：一种低成本的同步锚</h4>
+    <p>超分阶段原则上联合预测视频与音频，实践中却只更新视频 latent、把基座音频以<strong>加噪形式</strong>作为辅助输入。这个不对称有两重好处：其一，避免超分改动音频导致音质/时长漂移（解码后音画时长一致性被保住）；其二，音频仍在回路里，唇形精修可以持续参考语音信号——论文明确指出这在基座分辨率很粗、唇同步难保时尤其有用。这与 TaoMate-HD 「音频保持同一 latent 几何、视频才换网格」形成呼应：<strong>音视频联合模型的分辨率调度，实际上只发生在视频轴上，音频是被保护的参照系</strong>。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 证据：质量、人类偏好与速度的三角验证</h2>
+  <p>评测分三路：自动质量指标（VerseBench + VideoScore2 评视觉质量/文本对齐/物理一致性；TalkVid-Bench 上用 GLM-ASR 转写算 WER，CJK 语言按字符级计算以规避分词不一致）、成对人类评测（10 位评分者 × 200 组随机配对 = 2,000 次比较，含对每个对手各 100 次）、以及端到端延迟（单 H100，Table 2）。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>模型</th><th>Visual Quality↑</th><th>Text Alignment↑</th><th>Physical Consistency↑</th><th>WER↓</th></tr></thead>
+    <tbody>
+      <tr><td class="route">Ovi 1.1</td><td>4.73</td><td>4.10</td><td>4.41</td><td>40.45%</td></tr>
+      <tr><td class="route">LTX 2.3</td><td>4.76</td><td>4.12</td><td><strong>4.56</strong></td><td>19.23%</td></tr>
+      <tr><td class="route">daVinci-MagiHuman</td><td><strong>4.80</strong></td><td><strong>4.18</strong></td><td>4.52</td><td><strong>14.60%</strong></td></tr>
+    </tbody></table></div>
+  <p>读表要诚实：视觉质量与文本对齐领先（4.80 / 4.18），WER 大幅领先（14.60% vs 19.23% / 40.45%），但<strong>物理一致性上 LTX 2.3 更好</strong>（4.56 vs 4.52）——论文自己的措辞是「remains competitive on this metric and achieves the strongest overall balance」。自动分数来自 VideoScore2 这类模型评分器，绝对值之间的细小差距（如 4.80 vs 4.76）不宜过度解读。</p>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="300" fill="#F7F4EC"/>
+    <text x="20" y="32" font-family="Noto Sans SC,sans-serif" font-size="19" font-weight="bold" fill="#1B4B6F">人类评测 · 2,000 次成对比较的胜率结构</text>
+    <text x="30" y="70" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">vs Ovi 1.1</text>
+    <rect x="150" y="52" width="480" height="34" fill="#1B4B6F"/><text x="156" y="74" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">胜 80.0%</text>
+    <rect x="630" y="52" width="49" height="34" fill="#C9A86C"/><text x="628" y="46" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">平 8.2%</text>
+    <rect x="679" y="52" width="71" height="34" fill="#E85D4E"/><text x="682" y="74" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">负 11.8%</text>
+    <text x="30" y="132" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">vs LTX 2.3</text>
+    <rect x="150" y="114" width="365" height="34" fill="#1B4B6F"/><text x="156" y="136" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">胜 60.9%</text>
+    <rect x="515" y="114" width="103" height="34" fill="#C9A86C"/><text x="518" y="136" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">平 17.2%</text>
+    <rect x="618" y="114" width="132" height="34" fill="#E85D4E"/><text x="622" y="136" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">负 21.9%</text>
+    <text x="30" y="186" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">WER（TalkVid-Bench，GLM-ASR 转写，CJK 字符级）</text>
+    <rect x="30" y="198" width="405" height="24" fill="#E85D4E"/><text x="36" y="215" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">Ovi 1.1 · 40.45%</text>
+    <rect x="30" y="228" width="192" height="24" fill="#C9A86C"/><text x="36" y="245" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">LTX 2.3 · 19.23%</text>
+    <rect x="30" y="258" width="146" height="24" fill="#1B4B6F"/><text x="36" y="275" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">daVinci · 14.60%</text>
+    <text x="470" y="222" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">胜率对 LTX 2.3 仅 60.9%，</text>
+    <text x="470" y="242" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">强弱差距远小于对 Ovi 1.1</text>
+    <text x="470" y="266" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">10 位评分者 · 每人 200 组 · 随机配对</text>
+    <text x="470" y="286" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">维度：整体 AV 质量 / 同步 / 自然度</text>
+  </svg><div class="figcap"><b>图 5</b> · 证据图：把胜率与 WER 并排，可见优势的结构——对 Ovi 1.1 是全面压制，对 LTX 2.3 则是「多数偏好 + 可观平局」的温和领先。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="250" fill="#F7F4EC"/>
+    <text x="20" y="32" font-family="Noto Sans SC,sans-serif" font-size="19" font-weight="bold" fill="#1B4B6F">效率-质量权衡 · 「快」的适用区间</text>
+    <line x1="80" y1="200" x2="740" y2="200" stroke="#2C3E50" stroke-width="2"/>
+    <line x1="80" y1="200" x2="80" y2="60" stroke="#2C3E50" stroke-width="2"/>
+    <text x="380" y="228" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">生成延迟（秒 / 5 秒视频）→</text>
+    <text x="30" y="90" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" transform="rotate(-90 40 120)">质量/分辨率 →</text>
+    <rect x="110" y="150" width="60" height="50" fill="#1B4B6F"/><text x="112" y="140" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F">256p · 2.0s</text>
+    <rect x="250" y="110" width="60" height="90" fill="#5A8F7B"/><text x="240" y="100" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">540p · 8.0s</text>
+    <rect x="520" y="70" width="60" height="130" fill="#C9A86C"/><text x="500" y="60" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">1080p · 38.4s</text>
+    <text x="120" y="180" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">实时可行</text>
+    <text x="256" y="180" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">近交互</text>
+    <text x="520" y="180" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">离线创作</text>
+    <text x="330" y="244" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">柱高示意输出分辨率，非实测质量分；延迟为 Table 2 实测总时间</text>
+  </svg><div class="figcap"><b>图 6</b> · 权衡示意图：论文的延迟优势集中在低/中分辨率；1080p 落回离线区间——这张图防止把「2 秒」误读成「全分辨率实时」。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>WER 14.60% 的领先，可能既来自架构也来自数据</h4>
+    <p>语音可懂度的差距（14.60% vs 19.23%/40.45%）是本文最醒目的数字，但 WER 是<strong>端到端系统指标</strong>：它同时反映训练语料的语音多样性、多语言覆盖（普通话/粤语/英日韩德法）、以及单流联合去噪的音画协同。论文没有给出控制训练数据的同构对照，因此「单流带来 WER 优势」这一步因果在本文证据链里是<strong>未闭合</strong>的——严谨的表述应是「该系统取得最低 WER」，而非「单流导致最低 WER」。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 深度洞察 &amp; 批判评估</h2>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>单流真正的对手不是双流，而是「融合模块的复杂度税」</h4>
+    <p>把本文与 TaoMate-HD 并读会发现两条互补的路线：TaoMate-HD 在<strong>时间与分辨率调度</strong>上做文章（渐进分辨率 + 阶段并行），daVinci-MagiHuman 在<strong>架构拓扑</strong>上做减法（单流 + sandwich）。两者共同的敌人是「为音视频异构性付出的工程复杂度税」。一个值得追踪的假设是：当模型与数据规模足够大时，显式融合模块带来的归纳偏置优势会被通用注意力的学习能力追平，而复杂度税随规模线性甚至超线性增长——若成立，单流的优势应随规模扩大而扩大，这直接决定了 15B 是终点还是起点。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「sandwich」是对模态冲突的一种软式分工</h4>
+    <p>中间 32 层共享、首尾 8 层模态专用，实质是假设：<strong>模态差异主要存在于输入编码与输出解码两端，中段的语义/动态建模是共通的</strong>。这与多模态表征学习里「浅层模态特化、深层语义共享」的普遍观察一致。它也留下一个尖锐问题：4/32/4 的配比从何而来？若某模态（如音频的高频时序结构）需要更多特化层，固定对称配比可能就是次优的。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>证据链上的四个缺口</h4>
+    <p><strong>① 核心主张没有同构消融。</strong>「单流 vs 双流」的效率/质量论断没有在同一数据、同一参数预算下的双流对照——结论主要建立在与外部模型（Ovi 1.1、LTX 2.3）的横向比较和工程推理上。外部基线的训练数据、参数量、采样步数均不可控，因果归属存疑。<strong>② 自动指标是模型评分。</strong>VideoScore2 属生成式评分器；4.80 vs 4.76 量级的差异在评分器噪声之内，只有 WER（14.60% vs 19.23%）和人类胜率（80.0%/60.9%）是较硬的证据。<strong>③ 物理一致性落后。</strong>4.52 低于 LTX 2.3 的 4.56，论文以「综合平衡」辩护，但未分析短板来源（单流共享是否牺牲了物理建模专用容量？）。<strong>④ 「实时」口径需限定。</strong>2 秒对应的是 256p；1080p 需 38.4 秒且 81% 花在超分（31.0s），延迟敏感的交互场景只在低分辨率档成立。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>未被量化的代价：解码器替换与编译黑箱</h4>
+    <p>Turbo VAE 解码器是「轻量重训」的替换件，但论文未报告解码质量损失（PSNR/感知指标/高频细节），解码又位于关键路径——加速与失真之间的兑换率没有给出。MagiCompiler 的 1.2× 只有一句结论：融合了哪些算子边界、通信合并到几个集合调用、在多卡场景的可扩展性，均无数据。此外人类评测只描述了评分者人数与配对数，未报告评分者间一致性（inter-rater agreement）与置信区间；多语言能力以「支持列表」形式陈述，无分语言 WER 分解——粤语与德语的可懂度是否与普通话同水平，无从判断。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">08</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>单流与双流的能力差距，随规模如何变化？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>本文证据只覆盖 15B 这一个规模点。若单流的相对优势随参数/数据增长，则「简单胜复杂」是 scaling 规律；若双流在大规模下反超（专用通路容量更大），则单流只是小中规模的工程甜点。这决定开源基座的长期架构路线。</p>
+    <p><strong>理论分析：</strong>可把模态融合视为偏置-方差权衡：双流的专用通路注入「模态独立」归纳偏置（低方差、高偏置），单流让注意力自由学习跨模态相关（高容量、更依赖数据）。当数据覆盖跨模态相关性的真实分布时，硬编码偏置的优势应单调衰减，但模态干扰（梯度冲突）可能随共享容量占比上升而加剧。</p>
+    <p><strong>连接：</strong>与多模态 scaling law（Chameleon、Unified-IO 一系的「早期融合 vs 晚期融合」辩论）、MoE 的专家分化理论、以及 Transformer 中混合模态 token 的注意力稀疏性研究直接对话。</p>
+    <p><strong>探究方向：</strong>构造 0.5B/2B/15B 三档、同数据同 token 预算的单流 vs 双流配对训练，度量 WER、VideoScore2 分项与跨模态注意力图的模态混合熵；拟合「能力差距 ~ 规模」曲线，检验是否存在交叉点。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>无时间步去噪在少步采样下的失效边界在哪里？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>模型从含噪输入推断去噪状态，隐含假设是「噪声水平可从输入统计量辨识」。在 DMD-2 的 8 步无 CFG 下这大概率成立，但当步数进一步压到 1–2 步、或输入本身低对比度（暗场、静止画面）时，状态辨识可能退化，导致去噪强度错配。失效边界从未被测绘。</p>
+    <p><strong>理论分析：</strong>显式 timestep 是给去噪器的「进度旁路信息」；去掉它后，进度信息必须从 x_t 的信噪比统计中涌现。对低频主导的输入（近静止视频），不同 σ 的 x_t 分布重叠增大，状态可辨识性下降——这为「暗场/静止场景质量崩坏」一类失败模式提供了可检验的机制假设。</p>
+    <p><strong>连接：</strong>与噪声条件必要性的实证研究（Sun et al. 2025，论文引用）、少步一致性模型的自洽条件、以及盲去噪（blind denoising，σ 未知）文献相连。</p>
+    <p><strong>探究方向：</strong>在 8/4/2/1 步采样下扫描输入类型（高动态 vs 静止 vs 低对比度），度量质量衰减曲线；训练一个线性探针从含噪 latent 预测 σ，用探针误差解释生成质量退化，验证「状态辨识」假设。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>4/32/4 的 sandwich 配比是否最优？能否自适应分配？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>首/末各 4 层模态专用、中间 32 层共享，是论文唯一给定的配比，无消融。若音频需要更多特化层（高频时序结构与视频帧率差异大），对称配比会牺牲音质；反之若 2+2 足够，则 8 层专用参数是浪费。最优配比及其对质量-效率帕累托面的影响未知。</p>
+    <p><strong>理论分析：</strong>可把每层的模态共享程度视为连续变量 s_ℓ ∈ [0,1]（从全共享到全专用），整网是一个受参数预算约束的分配问题。若各层的「模态可共享度」存在清晰的 U 形（两端特化、中段共享），则 sandwich 是近似最优的离散化；若分布随任务/语言漂移，则固定配比必然在某些分布上欠拟合。</p>
+    <p><strong>连接：</strong>与 LoRA/适配器的层选择策略、网络剪枝的逐层敏感度分析、以及多任务学习的软参数共享（soft parameter sharing）相连。</p>
+    <p><strong>探究方向：</strong>扫描 2/32/2、4/32/4、8/24/8、以及非对称（视频 8 层 vs 音频 2 层）配比，度量分模态指标（WER、唇同步、VideoScore2）；再试可学习的逐层共享门控，观察学到的共享度分布是否呈 U 形。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>latent 超分中「音频只读」策略的同步边界条件是什么？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>超分阶段只更新视频 latent、音频以加噪形式作辅助输入，论文明言这对「基座分辨率很粗、唇同步难保」的场景有用。但「很粗」是多粗？该策略在什么基座分辨率/嘴部像素密度下开始失效？失效时是音画漂移还是唇形细节丢失？没有定量边界。</p>
+    <p><strong>理论分析：</strong>唇同步的信息论下限取决于基座音频 latent 保留的音素时间结构 vs 超分阶段能从辅助音频恢复的视觉细节。音频只读意味着同步信息的信道容量被基座音频 latent 固定，超分只能做「视频侧的条件细化」——当基座嘴部区域不足一个音素时长的像素覆盖时，可辨识的口型类别数会塌缩。</p>
+    <p><strong>连接：</strong>与说话人视频的最小可辨识口型分辨率研究、SyncNet 类同步判别器的灵敏度曲线、以及「生成后再同步」（post-hoc lip alignment）路线相连；也与 TaoMate-HD 的「音频保持同一 latent 几何」设计互为印证。</p>
+    <p><strong>探究方向：</strong>固定超分模型，扫描基座生成分辨率（256p→128p→64p），度量 LSE-C/SyncNet 分数与主观口型评级的衰减拐点；对照组改为「音频也显式更新」，检验只读策略是否在低基座分辨率下反而成为瓶颈。</p></div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">09</span> 代码附录</h2>
+  <p>以下代码按论文所述方法结构还原，表达<strong>算法骨架</strong>；维度、超参与工程细节为示意，非官方开源实现的复制。</p>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 单流 Transformer 前向：sandwich 布局 + 逐头门控 + 无时间步去噪（对应 Eq.1）</span>
+<span class="kw">class</span> <span class="fn">SingleStreamBlock</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x, modality_ids):
+        <span class="cm"># x: [文本 | 参考图 latent | 含噪视频 | 含噪音频] 统一 token 序列</span>
+        q, k, v = self.qkv(self.norm(x))
+        attn_out = softmax(q @ k.transpose(-1, -2) / self.scale) @ v   <span class="cm"># self-attention only</span>
+        <span class="cm"># 逐头门控：每头一个可学习标量，sigmoid 后乘到该头输出（输出投影之前）</span>
+        attn_out = torch.sigmoid(self.head_gates) * attn_out               <span class="cm"># o~_h = sigma(g_h) o_h</span>
+        <span class="kw">return</span> x + self.out_proj(attn_out) + self.ffn(self.norm2(x))
+
+<span class="kw">def</span> <span class="fn">forward_denoiser</span>(tokens, layer_spec):
+    <span class="cm"># layer_spec: 前 4 层/后 4 层为模态专用投影 + RMSNorm，中间 32 层参数共享</span>
+    <span class="cm"># 无 timestep embedding / 无 AdaLN 时间条件：去噪状态由含噪输入本身推断</span>
+    x = modality_specific_proj(tokens, layer_spec.boundary_layers)
+    <span class="kw">for</span> block <span class="kw">in</span> layer_spec.shared_blocks:        <span class="cm"># 32 层共享主参数</span>
+        x = block(x, tokens.modality_ids)
+    <span class="kw">return</span> modality_specific_head(x)              <span class="cm"># 联合输出视频与音频去噪预测</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 推理管线：基座 8 步无 CFG → latent 超分（5 步）→ Turbo VAE 解码（对应 Eq.3 的延迟分解）</span>
+<span class="kw">def</span> <span class="fn">generate</span>(text, ref_image, target_res, base_model, sr_model, turbo_decoder):
+    <span class="cm"># 1) 基座：恒定 256p，DMD-2 蒸馏，8 步去噪、无 CFG；输出视频+音频 latent</span>
+    v_lat, a_lat = base_model.sample(text, ref_image, steps=8, cfg=False, res=256)
+    <span class="kw">if</span> target_res > 256:
+        <span class="cm"># 2) latent 超分：三线性上采样 + 注入噪声 + 仅 5 步精修；1080p 时多层开局部注意力</span>
+        v_up = trilinear_upsample(v_lat, target_res)
+        v_up = add_noise(v_up, sigma=sr_sigma)
+        <span class="cm"># 音频 latent 以加噪形式只读复用，仅视频 latent 被显式更新（保唇同步）</span>
+        v_lat = sr_model.sample(v_up, audio_hint=add_noise(a_lat), steps=5,
+                                local_attn=(target_res >= 1080))
+    <span class="cm"># 3) Turbo VAE 解码：轻量重训解码器替换原解码器（位于关键路径）</span>
+    video, audio = turbo_decoder(v_lat, a_lat)
+    <span class="kw">return</span> video, audio
+<span class="cm"># 全图编译（MagiCompiler）：跨 Transformer 层边界融合算子、合并分布式集合通信 → H100 约 1.2×</span></pre>
+</section>

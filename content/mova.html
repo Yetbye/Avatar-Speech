@@ -1,0 +1,273 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂：双塔之间架一座 2.6B 的「桥」</h2>
+  <p class="lead">MOVA 的结构判断很直接：视频与音频<strong>不该共用一套参数</strong>（形态差异太大），但也<strong>不该各说各话</strong>（同步是刚需）。它选了中间路线——一个 14B 视频 DiT 加一个 1.3B 音频 DiT，中间架一座 <strong>2.6B 的双向 Bridge</strong>，并配一套把两路时间栅格对齐的 <strong>Aligned RoPE</strong>。</p>
+  <p>论文把联合音视频生成的难点归纳为三个轴：<strong>数据（data）</strong>、<strong>建模（modeling）</strong>、<strong>扩展（scaling）</strong>。这个三分法是全篇的骨架，也值得记住——它比「加一个跨模态模块」更接近问题本质。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>为什么 Bridge 要 2.6B 这么大？</h4>
+    <p>通常「桥」会被理解为轻量胶水层。MOVA 反其道用 2.6B——比音频塔本身还大一倍。这背后的判断是：<strong>跨模态对齐是难任务，不是小任务</strong>。音频塔（1.3B）只负责「会发声」，而 Bridge 负责「知道什么时候发什么声」——后者的信息量更大。这与 LTX-2 把音频塔做小（5B vs 14B）但把交叉注意力铺满深度，是两种不同的资源分配哲学。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 范式定位：三挑战框架</h2>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">MOVA 的三挑战：数据 / 建模 / 扩展</text>
+    <rect x="30" y="56" width="235" height="180" rx="12" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="147" y="86" text-anchor="middle" font-size="13" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">① 数据</text>
+    <text x="48" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">10 万小时以上音视频</text>
+    <text x="48" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">细粒度 AV caption 管线</text>
+    <text x="48" y="164" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">LLM 辅助标注</text>
+    <text x="48" y="196" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">没有密集描述，就没有</text>
+    <text x="48" y="214" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">事件级的跨模态监督</text>
+
+    <rect x="282" y="56" width="235" height="180" rx="12" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="399" y="86" text-anchor="middle" font-size="13" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">② 建模</text>
+    <text x="300" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">双塔 + 双向 Bridge</text>
+    <text x="300" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">Aligned RoPE 对齐时间栅格</text>
+    <text x="300" y="164" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">V→A / A→V 双向条件</text>
+    <text x="300" y="196" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">核心矛盾：音频 latent 远比</text>
+    <text x="300" y="214" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">视频 latent 稠密</text>
+
+    <rect x="534" y="56" width="235" height="180" rx="12" fill="#C9A86C" opacity="0.14" stroke="#C9A86C" stroke-width="2"/>
+    <text x="651" y="86" text-anchor="middle" font-size="13" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">③ 扩展</text>
+    <text x="552" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">A14B 视频骨干（Wan2.2 I2V）</text>
+    <text x="552" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">1.3B 音频骨干（T2A）</text>
+    <text x="552" y="164" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">2.6B 双向 Bridge</text>
+    <text x="552" y="196" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">以最小额外成本把预训练</text>
+    <text x="552" y="214" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">单模态模型变成联合模型</text>
+    <text x="20" y="266" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">三轴缺一不可：没有数据 → 学不到事件对应；没有建模 → 两路对不上；没有扩展 → 接不上现成强模型。</text>
+  </svg><div class="figcap"><b>图 1</b> · 三挑战框架：数据 / 建模 / 扩展</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> 系统分解：A14B + 1.3B + 2.6B Bridge</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">视频骨干</div><div class="dd"><strong>Wan2.2 I2V A14B</strong>（图像+文本条件的 I2VA 视频扩散）。<span class="alt">选择理由：成熟的视频先验，不必从头训。</span></div></div>
+    <div class="def-item"><div class="dt">音频骨干</div><div class="dd"><strong>1.3B 文本到音频扩散模型</strong>，采用 Wan2.1 风格架构。<span class="alt">同构风格让 Bridge 的两侧接口一致。</span></div></div>
+    <div class="def-item"><div class="dt">Bridge 模块</div><div class="dd"><strong>2.6B 双向 Bridge</strong>，含 Bridge Cross-Attention（30 层）+ Text Cross-Attention + FFN + Self-Attention。<span class="alt">替代方案：像 Ovi 那样逐层直连；Bridge 把跨模态计算集中在专门模块，便于独立优化。</span></div></div>
+    <div class="def-item"><div class="dt">VAE 与 latent</div><div class="dd">视频：<strong>Wan2.1 video VAE</strong> → 时空 latent x_v。音频：<strong>DAC-style audio VAE</strong>（来自 HunyuanVideo-Foley）→ 音频 latent x_a，对应 48kHz 单声道波形。<span class="alt">关键不对称：音频 latent 密度远高于视频 latent。</span></div></div>
+    <div class="def-item"><div class="dt">双向条件</div><div class="dd">A→V 与 V→A 两条注入路径；配 <strong>Bridge CFG</strong>（V→A 条件引导）+ <strong>Text CFG</strong>。<span class="alt">两条 CFG 独立，可分别控「文本遵循」与「跨模态对齐」——与 LTX-2 的 modality-CFG 同源思路。</span></div></div>
+    <div class="def-item"><div class="dt">输出</div><div class="dd">视频 + 完整音轨（语音 / 音效 / 音乐）。<span class="alt">三类音频混合输出，比只出语音更有价值，也更难。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="380" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">MOVA 结构：双塔 + 双向 Bridge（×30 层）</text>
+    <!-- text -->
+    <rect x="330" y="46" width="150" height="34" rx="8" fill="#C9A86C"/>
+    <text x="405" y="68" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Text 条件（caption）</text>
+    <!-- video tower -->
+    <rect x="40" y="110" width="150" height="220" rx="10" fill="#1B4B6F" opacity="0.12" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="115" y="134" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">Video DiT</text>
+    <text x="115" y="154" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">Wan2.2 I2V · A14B</text>
+    <rect x="58" y="170" width="114" height="28" rx="5" fill="#1B4B6F"/><text x="115" y="189" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">Self-Attention</text>
+    <rect x="58" y="204" width="114" height="28" rx="5" fill="#1B4B6F" opacity="0.8"/><text x="115" y="223" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">Text Cross-Attn</text>
+    <rect x="58" y="238" width="114" height="28" rx="5" fill="#C9A86C"/><text x="115" y="257" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">Bridge Cross</text>
+    <rect x="58" y="272" width="114" height="28" rx="5" fill="#5D6D7E"/><text x="115" y="291" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">FFN</text>
+    <!-- audio tower -->
+    <rect x="610" y="110" width="150" height="220" rx="10" fill="#5A8F7B" opacity="0.14" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="685" y="134" text-anchor="middle" font-size="12.5" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">Audio DiT</text>
+    <text x="685" y="154" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">1.3B · Wan2.1 风格</text>
+    <rect x="628" y="170" width="114" height="28" rx="5" fill="#5A8F7B"/><text x="685" y="189" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">Self-Attention</text>
+    <rect x="628" y="204" width="114" height="28" rx="5" fill="#5A8F7B" opacity="0.8"/><text x="685" y="223" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">Text Cross-Attn</text>
+    <rect x="628" y="238" width="114" height="28" rx="5" fill="#C9A86C"/><text x="685" y="257" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">Bridge Cross</text>
+    <rect x="628" y="272" width="114" height="28" rx="5" fill="#5D6D7E"/><text x="685" y="291" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">FFN</text>
+    <!-- bridge -->
+    <rect x="330" y="176" width="150" height="132" rx="10" fill="#E85D4E" opacity="0.12" stroke="#E85D4E" stroke-width="2"/>
+    <text x="405" y="204" text-anchor="middle" font-size="12.5" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">Bridge ×30</text>
+    <text x="405" y="228" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">2.6B 参数</text>
+    <text x="405" y="250" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">双向 Bridge Cross-Attn</text>
+    <text x="405" y="272" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">+ Aligned RoPE</text>
+    <text x="405" y="294" text-anchor="middle" font-size="10.5" fill="#E85D4E" font-family="Noto Sans SC">A→V 与 V→A</text>
+    <!-- arrows -->
+    <line x1="196" y1="240" x2="326" y2="240" stroke="#E85D4E" stroke-width="2.5" marker-end="url(#h1)"/>
+    <line x1="482" y1="250" x2="606" y2="250" stroke="#E85D4E" stroke-width="2.5" marker-end="url(#h1)"/>
+    <line x1="482" y1="216" x2="606" y2="216" stroke="#C9A86C" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#h2)"/>
+    <!-- VAE -->
+    <rect x="40" y="340" width="150" height="28" rx="6" fill="#1B4B6F"/><text x="115" y="358" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">Video VAE (Wan2.1)</text>
+    <rect x="610" y="340" width="150" height="28" rx="6" fill="#5A8F7B"/><text x="685" y="358" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">Audio VAE (DAC-style)</text>
+    <defs>
+      <marker id="h1" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#E85D4E"/></marker>
+      <marker id="h2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#C9A86C"/></marker>
+    </defs>
+  </svg><div class="figcap"><b>图 2</b> · 双塔 + 双向 Bridge 的结构与信息流</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> Aligned RoPE：把两套时间栅格拉到同一坐标</h2>
+  <p>这是 MOVA 最核心的工程洞察。视频 latent 因为 VAE 的<strong>时间下采样</strong>比较粗，音频 latent 则<strong>稠密得多</strong>。如果直接做注意力，一个视频 token 会对上一整段音频 token，对齐就退化成「平均」。</p>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">时间栅格失配 → Aligned RoPE 归一到物理时间</text>
+    <!-- raw grids -->
+    <text x="30" y="70" font-size="11.5" fill="#1B4B6F" font-family="Noto Sans SC" font-weight="700">原始栅格</text>
+    <g fill="#1B4B6F">
+      <rect x="60" y="82" width="90" height="18" rx="3"/><rect x="156" y="82" width="90" height="18" rx="3"/>
+      <rect x="252" y="82" width="90" height="18" rx="3"/><rect x="348" y="82" width="90" height="18" rx="3"/>
+    </g>
+    <text x="452" y="96" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">视频 token：粗（VAE 时间下采样）</text>
+    <g fill="#5A8F7B">
+      <rect x="60" y="112" width="22" height="14" rx="2"/><rect x="86" y="112" width="22" height="14" rx="2"/>
+      <rect x="112" y="112" width="22" height="14" rx="2"/><rect x="138" y="112" width="22" height="14" rx="2"/>
+      <rect x="164" y="112" width="22" height="14" rx="2"/><rect x="190" y="112" width="22" height="14" rx="2"/>
+      <rect x="216" y="112" width="22" height="14" rx="2"/><rect x="242" y="112" width="22" height="14" rx="2"/>
+    </g>
+    <text x="452" y="124" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">音频 token：密（同一段时间里多得多）</text>
+    <!-- aligned -->
+    <text x="30" y="170" font-size="11.5" fill="#E85D4E" font-family="Noto Sans SC" font-weight="700">Aligned RoPE 后</text>
+    <line x1="60" y1="196" x2="440" y2="196" stroke="#E85D4E" stroke-width="2"/>
+    <g stroke="#E85D4E" stroke-width="1" opacity="0.5">
+      <line x1="156" y1="182" x2="156" y2="210"/><line x1="252" y1="182" x2="252" y2="210"/>
+      <line x1="348" y1="182" x2="348" y2="210"/>
+    </g>
+    <g fill="#1B4B6F"><rect x="60" y="188" width="92" height="16" rx="3"/><rect x="158" y="188" width="92" height="16" rx="3"/><rect x="256" y="188" width="92" height="16" rx="3"/><rect x="354" y="188" width="84" height="16" rx="3"/></g>
+    <g fill="#5A8F7B"><rect x="60" y="212" width="23" height="12" rx="2"/><rect x="85" y="212" width="23" height="12" rx="2"/><rect x="110" y="212" width="23" height="12" rx="2"/><rect x="135" y="212" width="23" height="12" rx="2"/><rect x="160" y="212" width="23" height="12" rx="2"/><rect x="185" y="212" width="23" height="12" rx="2"/><rect x="210" y="212" width="23" height="12" rx="2"/><rect x="235" y="212" width="23" height="12" rx="2"/><rect x="260" y="212" width="23" height="12" rx="2"/><rect x="285" y="212" width="23" height="12" rx="2"/><rect x="310" y="212" width="23" height="12" rx="2"/><rect x="335" y="212" width="23" height="12" rx="2"/><rect x="360" y="212" width="23" height="12" rx="2"/><rect x="385" y="212" width="23" height="12" rx="2"/><rect x="410" y="212" width="23" height="12" rx="2"/></g>
+    <text x="60" y="252" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">两者共享同一物理时间轴：注意力里的「距离」变成真实时间差，而不是 token 序号差。</text>
+    <text x="60" y="278" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">这是 Ovi 的 scaled-RoPE、LTX-2 的 1D 时间 RoPE 的同一目的的不同实现。</text>
+  </svg><div class="figcap"><b>图 3</b> · Aligned RoPE：把粗视频栅格与密音频栅格映射到同一时间坐标</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「时间对齐」是联合生成的隐藏主战场</h4>
+    <p>各路工作对「同步」的说法五花八门，但落到实现层几乎都收敛到同一件事：<strong>给两套时间栅格建立一个公共坐标</strong>。Ovi 用 scaled-RoPE、LTX-2 用 1D 时间 RoPE、MOVA 用 Aligned RoPE、JavisDiT 用分层时空先验。差别在于坐标定义（物理秒 vs 相对位置）与应用位置（每层 vs Bridge 内）。读这一类论文时，先问「它的公共时间坐标是什么」，往往比看网络结构更快抓住要害。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> 噪声相位与双向条件：Bridge CFG 的用法</h2>
+  <p>MOVA 的 Bridge 不是恒定作用的——它随噪声阶段切换方向。从原文结构图可见：<strong>高噪声阶段（t &gt; δ）走 A→V</strong>，<strong>低噪声阶段（0 &lt; t &lt; δ）走 V→A</strong>。</p>
+  <div class="figure"><svg viewBox="0 0 800 270" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="270" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">双向 Bridge 随噪声相位切换方向</text>
+    <line x1="60" y1="150" x2="740" y2="150" stroke="#5D6D7E" stroke-width="2"/>
+    <text x="60" y="176" font-size="10.5" fill="#95A5A6" font-family="JetBrains Mono,monospace">t = δ</text>
+    <text x="716" y="176" font-size="10.5" fill="#95A5A6" font-family="JetBrains Mono,monospace">t = 0</text>
+    <rect x="60" y="96" width="340" height="42" rx="8" fill="#C9A86C" opacity="0.3" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="230" y="122" text-anchor="middle" font-size="11.5" fill="#A67C3D" font-family="Noto Sans SC">高噪声 t &gt; δ：A→V（音频先验引导画面结构）</text>
+    <rect x="400" y="96" width="340" height="42" rx="8" fill="#1B4B6F" opacity="0.18" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="570" y="122" text-anchor="middle" font-size="11.5" fill="#1B4B6F" font-family="Noto Sans SC">低噪声 0 &lt; t &lt; δ：V→A（画面细节约束声音细节）</text>
+    <text x="230" y="212" text-anchor="middle" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">先定结构，再定细节 —— 与「先因后果」一致</text>
+    <text x="570" y="212" text-anchor="middle" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">避免后期被粗糙结构锁死</text>
+    <text x="20" y="248" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：方向划分依据原文结构图标注（high noise,t&gt;δ 与 low noise,0&lt;t&lt;δ），δ 的具体取值未在抽取段落中给出。</text>
+  </svg><div class="figcap"><b>图 4</b> · Bridge 的方向随去噪相位切换</div></div>
+  <div class="formula-card"><div class="f-label">Eq.1 · 双引导（Text CFG + Bridge CFG，依据原文结构标注）</div>
+    <div>$$ \hat v = v_\theta + s_{\text{text}}\big(v_\theta - v_{\theta}^{\varnothing \text{text}}\big) + s_{\text{bridge}}\big(v_\theta - v_{\theta}^{\varnothing \text{bridge}}\big) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>文本引导决定「照 caption 生成」，Bridge 引导决定「照另一模态对齐」。两根旋钮独立，因此可在推理期调节「对齐强度」而不改模型。<br>
+    <strong>注意：</strong>此式为按原文结构标注（Text CFG / Bridge CFG）的<em>示意性形式化</em>，非论文逐字给出的公式；具体系数取值未在抽取段落中给出。</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 数据管线：10 万小时如何筛到 26%</h2>
+  <p>数据轴是 MOVA 的三挑战之首。原文 Table 1 给出一个很少见的透明度——<strong>数据保留率</strong>：</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>阶段</th><th>保留率（相对原始视频时长）</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td class="route">Raw（原始）</td><td>100%</td><td>未筛选的视频池</td></tr>
+      <tr><td class="route">Stage 1（speech + nonspeech）</td><td>84.57%</td><td>保留含声内容</td></tr>
+      <tr><td class="route">Stage 1（仅 speech）</td><td>58.75%</td><td>进一步只留有语音的</td></tr>
+      <tr><td class="route">Stage 2</td><td><strong>26.39%</strong></td><td>最终训练集</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="250" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">数据漏斗：100% → 84.57% → 58.75% → 26.39%</text>
+    <g>
+      <rect x="60" y="60" width="680" height="30" rx="5" fill="#1B4B6F" opacity="0.85"/><text x="400" y="80" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Raw 100%</text>
+      <rect x="110" y="98" width="574" height="30" rx="5" fill="#1B4B6F" opacity="0.7"/><text x="397" y="118" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">84.57% · 含声</text>
+      <rect x="170" y="136" width="448" height="30" rx="5" fill="#5A8F7B"/><text x="394" y="156" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">58.75% · 有语音</text>
+      <rect x="260" y="174" width="257" height="30" rx="5" fill="#C9A86C"/><text x="388" y="194" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">26.39% · 最终训练集</text>
+    </g>
+    <text x="20" y="228" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">近 3/4 的原始视频被丢弃 —— 「质量优先于数量」是联合生成数据的普遍规律。</text>
+  </svg><div class="figcap"><b>图 5</b> · 数据漏斗（数据取自原文 Table 1）</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>26.39% 这个数字告诉你的不只是「筛掉了什么」</h4>
+    <p>筛选率这么高，意味着<strong>可用于联合训练的「音画真正同步」内容是稀缺资源</strong>。这也解释了为什么所有联合模型都强调「细粒度 caption + 对齐过滤」：不是工程洁癖，而是数据本身稀缺，必须把每一条的价值榨到最大。反过来，这也提示了一条开放问题——<em>合成数据或主动构造</em>能否绕开这个稀缺性？</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 优势与证据</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>MOVA 的做法/结论</th><th>证据形态</th></tr></thead>
+    <tbody>
+      <tr><td class="route">输出</td><td>视频 + 语音 / 音效 / 音乐混合音轨</td><td>目标定义</td></tr>
+      <tr><td class="route">架构成本</td><td>复用预训练双塔，附加 2.6B Bridge</td><td>结构设计，称「minimal additional cost」</td></tr>
+      <tr><td class="route">数据</td><td>10 万小时级 + 细粒度 AV caption 管线</td><td>Table 1 保留率</td></tr>
+      <tr><td class="route">时间对齐</td><td>Aligned RoPE 解决栅格不一致</td><td>结构图 + 方法描述</td></tr>
+      <tr><td class="route">三轴</td><td>data / modeling / scaling 同时推进</td><td>论文组织结构</td></tr>
+    </tbody></table></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">08</span> 批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 2.6B Bridge 的成本不小，「minimal」是相对而言</h4>
+    <p>Bridge 占了整个模型近 15%（2.6B / 17.9B）。论文称附加成本最小，但这主要是相对「从头训一个联合大模型」而言。相对 LTX-2 那种把跨模态注意力嵌进主干的做法，Bridge 的独立参数是实打实的开销，推理时也多一组前向。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 相位阈值 δ 缺乏消融与敏感性分析</h4>
+    <p>A→V / V→A 的切换点 δ 是一个关键超参：设错方向切换时机，会让「结构先行、细节后定」的逻辑失效。抽取文本未给出 δ 的取值与扫描实验，这是一个可验证但未验证的设计选择。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 数据筛选率高，但筛选器本身的偏差未讨论</h4>
+    <p>保留 26.39% 说明筛选严格，但筛选器会系统性偏好某些内容（口型清晰、噪声低、单人、安静背景）。这类偏置会让模型在「长尾场景」（多人、嘈杂、歌唱）上退化——恰好是白板要点里提到的「长尾数据」难题。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 「三类音轨混合输出」的可控性未给出</h4>
+    <p>输出语音+音效+音乐是卖点，但用户往往需要分轨编辑（如降低音乐、增强人声）。MOVA 的输出是混合音轨，没有给出分离或控制接口。对比 Soundwich 的多声源分轨，这是功能层面的差距。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">09</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>Bridge 与逐层直连，哪个在长时场景更稳？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>Bridge 集中跨模态计算，逐层直连（如 Ovi）分散计算。两者的误差传播模式不同——Bridge 的信息瓶颈可能限制长时依赖，逐层直连则可能被局部噪声污染。</p>
+      <p><strong>理论分析：</strong>把跨模态信息流建模为马尔可夫链：Bridge 相当于一个固定容量的信道，逐层直连相当于每层独立信道。信道容量 C 与序列长度 L 的比值 C/L 决定长时一致性上界。</p>
+      <p><strong>连接：</strong>LTX-2 的铺满深度交叉注意力是第三种方案；三种方案可放在「跨模态计算分布」的光谱上比较。</p>
+      <p><strong>探究方向：</strong>在 MOVA 上做 Bridge 层数扫描（10/20/30/40），测 30 秒生成的事件对齐衰减。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>音频 latent 的「稠密」是信息多，还是冗余多？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>MOVA 观察到音频 latent 远比视频 latent 稠密，但没有区分「信息密度高」与「压缩率低导致的冗余」。这决定了该加密还是该压缩音频表征。</p>
+      <p><strong>理论分析：</strong>可用率失真理论区分：计算音频 latent 的有效秩（去除冗余后的自由度），若有效秩远小于表观维度，说明是冗余；若接近，则信息确实密集。</p>
+      <p><strong>连接：</strong>LTX-2 的 40ms/128-d 音频网格是另一种压缩率选择；两者的对比可直接回答这个问题。</p>
+      <p><strong>探究方向：</strong>对两套音频 VAE 做主成分分析，比较有效维度，并测同等重建质量下的 latent 维度需求。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>数据筛选偏置能否被「主动补采」修复？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>严格筛选必然偏向易样本。若长尾场景（歌唱、多人、嘈杂）被系统性过滤，模型就永远学不会它们。</p>
+      <p><strong>理论分析：</strong>把训练分布记为 P_train = P_raw · S(x)（S 为筛选函数）。若 S 在长尾区域取值低，则 P_train 的熵下降、多样性受损。可设计「按缺陷类别定向补采」的主动学习策略来补偿。</p>
+      <p><strong>连接：</strong>白板要点里「开源数据集 → 单人场景 / 长尾数据」正是这个问题；OmniHuman 的分层标注也是为解决同一类偏差。</p>
+      <p><strong>探究方向：</strong>分析筛选前后各场景类别的分布比，按缺口定向收集，测长尾任务的改善幅度。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">10</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 双向 Bridge + 相位切换（依据原文结构图重建，非官方实现）</span>
+<span class="kw">def</span> <span class="fn">bridge_step</span>(v, a, t, delta, bridge):
+    <span class="cm"># t: 当前噪声水平；delta: 相位阈值</span>
+    <span class="kw">if</span> t &gt; delta:                      <span class="cm"># 高噪声：音频引导视频定结构</span>
+        v = v + bridge(v_q=v, kv=a, direction=<span class="st">"A2V"</span>)
+    <span class="kw">else</span>:                              <span class="cm"># 低噪声：视频约束音频细节</span>
+        a = a + bridge(v_q=a, kv=v, direction=<span class="st">"V2A"</span>)
+    <span class="kw">return</span> v, a
+
+<span class="cm"># 双引导：Text CFG + Bridge CFG</span>
+<span class="kw">def</span> <span class="fn">guided_pred</span>(model, x, t, cond, s_text, s_bridge):
+    p  = model(x, t, cond)
+    p_nt = model(x, t, cond, drop_text=<span class="kw">True</span>)
+    p_nb = model(x, t, cond, drop_bridge=<span class="kw">True</span>)
+    <span class="kw">return</span> p + s_text*(p - p_nt) + s_bridge*(p - p_nb)</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Aligned RoPE：把两套时间栅格映射到统一物理时间（示意）</span>
+<span class="kw">def</span> <span class="fn">aligned_rope</span>(n_tok, duration_s, grid_hz):
+    <span class="cm"># grid_hz: 该模态每秒的 token 数（视频低、音频高）</span>
+    t = torch.arange(n_tok).float() / grid_hz   <span class="cm"># → 物理秒</span>
+    <span class="kw">return</span> t / duration_s                        <span class="cm"># 归一到 [0,1] 公共坐标</span>
+
+<span class="cm"># 数据漏斗保留率（原文 Table 1）</span>
+RETENTION = dict(raw=<span class="st">1.0</span>, stage1_all=<span class="st">0.8457</span>, stage1_speech=<span class="st">0.5875</span>, final=<span class="st">0.2639</span>)</pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>MOVA 最值得抄走的不是结构，而是「三轴」的提问方式</h4>
+    <p>结构（双塔+Bridge）会过时，但<strong>数据/建模/扩展</strong>这个三分法不会。很多联合生成工作只做「建模」轴，然后惊讶于效果不如预期——其实缺口常在数据（描述不够细）或扩展（没接上强预训练模型）。用这三条轴去审视任何一篇联合生成论文，都能很快判断它的真实贡献在哪、短板在哪。</p>
+  </div>
+</section>

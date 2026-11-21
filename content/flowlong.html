@@ -1,0 +1,220 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂：不训练、不改模型，只改采样过程就能变长</h2>
+  <p class="lead">长视频生成有两条老路，各有各的病：(a) <strong>双向模型的延长法</strong>——与具体架构紧耦合，且长时程质量下降；(b) <strong>自回归模型</strong>——暴露偏差（exposure bias）导致漂移误差累积，还会产生重复运动。FlowLong 的主张极简：<strong>训练无关、架构无关，只在推理期改采样过程</strong>，用重叠滑窗 + Tweedie matching 把相邻窗的干净样本预测融合起来。</p>
+  <p>它能直接套在 Wan 2.1-T2V-1.3B 与 LTX-2 上（<strong>无需任何额外训练</strong>），把 30s、60s 视频跑出来，并扩展到音视频联合生成与 text-to-3DGS。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「training-free」不只是省钱，而是把问题归位到采样</h4>
+    <p>很多长时生成问题的根源在<strong>采样轨迹</strong>而非模型能力：模型本身能生成连贯的片段，只是「拼接」处的轨迹不一致。FlowLong 的判断是——这是采样层面的问题，就该在采样层面解决。这个「先判断问题在哪个层面，再选工具」的思路，比直接上一个大模型更值得学习。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 两条老路的失败模式</h2>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="320" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">既有长视频路线的两个失败模式</text>
+    <rect x="30" y="58" width="355" height="120" rx="11" fill="#95A5A6" opacity="0.12" stroke="#95A5A6" stroke-width="1.5"/>
+    <text x="207" y="86" text-anchor="middle" font-size="12.5" font-weight="700" fill="#5D6D7E" font-family="Noto Sans SC">(a) 双向模型的延长法</text>
+    <text x="48" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 与特定架构紧耦合（RIFLEx、UltraViCo 等）</text>
+    <text x="48" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 长时程质量退化</text>
+    <text x="48" y="162" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 难以迁移、越长越糊</text>
+
+    <rect x="415" y="58" width="355" height="120" rx="11" fill="#E85D4E" opacity="0.1" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="592" y="86" text-anchor="middle" font-size="12.5" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">(b) 自回归模型</text>
+    <text x="433" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· KV-cache 复用 → 误差累积</text>
+    <text x="433" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· exposure bias → 时间漂移</text>
+    <text x="433" y="162" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 重复运动模式</text>
+
+    <!-- drift curve -->
+    <text x="30" y="212" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">漂移误差随时间累积（示意）：</text>
+    <line x1="60" y1="292" x2="740" y2="292" stroke="#5D6D7E" stroke-width="1.5"/>
+    <line x1="60" y1="292" x2="60" y2="232" stroke="#5D6D7E" stroke-width="1.5"/>
+    <path d="M 60 286 Q 300 280 460 258 T 730 236" fill="none" stroke="#E85D4E" stroke-width="2.5"/>
+    <text x="620" y="248" font-size="10.5" fill="#E85D4E" font-family="Noto Sans SC">自回归漂移</text>
+    <path d="M 60 288 L 730 280" fill="none" stroke="#5A8F7B" stroke-width="2.5"/>
+    <text x="620" y="274" font-size="10.5" fill="#5A8F7B" font-family="Noto Sans SC">FlowLong</text>
+    <text x="60" y="312" font-size="9.5" fill="#95A5A6" font-family="Noto Sans SC">横轴：时间　纵轴：与真值/一致性的偏离（示意）</text>
+  </svg><div class="figcap"><b>图 1</b> · 两条老路的失败模式与漂移曲线</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> 核心方法：Tweedie matching + 随机早相位采样</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">重叠滑窗</div><div class="dd">把长视频切成<strong>重叠</strong>的滑动窗口分别生成。<span class="alt">不重叠会留下硬接缝；重叠是融合的前提。</span></div></div>
+    <div class="def-item"><div class="dt">Tweedie matching</div><div class="dd">相邻窗各自预测「干净样本」，在重叠区<strong>融合</strong>，同时施加<strong>流形约束</strong>与<strong>时序一致性</strong>。<span class="alt">Tweedie 估计是扩散模型里从 x_t 估计 x_0 的经典工具，此处被用作「跨窗对齐的锚点」。</span></div></div>
+    <div class="def-item"><div class="dt">随机早相位采样</div><div class="dd">在高噪声阶段注入新噪声，<strong>同步各窗的采样轨迹</strong>，然后转确定性 ODE 采样保住细节。<span class="alt">这是「对齐轨迹」的关键：早相位定结构，晚相位定细节。</span></div></div>
+    <div class="def-item"><div class="dt">无暴露偏差</div><div class="dd">因为只在采样期做融合，不复用 KV cache，因此<strong>不受 exposure bias 影响</strong>。<span class="alt">自回归的漂移问题被结构性回避。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="320" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">重叠滑窗 + Tweedie matching 融合</text>
+    <!-- windows -->
+    <g font-family="JetBrains Mono,monospace" font-size="10">
+      <rect x="50" y="70" width="220" height="56" rx="8" fill="#1B4B6F"/><text x="160" y="94" text-anchor="middle" fill="#fff">窗口 A</text><text x="160" y="112" text-anchor="middle" fill="#cdd6df" font-size="9">生成 clean 预测 x̂_A</text>
+      <rect x="230" y="70" width="220" height="56" rx="8" fill="#5A8F7B" opacity="0.9"/><text x="340" y="94" text-anchor="middle" fill="#fff">窗口 B</text><text x="340" y="112" text-anchor="middle" fill="#eaf3ee" font-size="9">生成 clean 预测 x̂_B</text>
+      <rect x="410" y="70" width="220" height="56" rx="8" fill="#C9A86C" opacity="0.9"/><text x="520" y="94" text-anchor="middle" fill="#fff">窗口 C</text><text x="520" y="112" text-anchor="middle" fill="#fff" font-size="9">生成 clean 预测 x̂_C</text>
+    </g>
+    <!-- overlap regions -->
+    <rect x="230" y="60" width="40" height="76" fill="#E85D4E" opacity="0.25" stroke="#E85D4E" stroke-width="1.5"/>
+    <rect x="410" y="60" width="40" height="76" fill="#E85D4E" opacity="0.25" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="250" y="152" text-anchor="middle" font-size="10" fill="#E85D4E" font-family="Noto Sans SC">重叠区</text>
+    <text x="430" y="152" text-anchor="middle" font-size="10" fill="#E85D4E" font-family="Noto Sans SC">重叠区</text>
+    <!-- blending -->
+    <rect x="230" y="188" width="220" height="52" rx="9" fill="#E85D4E" opacity="0.12" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="340" y="210" text-anchor="middle" font-size="11.5" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">Tweedie matching 融合</text>
+    <text x="340" y="228" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">流形约束 + 时序一致性</text>
+    <line x1="250" y1="136" x2="300" y2="188" stroke="#E85D4E" stroke-width="2" marker-end="url(#m1)"/>
+    <line x1="430" y1="136" x2="380" y2="188" stroke="#E85D4E" stroke-width="2" marker-end="url(#m1)"/>
+    <!-- stochastic early phase -->
+    <rect x="520" y="188" width="250" height="52" rx="9" fill="#C9A86C" opacity="0.14" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="645" y="210" text-anchor="middle" font-size="11.5" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">随机早相位采样</text>
+    <text x="645" y="228" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">高噪声注入新噪声 → 同步轨迹 → ODE</text>
+    <text x="50" y="284" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">结果：相邻窗在重叠区「对得上」，长视频不再有接缝，也不必重训模型。</text>
+    <defs><marker id="m1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#E85D4E"/></marker></defs>
+  </svg><div class="figcap"><b>图 2</b> · 重叠滑窗 + Tweedie matching + 随机早相位采样</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>Tweedie matching 的巧妙：用「干净样本」当跨窗的公共语言</h4>
+    <p>相邻窗的<strong>噪声轨迹</strong>不同，无法直接对齐；但它们对<strong>干净样本</strong>（x_0）的估计应趋于一致。Tweedie 公式给出「从 x_t 估计 x_0」的标准形式，因此天然成为跨窗对齐的<em>锚点</em>。这是把扩散模型的内在性质（x_0 可估）转化为<strong>跨窗一致性约束</strong>——比强行对齐噪声序列干净得多。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 关键公式（示意性形式化）</h2>
+  <div class="formula-card"><div class="f-label">Eq.1 · Tweedie 融合（示意，非论文逐字式）</div>
+    <div>$$ \hat{x}_0^{\text{blend}} = \alpha\,\hat{x}_0^{(A)} + (1-\alpha)\,\hat{x}_0^{(B)}, \qquad \alpha = \sigma\!\big(d_{\text{manifold}}\big) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>在重叠区，两个窗口对干净样本的估计做加权融合；权重 α 由到流形的距离决定——离流形越远的估计越不可信。<br>
+    <strong>注意：</strong>此式为按「manifold-constrained Tweedie matching」思路的<em>示意性形式化</em>；原文的具体融合权重形式与 Tweedie 估计式需查原文式。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.2 · 两相位采样（示意）</div>
+    <div>$$ x_{t-1} = \begin{cases} \text{stochastic}(x_t, \text{fresh noise}) & t &gt; t_{\text{switch}} \quad \text{(早相位：同步轨迹)} \\ \text{ODE}(x_t) & t \leq t_{\text{switch}} \quad \text{(晚相位：保细节)} \end{cases} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>早相位用随机采样把各窗的轨迹「拉到一起」（定结构），晚相位用确定性 ODE 保住细节。<span class="kbd-term">t_switch</span> 是两相位的切换点。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">两种「变长」思路的差别：改模型 vs 改采样</text>
+    <rect x="30" y="58" width="355" height="130" rx="11" fill="#95A5A6" opacity="0.12" stroke="#95A5A6" stroke-width="1.5"/>
+    <text x="207" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#5D6D7E" font-family="Noto Sans SC">改模型 / 改训练</text>
+    <text x="48" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 需重训或微调长序列</text>
+    <text x="48" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 与架构耦合，难迁移</text>
+    <text x="48" y="162" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 成本高，但可学到新能力</text>
+    <rect x="415" y="58" width="355" height="130" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="592" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">改采样（FlowLong）</text>
+    <text x="433" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 零训练、零架构改动</text>
+    <text x="433" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 任何扩散/流模型可插</text>
+    <text x="433" y="162" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 成本≈0，但上限受原模型限制</text>
+    <text x="30" y="216" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">判断题：这个问题该在哪一层解？—— 答案决定工具选择，也决定成本。</text>
+  </svg><div class="figcap"><b>图 4</b> · 改模型 vs 改采样：两条「变长」路线的成本-收益对比</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> 优势与证据</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>结果（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">30s / 60s 视频</td><td>在 MovieGen Bench（100 提示）与 SceneBench（100 提示，3DGS）上评测</td></tr>
+      <tr><td class="route">指标</td><td>时序一致性、运动平滑度、动态程度、时间闪烁</td></tr>
+      <tr><td class="route">对比基线</td><td>优于 training-free 双向法（RIFLEx、UltraViCo）与自回归基线</td></tr>
+      <tr><td class="route">适用模型</td><td>Wan 2.1-T2V-1.3B、LTX-2，<strong>均无额外训练</strong></td></tr>
+      <tr><td class="route">扩展</td><td>可无微调地扩展到音视频联合生成、text-to-3DGS</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">方法性质：四个「无关」</text>
+    <g>
+      <rect x="30" y="60" width="175" height="70" rx="10" fill="#1B4B6F" opacity="0.12" stroke="#1B4B6F" stroke-width="1.5"/>
+      <text x="117" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">训练无关</text>
+      <text x="117" y="112" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">no fine-tuning</text>
+
+      <rect x="225" y="60" width="175" height="70" rx="10" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+      <text x="312" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">架构无关</text>
+      <text x="312" y="112" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">architecture-agnostic</text>
+
+      <rect x="420" y="60" width="175" height="70" rx="10" fill="#C9A86C" opacity="0.14" stroke="#C9A86C" stroke-width="1.5"/>
+      <text x="507" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">无暴露偏差</text>
+      <text x="507" y="112" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">不复用 KV-cache</text>
+
+      <rect x="615" y="60" width="155" height="70" rx="10" fill="#E85D4E" opacity="0.1" stroke="#E85D4E" stroke-width="1.5"/>
+      <text x="692" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">任务可扩展</text>
+      <text x="692" y="112" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">AV 联合 / 3DGS</text>
+    </g>
+    <text x="30" y="180" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">四个「无关」共同指向一个结论：这是一个<em>通用的采样层插件</em>，而不是一个新模型。</text>
+    <text x="30" y="208" font-size="11" fill="#95A5A6" font-family="Noto Sans SC">插件形态决定了它的迁移成本极低——这是它相对「从头训长视频模型」的核心竞争力。</text>
+  </svg><div class="figcap"><b>图 3</b> · FlowLong 的方法性质：四个「无关」= 采样层插件</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 「训练无关」的代价是上限受限于原模型</h4>
+    <p>不训练意味着不引入新知识，只能「重组」原模型已有的能力。若原模型本身无法生成长程一致内容（如身份保持），FlowLong 只能让拼接更平滑，不能凭空造出长程一致性。这是插件类方法的共同边界。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 30s/60s 的评测长度仍远低于真实长视频需求</h4>
+    <p>电影、直播通常需要分钟到小时级。60s 是显著改进，但从 60s 到 600s 的可扩展性未验证——尤其融合误差会随窗口数线性累积，可能在某个长度后爆发。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 「音视频联合生成」的扩展只是提及，未深入</h4>
+    <p>摘要说「extends seamlessly to audio-video joint generation... without any fine-tuning」，但抽取文本中未见音视频联合的专门实验。对联合生成，Tweedie 融合需要同时对齐两模态，难度更高——「seamless」这一说法需要证据支撑。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 随机早相位的超参（t_switch、注入噪声量）敏感性未报告</h4>
+    <p>两相位切换点与注入噪声量是关键超参：噪声过多会破坏细节，过少无法同步轨迹。缺少敏感性分析，就难以判断方法是否「即插即用」。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>融合误差随窗口数的累积规律是什么？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>每次融合都引入小误差。窗口数增多时，误差是线性、次线性还是指数累积？这决定了方法的时长上限。</p>
+      <p><strong>理论分析：</strong>设单次融合误差为 ε，若融合算子是非扩张的，n 窗后的总误差上界为 O(√n·ε)（独立误差的随机游走）或 O(n·ε)（系统性偏差）。区分这两者是关键。</p>
+      <p><strong>连接：</strong>VDN 的「非扩张转移」正是为了把误差压制在 √n 而非 n；两者可统一分析。</p>
+      <p><strong>探究方向：</strong>扫描窗口数（4/8/16/32），测一致性指标的衰减曲线并拟合增长阶。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>Tweedie 融合能否推广到「任意采样器」？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>FlowLong 依赖扩散模型的 x_0 估计能力。若换成非扩散的流匹配或自回归采样器，是否还能用「干净样本估计」作锚点？</p>
+      <p><strong>理论分析：</strong>流匹配的 velocity 场可积分得到 x_0 估计，因此理论可行；但估计精度与噪声水平有关，需分析其在不同采样器下的方差。</p>
+      <p><strong>连接：</strong>Ovi 用流匹配训练、MOVA 用扩散，两类模型能否共享同一融合插件，值得验证。</p>
+      <p><strong>探究方向：</strong>在流匹配模型（如 Ovi）上实现同款融合，比较效果与扩散模型上的差距。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>随机早相位采样与「创造性变化」如何平衡？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>注入新噪声同步轨迹，会强制各窗走相似路径——这可能抑制合理的场景变化（如镜头切换、场景过渡）。</p>
+      <p><strong>理论分析：</strong>可把注入噪声量作为「一致性–多样性」的调节旋钮。理论上应存在一个最优区间：低于它则有接缝，高于它则丢多样性。</p>
+      <p><strong>连接：</strong>VDN 的非扩张转移也面临同样问题（Q3「非扩张能否与创造性变化共存」）；两者共同指向「何时该一致、何时该变化」的判定问题。</p>
+      <p><strong>探究方向：</strong>在含镜头切换的提示上扫描噪声注入量，测「跳变感知」与「运动多样性」的权衡曲线。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">08</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 重叠滑窗 + Tweedie matching 融合（示意，非官方实现）</span>
+<span class="kw">def</span> <span class="fn">flowlong_generate</span>(model, prompt, total_frames, win, overlap):
+    windows = []
+    <span class="kw">for</span> s <span class="kw">in</span> range(<span class="st">0</span>, total_frames, win - overlap):
+        x = sample_window(model, prompt, n_frames=win)
+        x0_hat = tweedie_estimate(x)          <span class="cm"># 干净样本估计</span>
+        windows.append((s, x0_hat))
+    <span class="cm"># 重叠区融合：按到流形的距离加权</span>
+    <span class="kw">for</span> (s1, a), (s2, b) <span class="kw">in</span> zip(windows, windows[<span class="st">1</span>:]):
+        w = manifold_weight(a, b)
+        blend_region(a, b, s2 - s1, overlap, alpha=w)
+    <span class="kw">return</span> stitch(windows)
+
+<span class="kw">def</span> <span class="fn">tweedie_estimate</span>(x_t):
+    <span class="cm"># x̂_0 = (x_t - sqrt(1-ᾱ_t) * eps_θ) / sqrt(ᾱ_t)  —— 扩散的标准 Tweedie 式</span>
+    <span class="kw">return</span> (x_t - math.sqrt(<span class="st">1</span> - alpha_bar) * eps_theta) / math.sqrt(alpha_bar)</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 随机早相位 + ODE 晚相位（示意）</span>
+<span class="kw">def</span> <span class="fn">two_phase_sampling</span>(x_T, model, t_switch):
+    x = x_T
+    <span class="kw">for</span> t <span class="kw">in</span> reversed(range(T)):
+        <span class="kw">if</span> t &gt; t_switch:                    <span class="cm"># 早相位：随机，注入新噪声同步轨迹</span>
+            x = stochastic_step(x, model, t, fresh_noise=<span class="kw">True</span>)
+        <span class="kw">else</span>:                               <span class="cm"># 晚相位：确定性 ODE，保细节</span>
+            x = ode_step(x, model, t)
+    <span class="kw">return</span> x</pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>插件思维：在「不改模型」的约束下解题</h4>
+    <p>FlowLong 最值得学的不是 Tweedie 公式本身，而是<strong>「这是采样层问题，就在采样层解决」</strong>的判断力。很多问题被错配到模型层（于是重训大模型），实际只是采样/推理层的不一致。识别问题的层次，往往比选择更复杂的模型更关键——这也解释了为什么 FlowLong 能以近乎零成本取得改善。</p>
+  </div>
+</section>

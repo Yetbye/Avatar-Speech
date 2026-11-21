@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lynn · 论文解读</title>
+<meta name="description" content="用显式参考条件 + 统一模型解决扩散视频的『不可控 + 长时漂移』；含 27B Flash 实时渲染变体与少步蒸馏（强调控制保持）。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2026 · 技术报告</div>
+    <h1>Lynn</h1>
+    <p class="hero-tagline">给参考就能可控生成：面向智能体视觉工作流的多模态视频生成</p>
+    <p class="hero-desc">用显式参考条件 + 统一模型解决扩散视频的『不可控 + 长时漂移』；含 27B Flash 实时渲染变体与少步蒸馏（强调控制保持）。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lynn"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="70" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="105" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="140" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="175" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="210" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="245" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="280" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="315" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="350" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="385" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="420" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="455" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="490" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="525" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="560" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="595" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="630" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="665" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="700" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="735" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="72" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="130" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="188" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="246" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="304" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="362" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="420" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="478" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="536" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="594" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="652" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="710" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><line x1="70" y1="120" x2="750" y2="120" stroke="#E85D4E" stroke-width="2" marker-end="url(#ah)"/><text x="410" y="105" text-anchor="middle" font-family="Noto Sans SC" font-size="16" font-weight="700" fill="#E85D4E">异步双流 · 流式时间轴</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：智能体视觉工作流的原生多模态视频生成（Standard/Flash 双变体）</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#speech-video">speech-video</a><span class="sep">/</span>Lynn</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 定位更正：Lynn = LynnReal-Omni，不是「未检索到」</a></li><li><a href="#s2">02 问题诊断：扩散视频的「不可控 + 长时漂移」</a></li><li><a href="#s3">03 双变体架构：Standard 与 27B Flash</a></li><li><a href="#s4">04 数据管线：把「可控」建立在干净数据上</a></li><li><a href="#s5">05 少步蒸馏与控制保持</a></li><li><a href="#s6">06 效率与评测</a></li><li><a href="#s7">07 批判评估</a></li><li><a href="#s8">08 自主科研问题</a></li><li><a href="#s9">09 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 定位更正：Lynn = LynnReal-Omni，不是「未检索到」</h2>
+  <p class="lead">先做一次重要的<strong>记录更正</strong>：白板里的「Lynn」对应的是 <strong>LynnReal-Omni</strong>（arXiv 2609.15863，LynnReal AI，31 页技术报告）——<em>Native multi-modal Video Generation for Agentic Visual Workflows</em>。此前本门户按关键词「Lynn」检索未命中，误标为「arXiv 未检索到」；现据用户提供的链接更正。这与本地 TaoMate-HD 论文里转引的「LynnReal-Omni Standard / Flash」完全吻合，可交叉印证。</p>
+  <p>它的定位比白板的「speech-video」更宽：<strong>面向智能体视觉工作流的原生多模态视频生成</strong>。核心命题是——视频扩散模型<strong>随机、难控制</strong>：精确内容常需反复采样且不保证成功，长时场景还会在外观、交互、时间连贯性上漂移。LynnReal-Omni 用<strong>显式参考条件 + 统一模型</strong>来解这个问题。</p>
+  <div class="critique-card"><span class="cc-tag">记录更正</span>
+    <h4>为什么之前会搜漏？关键词 ≠ 论文名</h4>
+    <p>白板写「Lynn」，但论文标题是「LynnReal-Omni」。用「Lynn」在 arXiv 检索会命中大量同名作者与无关领域，反而漏掉正主。这提醒：<strong>以人名/简称标注的论文，必须用完整系统名核对</strong>。本门户此前对 MiniMax-H3 也做过类似纠偏（评测论文 ≠ 模型卡），可见「名称核对」是文献调研的高频陷阱。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 问题诊断：扩散视频的「不可控 + 长时漂移」</h2>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">视频扩散模型的两大痛点</text>
+    <rect x="30" y="58" width="355" height="130" rx="11" fill="#E85D4E" opacity="0.1" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="207" y="86" text-anchor="middle" font-size="12.5" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">① 随机、难控制</text>
+    <text x="48" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">精确内容需反复采样</text>
+    <text x="48" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">且不保证成功</text>
+    <text x="48" y="170" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 「抽卡」式生成</text>
+    <rect x="415" y="58" width="355" height="130" rx="11" fill="#C9A86C" opacity="0.12" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="592" y="86" text-anchor="middle" font-size="12.5" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">② 长时漂移</text>
+    <text x="433" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">外观、交互、时间连贯性</text>
+    <text x="433" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">随时间逐渐崩坏</text>
+    <text x="433" y="170" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 长镜头不可用</text>
+    <text x="30" y="228" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">LynnReal-Omni 的解法：<strong>显式参考条件</strong>（agentic visual creation 提供）+ <strong>统一模型</strong>内组合视觉条件。</text>
+    <text x="30" y="258" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">→ 把「抽卡」变成「给参考、可控地生成」。</text>
+  </svg><div class="figcap"><b>图 1</b> · 视频扩散的两大痛点：不可控 + 长时漂移</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「不可控」是比「不够好看」更根本的问题</h4>
+    <p>过去评价视频生成看画质；但用于<strong>创作工作流</strong>（agentic visual workflows）时，用户要的是<em>精确控制</em>——「这里换成雨天」「这个角色这样做」。画质再高、控制不住就无法用。LynnReal-Omni 把「可控性」提为首要目标，这与 MiniMax-H3 评测揭示的「渲染一个事件 ≠ 推断一个事件」是同一转向：<em>从「好看」到「可控/可用」</em>。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 双变体架构：Standard 与 27B Flash</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">统一多模态模型</div><div class="dd">在一个模型内<strong>组合视觉条件</strong>（compose visual conditions），支撑智能体视觉创作。<span class="alt">多模态条件统一处理，而非各条件分别适配。</span></div></div>
+    <div class="def-item"><div class="dt">27B Flash</div><div class="dd">另训一个 <strong>27B 的共享多模态扩散 Transformer</strong>，专用于<strong>实时渲染</strong>。<span class="alt">这是「标准质量」与「实时渲染」分工的产物——同一任务两种部署拓扑。</span></div></div>
+    <div class="def-item"><div class="dt">Flash 的加速手段</div><div class="dd">模型 + 解码加速：<strong>轻量 VAE 解码器</strong>、深度削减、token 削减、量化、算子融合、解码器替换。<span class="alt">全套工程加速组合拳，而非单一技巧。</span></div></div>
+    <div class="def-item"><div class="dt">少步蒸馏</div><div class="dd">对 Standard 与 Flash <strong>两个变体都做少步蒸馏</strong>，强调多模态控制保持 + 端到端效率。<span class="alt">蒸馏易掉控制能力，故特别强调「控制保持」。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">Standard 与 Flash：两种部署拓扑</text>
+    <!-- Standard -->
+    <rect x="30" y="60" width="355" height="170" rx="11" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="207" y="88" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">Standard 变体</text>
+    <text x="48" y="118" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 追求视觉/时间/音频质量</text>
+    <text x="48" y="142" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 完整能力</text>
+    <text x="48" y="166" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 对应部署拓扑 A</text>
+    <text x="48" y="200" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">为质量优化</text>
+    <!-- Flash -->
+    <rect x="415" y="60" width="355" height="170" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="592" y="88" text-anchor="middle" font-size="12.5" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">Flash 变体（27B）</text>
+    <text x="433" y="118" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 实时渲染专用</text>
+    <text x="433" y="142" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 轻量 VAE + 量化 + 算子融合</text>
+    <text x="433" y="166" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">· 单 H100：22 帧 540p</text>
+    <text x="433" y="200" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">为速度优化</text>
+    <!-- note -->
+    <text x="30" y="268" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">两个变体各配<strong>不同的训练配置与部署拓扑</strong>，分别评测（原文 4.3.1、5.4）。</text>
+  </svg><div class="figcap"><b>图 2</b> · Standard 与 Flash 双变体：质量路线与实时路线</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「双变体」是工业系统对「质量–速度不可兼得」的诚实回答</h4>
+    <p>学术论文常试图用一个模型同时做到最好与最快，结果两头不讨好。LynnReal-Omni 直接承认这个权衡，<strong>分成 Standard 与 Flash 两个变体</strong>、各自独立优化与评测。这与 LeapTalk 的「跳出权衡曲线」是两种哲学：LeapTalk 试图<em>破解</em>权衡，LynnReal-Omni 选择<em>承认并分工</em>。在产品场景里，后者往往更务实。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 数据管线：把「可控」建立在干净数据上</h2>
+  <div class="figure"><svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="280" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">系统化数据管线（原文 4.x）</text>
+    <g>
+      <rect x="30" y="60" width="175" height="52" rx="9" fill="#5D6D7E"/><text x="117" y="91" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">视频清洗</text>
+      <rect x="215" y="60" width="175" height="52" rx="9" fill="#1B4B6F"/><text x="302" y="91" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">主体关联</text>
+      <rect x="400" y="60" width="175" height="52" rx="9" fill="#5A8F7B"/><text x="487" y="91" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">多模态标注</text>
+      <rect x="585" y="60" width="185" height="52" rx="9" fill="#C9A86C"/><text x="677" y="91" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">对齐控制构造</text>
+    </g>
+    <g stroke="#95A5A6" stroke-width="2">
+      <line x1="207" y1="86" x2="213" y2="86"/><line x1="392" y1="86" x2="398" y2="86"/><line x1="577" y1="86" x2="583" y2="86"/>
+    </g>
+    <!-- importance -->
+    <text x="30" y="152" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">为什么每步都关键：</text>
+    <text x="30" y="180" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">· <tspan font-weight="700">主体关联</tspan>：确定「哪个物体是哪个」——可控生成的前提</text>
+    <text x="30" y="206" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">· <tspan font-weight="700">多模态标注</tspan>：把视觉/音频/文本条件对齐到同一语义</text>
+    <text x="30" y="232" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">· <tspan font-weight="700">对齐控制构造</tspan>：造出「参考 → 目标」的可控训练对</text>
+    <text x="30" y="262" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：流程为对原文「systematic data pipeline」的概括，具体模型与阈值以原文为准。</text>
+  </svg><div class="figcap"><b>图 3</b> · 数据管线：清洗 → 主体关联 → 多模态标注 → 对齐控制构造</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「可控」是数据属性，不只是模型属性</h4>
+    <p>很多工作试图用架构实现可控（加控制分支、加 adapter）。LynnReal-Omni 把可控<strong>前移到数据</strong>：只有当数据里有「参考 → 目标」的<em>对齐控制构造</em>时，模型才学得会「照参考生成」。这与 MOVA 的「数据漏斗」、OmniHuman 的「分层标注」同属一条主线：<strong>先有结构化的数据，才有结构化的能力</strong>。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 少步蒸馏与控制保持</h2>
+  <p>少步蒸馏在本领域已是标准做法（OmniForcing、Salt++、LeapTalk 都在做），但 LynnReal-Omni 特别强调一个易被忽视的点：<strong>蒸馏会掉控制能力</strong>。因此它对 Standard 与 Flash 两个变体都做蒸馏时，把<strong>多模态控制保持</strong>作为目标，而非只追求速度。</p>
+  <div class="formula-card"><div class="f-label">Eq.1 · 蒸馏的控制保持目标（示意）</div>
+    <div>$$ \mathcal{L}_{\text{distill}} = \underbrace{\| \hat{x}_{\text{stu}} - x_{\text{tea}} \|^2}_{\text{质量对齐}} + \lambda \underbrace{\| \phi(\hat{x}_{\text{stu}} \mid c) - \phi(x_{\text{tea}} \mid c) \|^2}_{\text{条件控制保持}} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>第一项让学生逼近教师质量；第二项约束<em>在给定条件 c 下</em>的表示一致，从而保住「照参考生成」的能力。<span class="kbd-term">φ</span> 是条件敏感的表示。<br>
+    <strong>注意：</strong>此式为按「multimodal control preservation」思路的<em>示意性形式化</em>；原文具体损失需查原文。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>蒸馏掉的往往不是画质，而是「听话程度」</h4>
+    <p>少步蒸馏用教师轨迹监督学生，学生容易学到「平均好看」而丢失<em>条件敏感性</em>——即给什么参考都生成差不多的东西。对通用生成这是小问题，对<strong>可控生成</strong>是致命的。LynnReal-Omni 把「控制保持」列为蒸馏目标，正是意识到这一点。这也是为什么它引用的 Salt++（Ge et al., 2026）与 trajectory distribution matching 都强调<em>上下文/分布对齐</em>。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 效率与评测</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>结果（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">实时渲染</td><td>27B Flash 变体；单 H100 上 22 帧 540p 的 warm generation + decoding</td></tr>
+      <tr><td class="route">加速手段</td><td>轻量 VAE 解码器、深度/token 削减、量化、算子融合、解码器替换</td></tr>
+      <tr><td class="route">评测维度</td><td>视觉质量、时间行为、音频协调（visual / temporal / audio coordination）</td></tr>
+      <tr><td class="route">控制能力</td><td>参考引导的天气与外观编辑（5.5 节）</td></tr>
+      <tr><td class="route">变体</td><td>Standard 与 Flash 各自训练配置、各自评测</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">效率加速的组合拳</text>
+    <rect x="30" y="60" width="110" height="52" rx="8" fill="#1B4B6F"/><text x="85" y="91" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">轻量 VAE</text>
+    <rect x="150" y="60" width="110" height="52" rx="8" fill="#1B4B6F" opacity="0.85"/><text x="205" y="91" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">深度削减</text>
+    <rect x="270" y="60" width="110" height="52" rx="8" fill="#5A8F7B"/><text x="325" y="91" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">token 削减</text>
+    <rect x="390" y="60" width="110" height="52" rx="8" fill="#5A8F7B" opacity="0.85"/><text x="445" y="91" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">量化</text>
+    <rect x="510" y="60" width="110" height="52" rx="8" fill="#C9A86C"/><text x="565" y="91" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">算子融合</text>
+    <rect x="630" y="60" width="140" height="52" rx="8" fill="#E85D4E"/><text x="700" y="91" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">解码器替换</text>
+    <text x="30" y="152" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">六项叠加 → 端到端效率（原文强调「measured end-to-end efficiency」）。</text>
+    <text x="30" y="180" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">注意：原文明确「Standard 与 Flash 路径有不同部署拓扑，各自评测」——因此效率数字<strong>不可跨变体比较</strong>。</text>
+    <text x="30" y="210" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：具体数值见原文 5.4（Inference Latency）。</text>
+  </svg><div class="figcap"><b>图 4</b> · 六项加速手段的组合（端到端效率）</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 「27B」是 Flash 变体的规模，Standard 变体规模未在此明确</h4>
+    <p>原文明确 Flash 为 27B，但 Standard 变体的参数量在抽取段落中未见。引用「LynnReal-Omni 是 27B」需注明是 Flash 而非整个系统。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 双变体让「LynnReal-Omni 的能力」变得含混</h4>
+    <p>当说「LynnReal-Omni 效果如何」时，指 Standard 还是 Flash？两者质量/速度差异大。对比其他工作时必须标明变体，否则不可比。TaoMate-HD 的评测表就分列 Lynn / Lynn-Flash 两行，正是这个原因。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 技术报告的评测可复现性有限</h4>
+    <p>这是 LynnReal AI 的技术报告，非同行评审论文。数据管线、评测集多为内部构建，第三方难以复现。结论应在此范围内解读。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 「agentic visual workflows」的智能体侧未充分展开</h4>
+    <p>标题强调 agentic workflows，但抽取内容主要讲生成模型本身。智能体如何<em>调用</em>它、如何规划视觉条件，是更上层的问题，本文涉及较少。真正的「智能体工作流」需结合上层 agent 框架。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>「控制保持」能否被量化为蒸馏的可监控指标？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>LynnReal-Omni 强调蒸馏要保持控制，但未给出「控制保持度」的量化。若能度量，就能在训练中监控。</p>
+      <p><strong>理论分析：</strong>可定义「条件敏感度」：给定不同参考 c，输出分布的变化量。蒸馏后若该变化量塌缩，说明控制丢失。用互信息 I(输出; 条件) 度量。</p>
+      <p><strong>连接：</strong>Salt++ 的 context-aligned、OmniForcing 的 forcing 都涉及「条件/上下文保持」；可统一为条件敏感度监控。</p>
+      <p><strong>探究方向：</strong>在蒸馏过程中监控 I(输出; 条件)，测其与最终控制精度的相关性。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>双变体能否合并为「一次训练、动态提速」？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>Standard 与 Flash 各训一次成本高。能否一次训练、按需切换速度档？</p>
+      <p><strong>理论分析：</strong>可用早退（early exit）或条件计算：简单内容走轻量路径、复杂内容走完整路径。这与 MoE 的路由思想一致。</p>
+      <p><strong>连接：</strong>JavisDiT++ 的 MS-MoE 是「按模态分工」；此处是「按复杂度分工」，同属条件计算。</p>
+      <p><strong>探究方向：</strong>实现早退式双速生成，比较与独立双变体的质量-速度差距。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>「主体关联」错误如何影响可控生成？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>数据管线的主体关联若有误（认错物体），可控生成会学出错误的「参考→目标」映射。</p>
+      <p><strong>理论分析：</strong>把主体关联错误建模为标签噪声。在可控生成里，标签噪声直接对应「控制指令被执行错」，危害比普通生成更大。</p>
+      <p><strong>连接：</strong>OmniHuman 的「个体属性对齐」是同类问题（属性标注错误 → 属性控制失效）。</p>
+      <p><strong>探究方向：</strong>注入不同比例的主体关联错误，测可控生成的鲁棒性衰减曲线。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s9" ><span class="num">09</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># LynnReal-Omni 双变体（据原文整理，非官方实现）</span>
+LYNNREAL = dict(
+    arxiv=<span class="st">"2609.15863"</span>, org=<span class="st">"LynnReal AI"</span>, pages=<span class="st">31</span>,
+    variants=dict(
+        standard=dict(focus=<span class="st">"quality"</span>, topology=<span class="st">"A"</span>),
+        flash=dict(params=<span class="st">"27B"</span>, focus=<span class="st">"real-time rendering"</span>,
+                   accel=[<span class="st">"lightweight VAE"</span>, <span class="st">"depth reduction"</span>, <span class="st">"token reduction"</span>,
+                          <span class="st">"quantization"</span>, <span class="st">"operator fusion"</span>, <span class="st">"decoder replacement"</span>]),
+    ),
+    data_pipeline=[<span class="st">"video cleaning"</span>, <span class="st">"subject association"</span>, <span class="st">"multimodal annotation"</span>,
+                   <span class="st">"aligned control construction"</span>],
+)</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 少步蒸馏 + 控制保持（示意）</span>
+<span class="kw">def</span> <span class="fn">distill_with_control</span>(student, teacher, cond, lam=<span class="st">0.5</span>):
+    x_stu = student(cond)
+    x_tea = teacher(cond)
+    quality = F.mse_loss(x_stu, x_tea)                 <span class="cm"># 质量对齐</span>
+    control = F.mse_loss(phi(x_stu, cond), phi(x_tea, cond))  <span class="cm"># 条件控制保持</span>
+    <span class="kw">return</span> quality + lam * control</pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>LynnReal-Omni 的启示：工业系统的「可控」是一整条链</h4>
+    <p>它的价值不在于某一个模块，而在于把「可控生成」拆成<strong>数据（对齐控制构造）→ 模型（统一条件组合）→ 蒸馏（控制保持）→ 部署（双变体）</strong>一整条链。任何一环掉了控制，最终都不可用。这种「全链路」视角，比单点创新更适合解决<em>可用性</em>问题——而这正是「agentic visual workflows」真正需要的。</p>
+  </div>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

@@ -1,0 +1,194 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂：让声音和脸「从同一个表示里说出来」</h2>
+  <p class="lead">人类交流本质上是<strong>听说双向</strong>的：你说话时脸在动，你听时脸也在反馈。但现有多模态对话智能体大多只处理文本或语音，<strong>丢掉了视觉反馈</strong>——而它正是自然交互的关键。JAVIS 是一个端到端的流式框架，核心想法只有一句：<strong>让声音和脸从同一个表示里说出来</strong>（let the voice and the face speak from a single representation）。</p>
+  <p>结构上：一个<strong>共享 LLM</strong> 之上接 <strong>Joint Refined Head</strong> 产生统一音视频表示，再分发给语音与人脸两个专用流式分支。它还配套发布了 <strong>JAVIS-Syn</strong>——334 小时的合成音视频对话语料，用于补足「有情绪的多轮对话数据」的稀缺。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「单一表示」是同步问题的釜底抽薪</h4>
+    <p>音画不同步的根因通常是：<strong>两模态由两套表示分别生成</strong>，它们的时序语义并不一致。JAVIS 让两模态共享同一表示，同步就不再是「事后对齐」，而是「同一源的两个视图」。这与本门户里 LTX-2 的 joint attention、MOVA 的 Aligned RoPE 是同一目标的不同强度：<em>越是在表示层共享，同步越是内生的</em>。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 从「单模态对话」到「音视频对话」</h2>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">对话智能体的模态缺口</text>
+    <!-- left: text/voice -->
+    <rect x="30" y="60" width="350" height="100" rx="11" fill="#95A5A6" opacity="0.12" stroke="#95A5A6" stroke-width="1.5"/>
+    <text x="205" y="88" text-anchor="middle" font-size="12.5" font-weight="700" fill="#5D6D7E" font-family="Noto Sans SC">现有：文本 / 语音</text>
+    <text x="205" y="114" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">「说了什么」被处理</text>
+    <text x="205" y="138" text-anchor="middle" font-size="11" fill="#E85D4E" font-family="Noto Sans SC">「怎么说」（表情/口型/反馈）缺失</text>
+    <!-- right: AV -->
+    <rect x="420" y="60" width="350" height="100" rx="11" fill="#1B4B6F" opacity="0.12" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="595" y="88" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">JAVIS：音视频</text>
+    <text x="595" y="114" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">语音 + 人脸统一表示</text>
+    <text x="595" y="138" text-anchor="middle" font-size="11" fill="#5A8F7B" font-family="Noto Sans SC">听与说都有视觉反馈</text>
+    <line x1="382" y1="110" x2="416" y2="110" stroke="#E85D4E" stroke-width="3" marker-end="url(#q1)"/>
+    <!-- interaction loop -->
+    <text x="30" y="204" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">交互循环（双向）：</text>
+    <rect x="30" y="222" width="150" height="46" rx="9" fill="#5A8F7B"/><text x="105" y="250" text-anchor="middle" font-size="11.5" fill="#fff" font-family="Noto Sans SC">说话 Speaking</text>
+    <rect x="420" y="222" width="150" height="46" rx="9" fill="#1B4B6F"/><text x="495" y="250" text-anchor="middle" font-size="11.5" fill="#fff" font-family="Noto Sans SC">倾听 Listening</text>
+    <line x1="182" y1="238" x2="416" y2="238" stroke="#E85D4E" stroke-width="2" marker-end="url(#q1)"/>
+    <line x1="416" y1="254" x2="182" y2="254" stroke="#C9A86C" stroke-width="2" marker-end="url(#q2)"/>
+    <text x="298" y="232" text-anchor="middle" font-size="10.5" fill="#E85D4E" font-family="Noto Sans SC">产出（声+脸）</text>
+    <text x="298" y="272" text-anchor="middle" font-size="10.5" fill="#A67C3D" font-family="Noto Sans SC">反馈（点头/表情）</text>
+    <defs>
+      <marker id="q1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#E85D4E"/></marker>
+      <marker id="q2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#C9A86C"/></marker>
+    </defs>
+  </svg><div class="figcap"><b>图 1</b> · 从单模态到音视频对话：补上「视觉反馈」</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> 结构：共享 LLM → Joint Refined Head → 双流式分支</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">共享 LLM</div><div class="dd">负责对话的<em>内容与语义</em>。<span class="alt">复用 LLM 的语言与推理能力，不从头训对话逻辑。</span></div></div>
+    <div class="def-item"><div class="dt">Joint Refined Head</div><div class="dd">产生<strong>统一音视频表示</strong>——语音与人脸都从它出发。<span class="alt">这是同步的「单一源头」；相对双表示生成，这里消除了时序语义错位的可能。</span></div></div>
+    <div class="def-item"><div class="dt">专用流式分支</div><div class="dd">语音分支 + 人脸分支，各自<strong>流式</strong>生成。<span class="alt">分工明确：统一表示管「说什么、什么表情」，分支管「怎么输出」。</span></div></div>
+    <div class="def-item"><div class="dt">数据</div><div class="dd"><strong>JAVIS-Syn</strong>：334 小时合成语料，含情绪丰富的多轮对话与助手式交流。<span class="alt">针对「有视觉反馈的对话数据」稀缺这一缺口。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="320" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">JAVIS 结构：单一表示 → 双流式分支</text>
+    <!-- LLM -->
+    <rect x="300" y="52" width="200" height="46" rx="10" fill="#C9A86C"/>
+    <text x="400" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="Noto Sans SC">共享 LLM</text>
+    <!-- joint refined head -->
+    <rect x="280" y="126" width="240" height="52" rx="10" fill="#E85D4E" opacity="0.16" stroke="#E85D4E" stroke-width="2"/>
+    <text x="400" y="148" text-anchor="middle" font-size="12" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">Joint Refined Head</text>
+    <text x="400" y="168" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">统一音视频表示</text>
+    <line x1="400" y1="98" x2="400" y2="122" stroke="#5D6D7E" stroke-width="2" marker-end="url(#r1)"/>
+    <!-- two branches -->
+    <rect x="120" y="222" width="220" height="58" rx="10" fill="#5A8F7B" opacity="0.16" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="230" y="248" text-anchor="middle" font-size="11.5" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">语音流式分支</text>
+    <text x="230" y="268" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">输出 speech</text>
+    <rect x="460" y="222" width="220" height="58" rx="10" fill="#1B4B6F" opacity="0.14" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="570" y="248" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">人脸流式分支</text>
+    <text x="570" y="268" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">输出 face</text>
+    <line x1="330" y1="178" x2="230" y2="218" stroke="#E85D4E" stroke-width="2" marker-end="url(#r1)"/>
+    <line x1="470" y1="178" x2="570" y2="218" stroke="#E85D4E" stroke-width="2" marker-end="url(#r1)"/>
+    <text x="400" y="302" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">同一表示 → 两路输出天然同步</text>
+    <defs><marker id="r1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#E85D4E"/></marker></defs>
+  </svg><div class="figcap"><b>图 2</b> · 共享 LLM → Joint Refined Head → 语音/人脸双流式分支</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「统一表示 + 专用分支」是一个可复用的设计模式</h4>
+    <p>它介于两个极端之间：<strong>完全共享</strong>（一个网络出两模态，表达力受限）与<strong>完全分开</strong>（两网络各出一模态，同步靠运气）。JAVIS 在表示层共享、在输出层分工——既保住了同步，又允许每个分支做模态特化的精细建模。这个「共享语义、分工渲染」的模式，同样适用于本门户里其他联合生成工作。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 数据缺口：JAVIS-Syn 为什么必须存在</h2>
+  <div class="figure"><svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="250" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">音视频对话数据的稀缺</text>
+    <!-- gap -->
+    <rect x="40" y="60" width="330" height="70" rx="11" fill="#95A5A6" opacity="0.12" stroke="#95A5A6" stroke-width="1.5"/>
+    <text x="205" y="88" text-anchor="middle" font-size="11.5" font-weight="700" fill="#5D6D7E" font-family="Noto Sans SC">现有数据的不足</text>
+    <text x="205" y="112" text-anchor="middle" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">缺「情绪丰富的多轮音视频对话」</text>
+    <rect x="430" y="60" width="330" height="70" rx="11" fill="#5A8F7B" opacity="0.14" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="595" y="88" text-anchor="middle" font-size="11.5" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">JAVIS-Syn</text>
+    <text x="595" y="112" text-anchor="middle" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">334 小时合成语料</text>
+    <!-- composition -->
+    <text x="40" y="172" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">内容构成：</text>
+    <rect x="40" y="188" width="330" height="36" rx="8" fill="#1B4B6F"/><text x="205" y="211" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">情绪丰富的多轮对话</text>
+    <rect x="390" y="188" width="330" height="36" rx="8" fill="#C9A86C"/><text x="555" y="211" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">助手式交流（assistant-style）</text>
+    <text x="40" y="242" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：VoiceAssistant-400K 仅将助手回复渲染为视频（时长不含用户侧）——细节见原文 Table 2。</text>
+  </svg><div class="figcap"><b>图 3</b> · JAVIS-Syn：补上「有情绪的音视频对话」数据缺口</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> 优势与证据 + 批判评估</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>结论（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">客观质量</td><td>Table 1：音视频同步、视频质量、语音质量三方面对比</td></tr>
+      <tr><td class="route">数据</td><td>JAVIS-Syn 334 小时，经口型同步过滤（Table 2 统计）</td></tr>
+      <tr><td class="route">能力</td><td>端到端流式、音视频统一表示、听与说的双向交互</td></tr>
+    </tbody></table></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 5 页短文，方法细节披露有限</h4>
+    <p>篇幅限制意味着训练细节、超参、消融都不完整。本文价值更多在「提出范式 + 发布数据」，而非完整方法学。引用时应据此调整对结论强度的预期。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 合成数据（JAVIS-Syn）的真实性边界</h4>
+    <p>334 小时是合成语料，非真实人类对话录像。合成数据在「真实情绪表现」「自然反应」上必然与真实数据有差距。论文需说明合成管线如何避免模式塌缩（表情模板化），否则模型可能学出「假笑」。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 「倾听反馈」的范围未完全界定</h4>
+    <p>对话交互包含倾听时的反馈（点头、眼神、微表情）。本文提到了视觉反馈的重要性，但 JAVIS 主要产出「说话时的语音+脸」。「倾听侧」的生成是否覆盖，影响它与 Beyond Monologue、UniLS 等「听-说」工作的可比性。</p></div>
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">同步强度光谱：越靠左越「内生」</text>
+    <line x1="60" y1="140" x2="740" y2="140" stroke="#5D6D7E" stroke-width="2"/>
+    <g>
+      <circle cx="130" cy="140" r="11" fill="#1B4B6F"/>
+      <text x="130" y="176" text-anchor="middle" font-size="10.5" fill="#1B4B6F" font-family="Noto Sans SC">JAVIS</text>
+      <text x="130" y="194" text-anchor="middle" font-size="9.5" fill="#95A5A6" font-family="Noto Sans SC">统一表示</text>
+
+      <circle cx="320" cy="140" r="11" fill="#5A8F7B"/>
+      <text x="320" y="176" text-anchor="middle" font-size="10.5" fill="#5A8F7B" font-family="Noto Sans SC">LTX-2 / MOVA</text>
+      <text x="320" y="194" text-anchor="middle" font-size="9.5" fill="#95A5A6" font-family="Noto Sans SC">联合注意力</text>
+
+      <circle cx="520" cy="140" r="11" fill="#C9A86C"/>
+      <text x="520" y="176" text-anchor="middle" font-size="10.5" fill="#A67C3D" font-family="Noto Sans SC">跨模态交互</text>
+      <text x="520" y="194" text-anchor="middle" font-size="9.5" fill="#95A5A6" font-family="Noto Sans SC">双塔/桥</text>
+
+      <circle cx="700" cy="140" r="11" fill="#E85D4E"/>
+      <text x="700" y="176" text-anchor="middle" font-size="10.5" fill="#E85D4E" font-family="Noto Sans SC">级联</text>
+      <text x="700" y="194" text-anchor="middle" font-size="9.5" fill="#95A5A6" font-family="Noto Sans SC">事后配音</text>
+    </g>
+    <text x="60" y="98" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">← 同步是「长出来」的</text>
+    <text x="560" y="98" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">同步是「对上去」的 →</text>
+  </svg><div class="figcap"><b>图 4</b> · 同步强度光谱：JAVIS 的统一表示在最内生的一端</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>统一表示的容量该多大，才能同时装下语音与表情？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>表示太小则表情/语音信息被压掉，太大则流式分支难学。最优容量是多少？</p>
+      <p><strong>理论分析：</strong>把统一表示视为信息瓶颈：需保留「语义（说什么）+ 韵律（怎么说）+ 表情（什么脸）」三类信息。可用互信息下界估计三者各自所需维度，进而推容量。</p>
+      <p><strong>连接：</strong>MOVA 的「audio latent 远稠密」提示音频信息量大；统一表示若不扩容，可能偏袒某一模态。</p>
+      <p><strong>探究方向：</strong>扫描表示维度（64/256/1024），测语音质量与表情丰富度的退化拐点。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>合成对话语据能否学到「真诚的倾听反应」？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>倾听反馈（点头、眼神）在真实对话中是无意识、微小且微妙的。合成数据容易把它们做成模板动作，反而显得假。</p>
+      <p><strong>理论分析：</strong>可把倾听反应建模为「对对方语音韵律的条件响应」。若合成管线只按文本生成表情，就会丢失这种<em>韵律→表情</em>的因果，导致反应与语境脱节。</p>
+      <p><strong>连接：</strong>Beyond Monologue 的会话音频上下文感知核正是处理倾听侧的因果；两者可互补。</p>
+      <p><strong>探究方向：</strong>比较「按文本生成」与「按韵律生成」的倾听反应，在人评「自然度」上的差距。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>统一表示 vs 双表示：同步收益的代价是什么？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>统一表示改善同步，但可能限制每个模态的独立表达力（如语音的情感细节、人脸的细微肌肉）。这个代价有多大？</p>
+      <p><strong>理论分析：</strong>可用率失真框架：统一表示强制两模态共享参数，相当于加了一个正则项。正则强度由表示维度决定；维度低则同步好但表达差，反之亦然。</p>
+      <p><strong>连接：</strong>Ovi 用独立双塔 + 逐层融合（表达力强、同步靠融合），是另一个极端；两者构成对照。</p>
+      <p><strong>探究方向：</strong>在统一表示与双表示上分别测「同步指标」与「单模态质量」，画帕累托前沿。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 单一表示 → 双流式分支（示意，非官方实现）</span>
+<span class="kw">class</span> <span class="fn">JAVIS</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">forward</span>(self, dialog_context):
+        h = self.llm(dialog_context)                  <span class="cm"># 共享 LLM：语义</span>
+        rep = self.joint_refined_head(h)             <span class="cm"># 统一音视频表示</span>
+        speech = self.speech_branch(rep, causal=<span class="kw">True</span>)  <span class="cm"># 流式语音</span>
+        face   = self.face_branch(rep,   causal=<span class="kw">True</span>)  <span class="cm"># 流式人脸</span>
+        <span class="kw">return</span> speech, face                           <span class="cm"># 同源 → 天然同步</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># JAVIS-Syn 数据构成（示意，对应原文 Table 2）</span>
+JAVIS_SYN = dict(
+    total_hours=<span class="st">334</span>,
+    components=[<span class="st">"emotionally-rich multi-turn dialogues"</span>, <span class="st">"assistant-style exchanges"</span>],
+    filtered_by=<span class="st">"lip-sync filtering"</span>,
+)
+<span class="cm"># 注意：VoiceAssistant-400K 仅渲染助手侧为视频，时长不含用户侧</span></pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>JAVIS 的贡献更多在「问题定义」而非「技术指标」</h4>
+    <p>5 页短文难有惊艳数字，但 JAVIS 把一个被忽视的问题摆上台面：<strong>对话智能体不该只有声音，还该有脸</strong>。它给出的「单一表示」方案与 JAVIS-Syn 数据集，为后续工作铺了路。这类「定义问题 + 发布数据」的论文，短期引用不如刷榜论文多，长期却往往决定一个子方向的起跑线。</p>
+  </div>
+</section>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JavisDiT · 论文解读</title>
+<meta name="description" content="用分层时空同步先验估计器引导细粒度音画同步，并给出 10,140 条级 JavisBench 与专用同步指标。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">ICLR 2026 · 正式论文</div>
+    <h1>JavisDiT</h1>
+    <p class="hero-tagline">分层时空同步先验 × 联合音视频 DiT</p>
+    <p class="hero-desc">用分层时空同步先验估计器引导细粒度音画同步，并给出 10,140 条级 JavisBench 与专用同步指标。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="JavisDiT"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="90" y="90" width="180" height="70" rx="12" fill="#1B4B6F" stroke="#1B4B6F" stroke-width="2"/><text x="180.0" y="131.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Video Tokens</text><rect x="90" y="250" width="180" height="70" rx="12" fill="#5A8F7B" stroke="#5A8F7B" stroke-width="2"/><text x="180.0" y="291.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Audio Tokens</text><rect x="560" y="170" width="180" height="70" rx="12" fill="#2C3E50" stroke="#2C3E50" stroke-width="2"/><text x="650.0" y="211.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Joint DiT</text><line x1="285" y1="125" x2="555" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><line x1="285" y1="285" x2="555" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><text x="410" y="150" text-anchor="middle" font-family="Noto Sans SC" font-size="15" fill="#E85D4E" font-weight="700">Joint / Cross Attention</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：联合 DiT + 分层时空同步先验（HiST-Sypo）</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#av-foundation">av-foundation</a><span class="sep">/</span>JavisDiT</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂：让「同步」成为一个可度量、可优化的一等目标</a></li><li><a href="#s2">02 问题：同步为什么难被做对，也难被量对</a></li><li><a href="#s3">03 HiST-Sypo：分层时空同步先验估计器</a></li><li><a href="#s4">04 JavisBench：把同步量出来</a></li><li><a href="#s5">05 关键公式（示意性形式化）</a></li><li><a href="#s6">06 优势与证据</a></li><li><a href="#s7">07 批判评估</a></li><li><a href="#s8">08 自主科研问题</a></li><li><a href="#s9">09 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂：让「同步」成为一个可度量、可优化的一等目标</h2>
+  <p class="lead">音视频联合生成里，「同步」长期是个模糊的好感。JavisDiT（<strong>ICLR 2026</strong>）做了一件基础但关键的事：把同步<strong>结构化</strong>——提出 <strong>HiST-Sypo（分层时空同步先验估计器）</strong>引导细粒度音画对齐，并发布 <strong>JavisBench</strong>：10,140 条文本描述的有声视频，专门评测<strong>复杂真实场景下的同步</strong>。</p>
+  <p>它的定位很清楚：此前的模型或用级联补声音、或靠联合生成碰运气同步。JavisDiT 把同步当成<strong>显式先验</strong>注入生成过程，再用专门基准把它<em>量出来</em>。「建模同步 + 度量同步」两手抓，这是它对领域的贡献结构。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「先验估计器」的作用：在生成前就知道「该对齐什么」</h4>
+    <p>联合生成的同步难在：模型要在去噪过程中<em>同时</em>决定内容和对齐，任务耦合太重。HiST-Sypo 的思路是<strong>先估计同步先验</strong>（哪些事件该在何时对应），再把它作为条件注入生成——相当于把「对齐」从生成里解耦出来。这与 MOVA 的 Aligned RoPE（结构对齐）、LTX-2 的 modality-CFG（采样对齐）是同一目标的第三条路径：<em>显式先验</em>。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 问题：同步为什么难被做对，也难被量对</h2>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">同步问题的两面：做不齐 + 测不准</text>
+    <rect x="30" y="58" width="355" height="130" rx="11" fill="#E85D4E" opacity="0.1" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="207" y="86" text-anchor="middle" font-size="12.5" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">① 做不齐（建模侧）</text>
+    <text x="48" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">内容与对齐耦合在去噪里</text>
+    <text x="48" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">级联法后补声音 → 对不上</text>
+    <text x="48" y="162" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">联合法靠隐式学习 → 不稳定</text>
+    <rect x="415" y="58" width="355" height="130" rx="11" fill="#C9A86C" opacity="0.12" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="592" y="86" text-anchor="middle" font-size="12.5" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">② 测不准（评测侧）</text>
+    <text x="433" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">现有基准偏简单场景</text>
+    <text x="433" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">缺「复杂真实场景」的同步评测</text>
+    <text x="433" y="162" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">自动指标与人感常脱节</text>
+    <text x="30" y="228" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">JavisDiT 对两面同时开方：HiST-Sypo 建模同步，JavisBench 度量同步。</text>
+    <text x="30" y="262" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">「能做对」与「能量对」必须同时成立，否则无法判断改进是否真实。</text>
+  </svg><div class="figcap"><b>图 1</b> · 同步问题的两面：建模（做不齐）与评测（测不准）</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> HiST-Sypo：分层时空同步先验估计器</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">核心思想</div><div class="dd">在生成前<strong>估计同步先验</strong>：哪些视觉事件对应哪些听觉事件、发生在何时。<span class="alt">把「对齐」从生成中解耦，降低任务耦合度。</span></div></div>
+    <div class="def-item"><div class="dt">分层（Hierarchical）</div><div class="dd">在<strong>多层时空粒度</strong>上建模同步——从粗（场景/段落）到细（起音/口型）。<span class="alt">单一粒度无法同时管住「整段对齐」与「瞬态对齐」。</span></div></div>
+    <div class="def-item"><div class="dt">时空（Spatio-Temporal）</div><div class="dd">同时考虑<em>空间</em>（哪个物体发声）与<em>时间</em>（何时发声）。<span class="alt">只管时间会在多声源场景下错配；只管空间则丢失时序。</span></div></div>
+    <div class="def-item"><div class="dt">作为先验注入</div><div class="dd">估计出的先验作为条件注入生成过程，引导细粒度对齐。<span class="alt">相对 LTX-2 的 CFG 引导、MOVA 的 RoPE 对齐，这是<em>显式先验</em>路线。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="320" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">HiST-Sypo：分层时空先验 → 注入生成</text>
+    <!-- inputs -->
+    <rect x="30" y="60" width="140" height="50" rx="9" fill="#1B4B6F"/><text x="100" y="90" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">视频内容</text>
+    <rect x="30" y="128" width="140" height="50" rx="9" fill="#5A8F7B"/><text x="100" y="158" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">音频内容</text>
+    <!-- HiST-Sypo -->
+    <rect x="230" y="72" width="220" height="120" rx="11" fill="#C9A86C" opacity="0.16" stroke="#C9A86C" stroke-width="2"/>
+    <text x="340" y="100" text-anchor="middle" font-size="12" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">HiST-Sypo</text>
+    <text x="340" y="124" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">分层时空先验估计</text>
+    <text x="340" y="148" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">粗 → 细（场景→瞬态）</text>
+    <text x="340" y="172" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">空间 + 时间</text>
+    <line x1="172" y1="85" x2="226" y2="110" stroke="#E85D4E" stroke-width="2" marker-end="url(#t1)"/>
+    <line x1="172" y1="153" x2="226" y2="150" stroke="#E85D4E" stroke-width="2" marker-end="url(#t1)"/>
+    <!-- generation -->
+    <rect x="510" y="88" width="250" height="90" rx="11" fill="#1B4B6F" opacity="0.12" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="635" y="118" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">联合生成（JavisDiT）</text>
+    <text x="635" y="146" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">先验作条件 → 细粒度对齐</text>
+    <line x1="452" y1="132" x2="506" y2="132" stroke="#C9A86C" stroke-width="2.5" marker-end="url(#t1)"/>
+    <!-- hierarchy detail -->
+    <rect x="230" y="220" width="220" height="70" rx="9" fill="#E85D4E" opacity="0.1" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="340" y="246" text-anchor="middle" font-size="11" fill="#E85D4E" font-family="Noto Sans SC">粗层：场景 / 段落对齐</text>
+    <text x="340" y="270" text-anchor="middle" font-size="11" fill="#E85D4E" font-family="Noto Sans SC">细层：起音 / 口型对齐</text>
+    <text x="30" y="300" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：此图为机制示意；HiST-Sypo 的内部结构以原文为准。</text>
+    <defs><marker id="t1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#E85D4E"/></marker></defs>
+  </svg><div class="figcap"><b>图 2</b> · HiST-Sypo 估计分层时空先验并注入生成</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「分层」是关键：不同粒度的同步需要不同的对齐机制</h4>
+    <p>整段的「音画氛围一致」与瞬态的「撞击与砰声同刻」是两类同步，机制完全不同。若只用单一机制，往往顾此失彼。HiST-Sypo 用<strong>分层先验</strong>分别处理——粗层管长程一致性，细层管瞬态对应。这解释了为什么它在复杂场景里更稳：复杂场景恰恰同时需要两种同步。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> JavisBench：把同步量出来</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>项</th><th>内容（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">规模</td><td>10,140 条高质量文本描述的有声视频</td></tr>
+      <tr><td class="route">重点</td><td>聚焦<strong>同步</strong>评测（synchronization evaluation）</td></tr>
+      <tr><td class="route">场景</td><td>多样且复杂的<strong>真实世界</strong>场景</td></tr>
+      <tr><td class="route">评测设置</td><td>4 秒视频 @240P/24fps，音频 @16kHz（Table 1）</td></tr>
+      <tr><td class="route">对比</td><td>JavisDiT 全面领先或持平（Table 1）</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="260" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">JavisBench 的定位：专为「同步」而设</text>
+    <rect x="30" y="60" width="235" height="120" rx="11" fill="#95A5A6" opacity="0.12" stroke="#95A5A6" stroke-width="1.5"/>
+    <text x="147" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#5D6D7E" font-family="Noto Sans SC">通用视频基准</text>
+    <text x="48" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">评画质、时序、动态</text>
+    <text x="48" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">同步只是「附带」</text>
+    <rect x="282" y="60" width="235" height="120" rx="11" fill="#5A8F7B" opacity="0.14" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="399" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">JavisBench</text>
+    <text x="300" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">专评<strong>同步</strong></text>
+    <text x="300" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">复杂真实场景</text>
+    <rect x="534" y="60" width="235" height="120" rx="11" fill="#C9A86C" opacity="0.14" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="651" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">配套专用指标</text>
+    <text x="552" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">专门设计的同步度量</text>
+    <text x="552" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">而非通用指标</text>
+    <text x="30" y="216" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">「有专门基准」让同步改进可被验证 —— 这是 JavisDiT 之外的持久贡献。</text>
+    <text x="30" y="242" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：JavisBench 后被 OmniForcing、Salt++ 等用作主评测基准（见本门户其他博客）。</text>
+  </svg><div class="figcap"><b>图 3</b> · JavisBench：专为同步评测而设，含专用指标</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 关键公式（示意性形式化）</h2>
+  <div class="formula-card"><div class="f-label">Eq.1 · 先验条件化的联合生成（示意）</div>
+    <div>$$ p_\theta(x_v, x_a \mid c, \underbrace{\Pi_{\text{sync}}}_{\text{HiST-Sypo 先验}}) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>生成分布除文本条件 c 外，还受<strong>同步先验</strong> Π 调制。Π 编码了「谁在何时对应谁」，从而把对齐信息显式注入。<br>
+    <strong>注意：</strong>此式为按「prior synchronization」思路的<em>示意性形式化</em>，原文的联合分布与损失形式需查原文式。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.2 · 分层同步目标（示意）</div>
+    <div>$$ \mathcal{L}_{\text{sync}} = \sum_{l} w_l \, d\big(\hat{\Pi}^{(l)}, \Pi^{(l)}\big) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>在多个层次 l（粗→细）上，估计的同步先验 Π̂ 应接近真值 Π，按层加权求和。<span class="kbd-term">w_l</span> 决定各层重要性。<br>
+    <strong>来源：</strong>「hierarchical spatio-temporal prior」的思路；具体层定义与距离函数 d 需查原文。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 优势与证据</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>结论（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">主结果</td><td>Table 1（JavisBench）：全面领先或持平</td></tr>
+      <tr><td class="route">跨数据集</td><td>Table 2（Landscape、AIST++ 等）：仍最优（数字引自原论文）</td></tr>
+      <tr><td class="route">同步建模</td><td>HiST-Sypo 分层时空先验引导细粒度对齐</td></tr>
+      <tr><td class="route">评测</td><td>JavisBench 10,140 条 + 专用同步指标</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">JavisDiT 的两条贡献线</text>
+    <rect x="30" y="60" width="355" height="120" rx="11" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="207" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">建模：HiST-Sypo</text>
+    <text x="48" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">分层时空同步先验</text>
+    <text x="48" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">→ 生成时细粒度对齐</text>
+    <rect x="415" y="60" width="355" height="120" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="592" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">评测：JavisBench</text>
+    <text x="433" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">10,140 条 + 专用指标</text>
+    <text x="433" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">→ 改进可被验证</text>
+    <text x="30" y="212" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">两者相互支撑：没有基准，先验的改进无从证明；没有先验，基准只能量出「不行」。</text>
+  </svg><div class="figcap"><b>图 4</b> · 建模（HiST-Sypo）与评测（JavisBench）双线贡献</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 评测分辨率偏低（240P / 16kHz / 4 秒）</h4>
+    <p>Table 1 在 240P、16kHz、4 秒上评测。低分辨率/短时长下，同步问题被简化；真实应用（高清、长时）的同步难度更高。因此「领先」的结论应在该设置范围内解读。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 先验估计器本身若有偏，会传染到生成</h4>
+    <p>HiST-Sypo 依赖估计的同步先验。若估计有偏（如多声源场景错配），生成会被错误引导——比无先验更糟。需给出先验估计的准确率，以及「先验错误时」的鲁棒性分析。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. Table 2 的对比数字「引自原论文」，口径未必可比</h4>
+    <p>跨数据集对比借用了他人论文的数字。不同论文的实现、评测细节可能不同，直接比较存在风险。这是元对比（meta-comparison）的固有问题，应谨慎解读。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 「专用同步指标」与人类感知的关系需验证</h4>
+    <p>自设的同步指标需证明与人感一致，否则可能只是「在自己的尺子上赢」。AVC-Reward 一脉正是在补这个「指标可靠性」的洞。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>同步先验应显式估计，还是让模型隐式学到？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>JavisDiT 显式估计先验，Ovi/LTX-2 靠注意力隐式对齐。显式 vs 隐式的优劣未有定论。</p>
+      <p><strong>理论分析：</strong>显式先验降低任务耦合、可解释，但引入估计误差；隐式对齐端到端、无误差传染，但需更多数据。可从偏差-方差权衡分析两者适用条件。</p>
+      <p><strong>连接：</strong>MOVA 的 Aligned RoPE 是「结构显式」，LTX-2 的 CFG 是「采样显式」，JavisDiT 是「先验显式」——三种显式化路径可对照。</p>
+      <p><strong>探究方向：</strong>在同一骨干上对比显式先验与隐式注意力，测数据量变化时的同步鲁棒性。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>分层先验的「层」该如何定义才不冗余？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>「分层」需要确定分几层、每层管什么。层定义不当会冗余或遗漏。</p>
+      <p><strong>理论分析：</strong>可按时间尺度的多分辨率分解定义层（秒级/百毫秒/十毫秒），使各层正交。用小波式分解可形式化「层」的划分。</p>
+      <p><strong>连接：</strong>VDN 的「局部 Softmax + 线性记忆」是按感受野分层；两者都是多尺度建模。</p>
+      <p><strong>探究方向：</strong>扫描层数与层粒度，测同步指标的饱和点，找出最小充分层数。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>JavisBench 能否扩展到长时、高清、多声源？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>当前基准是 4 秒 / 240P。真实场景需长时、高清、多声源，同步难度更高。</p>
+      <p><strong>理论分析：</strong>同步难度随声源数、时长、分辨率增长。多声源时需「空间-时间-声源」三维对齐，问题复杂度上升。</p>
+      <p><strong>连接：</strong>Soundwich 的多声源分轨、OmniHuman 的复杂场景，都指向这一扩展方向。</p>
+      <p><strong>探究方向：</strong>构建多声源长时子集，测各方法的同步退化曲线。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s9" ><span class="num">09</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># HiST-Sypo：分层时空同步先验估计（示意，非官方实现）</span>
+<span class="kw">def</span> <span class="fn">histsypo</span>(video_feats, audio_feats):
+    priors = {}
+    <span class="kw">for</span> level <span class="kw">in</span> [<span class="st">"coarse"</span>, <span class="st">"mid"</span>, <span class="st">"fine"</span>]:
+        <span class="cm"># 每层：空间（哪个发声）+ 时间（何时发声）</span>
+        spatial  = cross_attn(video_feats[level], audio_feats[level])
+        temporal = align_time(video_feats[level], audio_feats[level])
+        priors[level] = fuse(spatial, temporal)   <span class="cm"># 该层同步先验</span>
+    <span class="kw">return</span> priors
+
+<span class="cm"># 先验条件化生成</span>
+<span class="kw">def</span> <span class="fn">generate</span>(model, prompt, priors):
+    <span class="kw">return</span> model(prompt, sync_prior=priors)   <span class="cm"># 先验作条件</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># JavisBench 评测口径（原文 Table 1）</span>
+BENCH = dict(
+    samples=<span class="st">10140</span>, focus=<span class="st">"synchronization"</span>,
+    video=<span class="st">"4s @240P/24fps"</span>, audio=<span class="st">"16kHz"</span>,
+)
+<span class="cm"># 分层同步损失（示意）</span>
+<span class="kw">def</span> <span class="fn">sync_loss</span>(pred_priors, gt_priors, weights):
+    <span class="kw">return</span> sum(w * distance(pred_priors[l], gt_priors[l]) <span class="kw">for</span> l, w <span class="kw">in</span> weights.items())</pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>JavisDiT 最持久的贡献可能是 JavisBench，而非模型本身</h4>
+    <p>模型会被后来者超越，但<strong>基准</strong>会长期被引用——事实上 OmniForcing、Salt++ 都在用 JavisBench 做主评测。这提醒我们：在评测不足的领域，「造一把好尺子」的价值常超过「又造一个模型」。没有可靠的同步基准，所有「同步更好」的说法都无从验证；JavisDiT 把这把尺子立起来了。</p>
+  </div>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

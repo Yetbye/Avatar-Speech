@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaoMate-HD · 论文解读</title>
+<meta name="description" content="以渐进式分辨率的自回归建模实现高清音视频联合生成。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2025 · Preprint</div>
+    <h1>TaoMate-HD</h1>
+    <p class="hero-tagline">渐进分辨率 × 自回归，高清音视频联合生成</p>
+    <p class="hero-desc">以渐进式分辨率的自回归建模实现高清音视频联合生成。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TaoMate-HD"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="80" y="274" width="92" height="46" rx="10" fill="#1B4B6F" opacity="0.9"/><text x="126" y="345" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="13" fill="#5D6D7E">t1</text><rect x="196" y="242" width="92" height="78" rx="10" fill="#5A8F7B" opacity="0.9"/><text x="242" y="345" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="13" fill="#5D6D7E">t2</text><rect x="312" y="210" width="92" height="110" rx="10" fill="#1B4B6F" opacity="0.9"/><text x="358" y="345" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="13" fill="#5D6D7E">t3</text><rect x="428" y="178" width="92" height="142" rx="10" fill="#5A8F7B" opacity="0.9"/><text x="474" y="345" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="13" fill="#5D6D7E">t4</text><rect x="544" y="146" width="92" height="174" rx="10" fill="#1B4B6F" opacity="0.9"/><text x="590" y="345" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="13" fill="#5D6D7E">t5</text><rect x="660" y="114" width="92" height="206" rx="10" fill="#5A8F7B" opacity="0.9"/><text x="706" y="345" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="13" fill="#5D6D7E">t6</text><line x1="60" y1="330" x2="760" y2="330" stroke="#C9A86C" stroke-width="2" marker-end="url(#ah)"/><text x="410" y="120" text-anchor="middle" font-family="Noto Sans SC" font-size="22" font-weight="800" fill="#2C3E50">Progressive Resolution · Autoregressive</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：渐进分辨率自回归音视频生成</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#av-foundation">av-foundation</a><span class="sep">/</span>TaoMate-HD</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂 &amp;amp; 问题动机</a></li><li><a href="#s2">02 范式定位：从固定分辨率串行到渐进分辨率阶段并行</a></li><li><a href="#s3">03 系统分解：一个 chunk 内的三阶段与跨 chunk 的阶段交接</a></li><li><a href="#s4">04 关键公式：干净端点估计与耦合的跨分辨率提升</a></li><li><a href="#s5">05 非对称蒸馏：让模型学会「接着说」而不是「重新说」</a></li><li><a href="#s6">06 长流推理与语音收尾：不只有「怎么说下去」，还有「何时停」</a></li><li><a href="#s7">07 证据：速度从哪来，质量守住了吗</a></li><li><a href="#s8">08 深度洞察 &amp;amp; 批判评估</a></li><li><a href="#s9">09 自主科研问题</a></li><li><a href="#s10">10 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂 &amp; 问题动机</h2>
+  <p class="lead">TaoMate-HD 要解决的是流式数字人（streaming digital human）的两难：<strong>高分辨率去噪太贵</strong>，而<strong>文本一更新就容易重复或打断正在说的话</strong>。它的核心解法是「渐进分辨率的自回归生成」——每个 chunk 用两步低分辨率去噪先立住画面结构，最后一步才升到高分辨率精修，音频则在同一条轨迹上全程生成；更关键的是，<strong>每个阶段的干净音视频预测直接作为下一 chunk 同阶段的历史</strong>，于是后一个 chunk 不必等前一个 chunk 精修完就能开工。</p>
+  <p>问题的来源很具体。交互式数字人需要在新对话文本陆续到达时持续说话、持续动。直接高分辨率生成在<strong>每一步去噪</strong>都铺满稠密的视频 token 网格，哪怕早期步骤其实只在确定场景布局与大尺度运动；少步蒸馏（few-step distillation）减少了步数，但没减少每步的空间开销；而且「单个 chunk 变快」并不消除 chunk 之间的等待——若下一 chunk 必须以上一 chunk 的最终输出为历史，就必须等全部精修结束。另一方面，流式文本更新常常在句子中间到达，且文本窗口边界与句子结尾不对齐：从头重说会<strong>重复</strong>已说内容，停在窗口边界会<strong>打断</strong>话语。模型因此需要从最近音频里推断「已经说到哪了」。</p>
+  <p>论文的三条贡献对应三个抓手：<strong>（1）渐进式音视频生成器</strong>，把去噪集中在粗网格上，阶段局部（stage-local）的历史让 chunk 之间可以重叠执行；<strong>（2）带非对称文本条件的续说训练</strong>（asymmetric text conditioning + student-generated history），支持跨重叠文本窗口的语音续说；<strong>（3）小时级高分辨率演示与量化对比</strong>。量化结果：同等模型与硬件下渐进式比直接高分辨率生成快 <strong>1.60×</strong>（论文表述，491s → 307s 平均生成时间），优化的阶段并行部署再快 <strong>1.92×</strong>（307s → 160s），续说训练把字符错误率 CER 从 <strong>30.75% 降到 19.57%</strong>（约 11.18 个百分点）。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「不等精修完就交接历史」是这篇论文真正的杠杆</h4>
+    <p>渐进分辨率本身并不新（pyramidal flow、Matryoshka diffusion 都在做多尺度生成），TaoMate-HD 的增量在于把「中间估计」升级为<strong>可交接的一等公民</strong>：每个阶段在 σ=0 处把干净估计编码成该阶段原生网格上的 KV，交给下一 chunk 的<strong>同一阶段</strong>。这把「分辨率调度」和「时序并行」两件原本独立的加速手段焊在了一起——正因为早期阶段只要粗网格历史，下一 chunk 才能提前进入粗阶段。换句话说，空间上的「先粗后精」换来了时间上的「流水线重叠」，这是设计上的耦合收益，而非两个 trick 的简单叠加。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 范式定位：从固定分辨率串行到渐进分辨率阶段并行</h2>
+  <p>把 TaoMate-HD 放进谱系里看，它同时对抗三条路线的短板：<strong>少步蒸馏</strong>（CausVid、Self Forcing 一系）减少采样步数但每步仍是满格网格；<strong>渐进空间计算</strong>（Matryoshka diffusion、pyramidal flow、PyramidalWan）沿轨迹改变分辨率，但多在单段生成内、不解决跨 chunk 的历史供给；<strong>阶段并行推理</strong>（HiAR 一系的反斜线流水线）让 chunk 与去噪阶段重叠，但要求在最终输出之前就拿到可用的音视频上下文。论文对 HiAR 的关键差异化表述是：HiAR 的阶段历史以「该阶段输出噪声水平」表示，而 TaoMate-HD 用<strong>成对的干净音视频预测</strong>（clean prediction）在各阶段原生网格上表示历史——干净预测是跨阶段的公共历史表示，尽管查询的噪声水平与空间网格各不相同。</p>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="380" fill="#F7F4EC"/>
+    <text x="20" y="34" font-family="Noto Sans SC,sans-serif" font-size="19" font-weight="bold" fill="#1B4B6F">范式对比 · 固定分辨率串行 → 渐进分辨率阶段并行</text>
+    <text x="20" y="72" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50">（a）固定分辨率串行：每 chunk 满格 H 网格，必须等上一 chunk 全部精修完</text>
+    <rect x="30" y="90" width="220" height="46" fill="#5A8F7B" opacity="0.85"/><text x="60" y="118" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">chunk b · H 网格全程</text>
+    <line x1="250" y1="113" x2="292" y2="113" stroke="#2C3E50" stroke-width="2"/><polygon points="292,108 302,113 292,118" fill="#2C3E50"/>
+    <rect x="302" y="90" width="220" height="46" fill="#5A8F7B" opacity="0.85"/><text x="332" y="118" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">chunk b+1 · H 网格全程</text>
+    <line x1="522" y1="113" x2="564" y2="113" stroke="#2C3E50" stroke-width="2"/><polygon points="564,108 574,113 564,118" fill="#2C3E50"/>
+    <rect x="574" y="90" width="200" height="46" fill="#5A8F7B" opacity="0.5"/><text x="604" y="118" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">chunk b+2 …</text>
+    <text x="30" y="162" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#E85D4E">等待瓶颈：历史依赖最终输出 → chunk 间无法重叠；49 次去噪评估/5 秒请求（MiniMax-H3，论文表述）</text>
+    <text x="20" y="204" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50">（b）渐进分辨率 + 阶段局部历史（N=3）：L,L,H 网格调度，反斜线流水线重叠 chunk</text>
+    <rect x="30" y="222" width="120" height="38" fill="#1B4B6F"/><text x="48" y="246" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">S1 · L 15×27</text>
+    <rect x="162" y="222" width="120" height="38" fill="#1B4B6F"/><text x="180" y="246" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">S2 · L 15×27</text>
+    <rect x="294" y="222" width="120" height="38" fill="#C9A86C"/><text x="312" y="246" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">S3 · H 24×43</text>
+    <rect x="162" y="272" width="120" height="38" fill="#1B4B6F"/><text x="180" y="296" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">S1 · L</text>
+    <rect x="294" y="272" width="120" height="38" fill="#1B4B6F"/><text x="312" y="296" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">S2 · L</text>
+    <rect x="294" y="322" width="120" height="38" fill="#1B4B6F"/><text x="312" y="346" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">S1 · L</text>
+    <rect x="426" y="222" width="120" height="38" fill="#C9A86C"/><text x="444" y="246" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">S3 · H</text>
+    <rect x="426" y="272" width="120" height="38" fill="#C9A86C"/><text x="444" y="296" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">S3 · H</text>
+    <text x="30" y="218" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">chunk b</text>
+    <text x="162" y="268" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">chunk b+1</text>
+    <text x="294" y="318" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">chunk b+2</text>
+    <line x1="150" y1="241" x2="160" y2="241" stroke="#2C3E50" stroke-width="2"/><line x1="282" y1="241" x2="292" y2="241" stroke="#2C3E50" stroke-width="2"/>
+    <line x1="282" y1="291" x2="292" y2="291" stroke="#2C3E50" stroke-width="2"/>
+    <path d="M 354 260 C 300 262 260 282 222 274" stroke="#E85D4E" stroke-width="2" fill="none" stroke-dasharray="5,4"/><text x="240" y="266" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">同阶段干净 AV → KV</text>
+    <text x="560" y="250" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">后 chunk 粗阶段</text>
+    <text x="560" y="270" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">先于前 chunk 精修开工</text>
+    <text x="560" y="290" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">→ 时间重叠 + 空间省算</text>
+    <text x="560" y="340" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">代价：阶段历史须在 σ=0 处编码</text>
+    <text x="560" y="358" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">且 L→H 需耦合噪声提升（Eq.2）</text>
+  </svg><div class="figcap"><b>图 1</b> · 范式对比：把「等待最终输出才能续写历史」的串行范式，换成「阶段局部干净预测即历史」的反斜线流水线——这是本文把抽象的时空权衡具象化的核心图。</div></div>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">与少步蒸馏的关系</div>
+      <div class="dd">少步蒸馏（CausVid、Self Forcing）把采样压到 3–4 步，但每步仍是满格计算；TaoMate-HD 的 N=3 是<strong>空间上的</strong>渐进调度，与步数压缩正交、可叠加。<span class="alt">替代方案：继续压步数到 1 步（DMD 系），但早步布局质量与高分辨率成本仍未解。</span></div></div>
+    <div class="def-item"><div class="dt">与阶段并行（HiAR）的关系</div>
+      <div class="dd">借用其「chunk × 阶段反斜线」执行组织，但把阶段历史从「带噪表示」换成「干净 AV 预测 + 各阶段原生网格 KV」，并保留音频的原生 latent 几何。<span class="alt">替代方案：等最终输出再写历史——流水线退化为串行。</span></div></div>
+    <div class="def-item"><div class="dt">与事后超分（Ultra Flash 一类）的关系</div>
+      <div class="dd">TaoMate-HD 在<strong>联合音视频轨迹内部</strong>改分辨率，而非在生成完成后用独立生成器精修输出，因此中间 AV 预测可同时充当历史。<span class="alt">替代方案：独立因果超分模块，管线更解耦，但无法提供跨 chunk 的早期历史。</span></div></div>
+    <div class="def-item"><div class="dt">与 TaoMate（前作）的关系</div>
+      <div class="dd">TaoMate 用不可变视觉锚 + 自适应音视频记忆 + 活跃 KV 做长程一致性，但阶段并行推理在<strong>固定空间分辨率</strong>下进行；TaoMate-HD 把渐进分辨率引进来，并以「成对干净 AV 预测」统一各阶段历史表示。</div></div>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 系统分解：一个 chunk 内的三阶段与跨 chunk 的阶段交接</h2>
+  <p>方法主干是<strong>粗到细去噪 + 阶段局部 KV 历史</strong>。对 N 步轨迹，前 N−1 次评估在低分辨率视频网格 L 上完成，最后一次评估在高分辨率网格 H 上完成；音频保持相同的 latent 几何，因此「视频精修」和「音频生成」仍是<strong>同一条联合轨迹</strong>。论文实例化 N=3：网格 L=480×864、H=768×1376（图示 token 网格 15×27 与 24×43）。每个 chunk 的评估次数是 3 次去噪 + 3 次干净历史编码；作为对照，MiniMax-H3 每个 5 秒请求用 49 次去噪评估，VDN 用 8 次，Lynn 系列每个自回归窗口用 4 次或 3 次（论文表述）。</p>
+  <div class="figure"><svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="400" fill="#F7F4EC"/>
+    <text x="20" y="32" font-family="Noto Sans SC,sans-serif" font-size="19" font-weight="bold" fill="#1B4B6F">架构流 · chunk 内三阶段与「阶段局部」历史交接</text>
+    <rect x="30" y="60" width="180" height="44" fill="#2C3E50"/><text x="52" y="88" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">条件 c_G(b)：场景+台词</text>
+    <rect x="30" y="130" width="150" height="64" fill="#1B4B6F"/><text x="46" y="158" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">Stage 1</text><text x="46" y="178" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">L 网格 15×27 · Euler</text>
+    <rect x="220" y="130" width="150" height="64" fill="#1B4B6F"/><text x="236" y="158" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">Stage 2</text><text x="236" y="178" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">L 网格 15×27 · Euler</text>
+    <rect x="410" y="130" width="170" height="64" fill="#C9A86C"/><text x="426" y="158" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">Stage 3（耦合提升）</text><text x="426" y="178" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">H 网格 24×43 · 精修</text>
+    <line x1="180" y1="162" x2="218" y2="162" stroke="#2C3E50" stroke-width="2"/><polygon points="218,157 228,162 218,167" fill="#2C3E50"/>
+    <line x1="370" y1="162" x2="408" y2="162" stroke="#2C3E50" stroke-width="2"/><polygon points="408,157 418,162 408,167" fill="#2C3E50"/>
+    <text x="30" y="122" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#5A8F7B">音频全程同 latent 几何，与视频同轨迹联合去噪</text>
+    <rect x="620" y="130" width="150" height="64" fill="#5A8F7B"/><text x="636" y="158" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">下一 chunk 同阶段</text><text x="636" y="178" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">T(b+1, ℓ)</text>
+    <rect x="120" y="236" width="150" height="52" fill="#E85D4E"/><text x="136" y="260" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">干净估计 x̂(v,a)(b,1)</text><text x="136" y="278" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">σ=0 编码 → K(b,1)</text>
+    <rect x="310" y="236" width="150" height="52" fill="#E85D4E"/><text x="326" y="260" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">干净估计 x̂(v,a)(b,2)</text><text x="326" y="278" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">σ=0 编码 → K(b,2)</text>
+    <rect x="500" y="236" width="150" height="52" fill="#E85D4E"/><text x="516" y="260" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">干净端点 x̂(v,a)(b,3)</text><text x="516" y="278" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">σ=0 编码 → K(b,3)</text>
+    <path d="M 105 194 C 110 218 112 222 130 234" stroke="#E85D4E" stroke-width="2" fill="none"/>
+    <path d="M 295 194 C 305 218 310 222 322 234" stroke="#E85D4E" stroke-width="2" fill="none"/>
+    <path d="M 495 194 C 505 218 512 222 522 234" stroke="#E85D4E" stroke-width="2" fill="none"/>
+    <path d="M 270 262 C 400 320 620 320 690 190" stroke="#E85D4E" stroke-width="2" fill="none" stroke-dasharray="6,4"/>
+    <path d="M 460 262 C 560 300 660 280 692 186" stroke="#E85D4E" stroke-width="2" fill="none" stroke-dasharray="6,4"/>
+    <path d="M 650 262 C 700 260 700 220 694 192" stroke="#E85D4E" stroke-width="2" fill="none" stroke-dasharray="6,4"/>
+    <text x="30" y="330" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">依赖式：T(b,ℓ) ← { T(b, ℓ−1)（本 chunk 上一阶段）, T(b−1, ℓ)（上一 chunk 同阶段）}</text>
+    <text x="30" y="356" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">长流推理：每个 bank 保留首 chunk 视频作视觉锚 + 最近两 chunk 的成对音视频（固定容量，不随流长增长）</text>
+    <text x="30" y="382" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#E85D4E">粗阶段 bank 彼此独立：各自承载不同精修级别的预测；最终阶段 bank 存高分辨率端点</text>
+  </svg><div class="figcap"><b>图 2</b> · 把「自回归历史」拆成阶段局部的 KV 银行：每阶段在 σ=0 处把干净估计编码成本阶段原生网格的 KV，交给下一 chunk 的同一阶段——这一步把「中间预测」变成了可复用的上下文。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>为什么「干净预测」是比「带噪状态」更好的跨 chunk 历史</h4>
+    <p>不同阶段的查询噪声水平 σ_ℓ 与空间网格（L/H）都不同，若历史以带噪状态表示，各阶段之间并不可比。干净预测 x̂ = u + σ·v̂ 估的是零噪声端点，是一个<strong>与查询噪声水平解耦的公共表示</strong>：粗阶段的历史可以在粗网格上编码，最终阶段的历史在 H 网格上编码，但语义都是「这一段 AV 长什么样」。这解释了论文为什么强调与 HiAR 的差异——它换的不只是执行调度，而是历史的<strong>表示坐标系</strong>。</p></div>
+  <p>文本窗口更新则是一次「不重编码过去」的切换（Algorithm 1）：先把挂在旧窗口 c_G(old) 下的待决干净预测提交掉；保留首 chunk 视频 KV 与最近两 chunk 成对 AV；再激活新窗口并刷新缓存的文本投影，而已保留 KV 及其时间位置原封不动。于是<strong>新文本只控制未来的合成，无需重编码已生成的过去</strong>；空间坐标留在各网格原生坐标系，时间位置跨窗口延续。训练时使用同样的更新顺序，只是保留短 rollout 的完整因果前缀。</p>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 关键公式：干净端点估计与耦合的跨分辨率提升</h2>
+  <p>整条轨迹采用流匹配（rectified flow）参数化 <strong>u^σ = (1−σ)·x_clean + σ·ε</strong>，生成器预测的速度场估计 x_clean − ε。由此每个阶段的一次评估同时给出<strong>欧拉推进</strong>（给本 chunk 用）和<strong>干净预测</strong>（给下一 chunk 用），系数完全由噪声水平差 σ_ℓ − σ_{ℓ+1} 与当前 σ_ℓ 决定。</p>
+  <div class="formula-card"><div class="f-label">Eq.1 · 一次评估的双重产出（式 1，系数按原文核对）</div>
+    <div>$$ \tilde u^{m}_{b,\ell+1} = u^{m}_{b,\ell} + (\sigma^{m}_{\ell} - \sigma^{m}_{\ell+1})\,\hat v^{m}_{b,\ell}, \qquad \hat x^{m}_{b,\ell} = u^{m}_{b,\ell} + \sigma^{m}_{\ell}\,\hat v^{m}_{b,\ell} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>m ∈ {v, a} 表示视频/音频模态，b 为 chunk，ℓ 为阶段，σ^m_ℓ 是递减的噪声水平且终点 σ^m_{N+1}=0。左式是标准 Euler 更新（把当前速度乘以噪声区间长度）；右式把当前状态沿速度回推到 σ=0 的干净端点——<strong>不执行剩余阶段</strong>就能拿到历史。在最终阶段两者重合，因为下一噪声水平就是 0。</div></div>
+  <p>跨到 H 网格时有个容易被忽略的陷阱：直接插值会把残余噪声<strong>相关化</strong>，而高分辨率轨迹需要标准高斯噪声。论文的做法是耦合噪声：取 ε_H ~ N(0, I)，令低格噪声 ε_L = P·ε_H，其中 P·Pᵀ = I 保证 ε_L 仍是标准高斯；再用双线性插值 U 做信号搬运，只把「插值出来的噪声」换成耦合的高格噪声。</p>
+  <div class="formula-card"><div class="f-label">Eq.2 · 耦合提升 Λ_σ（式 2，系数按原文核对）</div>
+    <div>$$ \Lambda_{\sigma}(u_L) = U(u_L) + \sigma\left[\epsilon_H - U(\epsilon_L)\right], \qquad \epsilon_H \sim \mathcal{N}(0, I),\ \epsilon_L = P\,\epsilon_H,\ P P^{\top} = I $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>U(·) 是双线性插值。第一项搬运信号，第二项把插值噪声替换为耦合的高格噪声，从而保住「信号/噪声」分解不被破坏。用在最终阶段入口：u^v_{b,N} = Λ_{σ^v_N}(ũ^v_{b,N})；<strong>音频不做此空间过渡，原样通过</strong>。P 的正交约束是关键系数条件，否则 ε_L 不再标准高斯、低格轨迹分布被污染。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.3 · 阶段依赖结构（式 3）</div>
+    <div>$$ \mathrm{T}_{b,\ell} \leftarrow \{ \mathrm{T}_{b,\ell-1},\ \mathrm{T}_{b-1,\ell} \} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>阶段 ℓ 的 chunk b 依赖「本 chunk 上一阶段」与「上一 chunk 同阶段」两个来源。这个二维依赖图正是反斜线（anti-diagonal）阶段并行推理合法性的来源：后 chunk 可以占据粗阶段，同时前 chunk 进行最终精修。在文本窗口内，粗阶段把「上一 chunk 干净估计的编码」与「当前噪声 chunk 的去噪」融合：因果掩码让噪声 chunk 读到该估计与更早历史，而上下文 chunk 只读历史与自身。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>Eq.2 揭示的通用教训：升分辨率不等于升采样</h4>
+    <p>扩散/流模型社区常把「低分辨率生成 → 上采样 → 高分辨率续跑」当作纯工程步骤，但 Eq.2 说明这里有一个分布层面的正确性条件：<strong>噪声必须在两个网格上联合耦合</strong>。若残余噪声被插值相关化，高分辨率阶段看到的就不再是 N(0, I) 的噪声边际，去噪器的训练分布被破坏。这个「同噪声、不同网格」的技巧（论文用 P·Pᵀ=I 的正交映射实现）可迁移到任何 latent 级渐进采样器，也解释了为什么朴素双线性上采样续跑常出现纹理脏化。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 非对称蒸馏：让模型学会「接着说」而不是「重新说」</h2>
+  <p>续说（continuation）问题的结构是：文本更新常在句子中途到达，窗口边界与句尾不对齐，且新窗口里包含已说过的词。论文用<strong>重叠文本窗口</strong>建模：设 A 为较早文本、B 为共享跨度、C 为新台词；生成器从 W₁ = A+B 切到 W₂ = B+C，<strong>保留历史</strong>，把 B 当作上下文而非重新开始。推理时模型只靠音频历史与文本隐式判断说话进度——没有 ASR、没有文本指针、没有对齐模块。</p>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="320" fill="#F7F4EC"/>
+    <text x="20" y="32" font-family="Noto Sans SC,sans-serif" font-size="19" font-weight="bold" fill="#1B4B6F">文本窗口切换 · 重叠跨度 B 承担续说上下文</text>
+    <text x="30" y="72" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">窗口 W₁ = A + B（切换前）</text>
+    <rect x="30" y="84" width="330" height="42" fill="#5A8F7B"/><text x="120" y="111" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">A · 已说出的台词</text>
+    <rect x="360" y="84" width="260" height="42" fill="#C9A86C"/><text x="410" y="111" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50">B · 共享跨度（进行中）</text>
+    <text x="30" y="162" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">窗口 W₂ = B + C（切换后）</text>
+    <rect x="360" y="174" width="260" height="42" fill="#C9A86C"/><text x="410" y="201" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50">B · 共享跨度（当上下文用）</text>
+    <rect x="620" y="174" width="150" height="42" fill="#E85D4E"/><text x="636" y="201" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">C · 新台词</text>
+    <line x1="490" y1="126" x2="490" y2="172" stroke="#2C3E50" stroke-width="2" stroke-dasharray="5,4"/>
+    <text x="30" y="252" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">保留的音频历史 ─────▶ 隐式推断「已说到 B 的哪」，既不重复 B，也不在边界断句</text>
+    <path d="M 30 268 C 120 240 200 300 290 268 C 380 240 460 300 550 268 C 620 244 700 296 770 268" stroke="#1B4B6F" stroke-width="2" fill="none"/>
+    <text x="30" y="302" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">失败模式（无非对称训练时）：重复即将念的从句 / 用下一句词替换预期句尾（论文 Fig.5 案例）</text>
+  </svg><div class="figcap"><b>图 3</b> · 把「续说」这个抽象的语言学问题具象化为窗口重叠问题：B 跨度既在旧窗口里是待说内容，又在新窗口里是已说上下文，模型必须靠音频历史区分两者。</div></div>
+  <p>训练在<strong>学生自生成 rollout</strong>上进行（Self Forcing 一系）：学生执行全部 N 个阶段、更新自己的历史银行、在一个采样出的 chunk 边界切换文本。窗口构造时用同主题语音扩展源转写，保留原文措辞、语种与说话人分配；源语速把名义时间区间映射到字符/词跨度；初始窗口 A+B 覆盖整个名义 rollout 长度，即使切换提前发生。监督采用<strong>分布匹配蒸馏（DMD）</strong>：冻结教师分数 vs 学生分布的可学习分数，两者吃同一音视频序列、同一腐蚀噪声、同一噪声水平，因此差值在共同噪声态上定义 DMD 更新。三个角色的文本条件刻意不对称：</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>角色</th><th>文本条件</th><th>作用</th></tr></thead>
+    <tbody>
+      <tr><td class="route">Generator（生成器）</td><td>切换前 W₁，切换后 W₂</td><td>需要 W₂ 才能续写下一段；B 作为上下文而非重说</td></tr>
+      <tr><td class="route">Fake score（可学习分数）</td><td>保留 W₁（含 W₂ 缺失的开头词 + 扩展台词）</td><td>从脱离梯度的学生序列做速度回归（独立噪声抽样）学习学生分布</td></tr>
+      <tr><td class="route">Real score（冻结教师）</td><td>原始源转写前缀（截至 rollout 时长）</td><td>把教师参照系锚回源片段，扩展台词只当生成前瞻（lookahead）</td></tr>
+    </tbody></table></div>
+  <p>为覆盖每个精修级别，训练<strong>每个 rollout 采样一个阶段</strong>（跨 chunk 共享同一阶段，保证序列精修级别一致），把其干净预测跨 chunk 拼成序列。粗阶段的干净视频 latent 用双线性插值放大到 H，时间、通道与音频不动——给两个分数一张共同的高分辨率监督画布；<strong>学生仍按各阶段原生网格去噪</strong>，所以「放大预测来打分」让高分辨率教师能监督粗阶段而不改变其计算分辨率。梯度实现是「先无梯度构造 rollout，再逐 chunk 重放选中评估」：重放预测替换到脱离梯度画布上对应区域，chunk 掩码把更新限制在该区域，分数保有全序列上下文，而梯度只流经活跃预测及其空间插值。另有一个辅助教师目标强化最终阶段细节：冻结基座模型从学生的提升状态出发、以之前最终干净 AV chunk 为条件去噪到端点，学生最终视频预测向其回归。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「不对称」的实质：让三个角色各自站在正确的时间锚点上</h4>
+    <p>生成器站在<strong>未来</strong>（要 W₂ 才能续说），fake score 站在<strong>学生实际走过的轨迹</strong>（必须保留 W₁ 才能描述学生生成了什么），real score 站在<strong>源数据的真值锚</strong>（只看源前缀，防止扩展台词把教师目标带偏）。如果三者共享同一文本（消融组的做法），教师的「正确答案」与学生的「实际输出」在文本上就错位了——这正是消融里 CER 高达 30.75% 的结构性原因之一。这是一种把<strong>因果角色差异显式编码进条件</strong>的蒸馏设计，值得迁移到任何「条件在中途变化」的自回归蒸馏场景。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 长流推理与语音收尾：不只有「怎么说下去」，还有「何时停」</h2>
+  <p>长流（hour-long）推理的关键在记忆的<strong>固定容量</strong>：每个 KV 银行只保留首 chunk 视频作视觉锚（锚定人物外观与场景构图）+ 最近两 chunk 的成对音视频（携带近期说话上下文），初始音频只要还在这个近期窗口内就可用。KV 与缓存的文本投影<strong>分开存储</strong>：文本窗口切换只刷新后者，保留的 KV 仍按其原始条件编码——这正是「新文本控制未来、无需重编码过去」的实现基础。论文报告了两条 60 分钟、1376×768 的音视频流，在标注时间点采样的全帧保持了人物外观与场景构图（论文表述，见其 Figure 1 底部）。</p>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="340" fill="#F7F4EC"/>
+    <text x="20" y="32" font-family="Noto Sans SC,sans-serif" font-size="19" font-weight="bold" fill="#1B4B6F">固定容量记忆与语音收尾 · 因果链</text>
+    <rect x="30" y="60" width="170" height="56" fill="#1B4B6F"/><text x="44" y="84" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">首 chunk 视频 KV</text><text x="44" y="104" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">（视觉锚，不可变）</text>
+    <rect x="230" y="60" width="200" height="56" fill="#5A8F7B"/><text x="244" y="84" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">最近 2 chunk 成对 AV</text><text x="244" y="104" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">（近期说话上下文）</text>
+    <rect x="460" y="60" width="180" height="56" fill="#C9A86C"/><text x="474" y="84" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">KV 与文本投影</text><text x="474" y="104" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">分开存储，切换只刷后者</text>
+    <line x1="200" y1="88" x2="228" y2="88" stroke="#2C3E50" stroke-width="2"/><polygon points="228,83 238,88 228,93" fill="#2C3E50"/>
+    <line x1="430" y1="88" x2="458" y2="88" stroke="#2C3E50" stroke-width="2"/><polygon points="458,83 468,88 458,93" fill="#2C3E50"/>
+    <text x="30" y="152" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">→ 外观与近期语音上下文被保留，而记忆开销不随流时长增长（固定容量银行）</text>
+    <rect x="30" y="182" width="360" height="118" fill="#FFFFFF" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="44" y="206" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F">语音收尾示例（训练构造）</text>
+    <text x="44" y="230" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">· 端点由转写 + 时间戳 ASR + VAD（Silero）离线确认</text>
+    <text x="44" y="252" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">· rollout 延伸到端点之后；A+B 即完整原文</text>
+    <text x="44" y="274" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">· 生成器先收 A+B，再收末段 B，不加 C</text>
+    <text x="44" y="294" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">· 两分数收全文 + 指令：说完剩余内容后转自然非语音行为</text>
+    <rect x="430" y="182" width="340" height="118" fill="#FFFFFF" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="444" y="206" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#5A8F7B">音频历史承担的两个判断</text>
+    <text x="444" y="234" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">① 还有词没说完 → 继续说（continuation）</text>
+    <text x="444" y="260" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">② 话语已结束 → 停止 + 转自然非语音状态</text>
+    <text x="444" y="288" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">完全隐式：无 ASR / 无文本指针 / 无对齐模块</text>
+    <text x="30" y="326" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">代价：收尾判断错误时无外部信号兜底，模型只能依赖自身音频历史的隐式推断</text>
+  </svg><div class="figcap"><b>图 4</b> · 因果链：固定容量的 KV 银行同时承载「外观锚定」与「说话进度推断」，而语音收尾通过端点确认的训练样本显式覆盖——把「何时停」纳入训练分布而非指望涌现。</div></div>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">记忆与锚</div>
+      <div class="dd">不可变视觉锚（首 chunk 视频）+ 自适应 AV 记忆（最近两 chunk）+ 活跃 KV，分离存储。<span class="alt">替代方案：全局缓存全部历史——随流长线性增长，且长程注意力成本上升。</span></div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">从 MiniMax-H3 FL2VA 模型出发，用 <strong>rank-128 LoRA</strong> 在 <strong>10,000 组自建蒸馏对</strong>上训练；评测含 100 条 1–10 分钟自建序列（每条由连续的 5 秒文本请求构成），输出 768×1376 @ 24 FPS、32-kHz 立体声。</div></div>
+    <div class="def-item"><div class="dt">文本切换协议</div>
+      <div class="dd">Algorithm 1 五步：提交旧窗口待决干净估计 → 保留锚与最近两 chunk → 激活新窗口、刷新文本投影 → 保留 KV 与时间位置 → 用新条件去噪下一 chunk。<span class="alt">替代方案：切换时重编码全历史——正确但延迟不可接受。</span></div></div>
+    <div class="def-item"><div class="dt">部署与并行</div>
+      <div class="dd">阶段并行部署叠加：阶段重叠、低阶段融合、KV 复用、选择性 W8A8 投影、不同注意力实现、编解码调度（论文表述为部署级组合优化）。</div></div>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 证据：速度从哪来，质量守住了吗</h2>
+  <p>论文从三个维度给证据：<strong>长程质量</strong>（VABench 的 VisualRealism / AudioAes / LipSync / Desync，加 Temporal 帧差稳定性、Long-range 色彩亮度连续性、CER、SyncNet LSE-C/D）、<strong>空间效率</strong>（Direct 480p / Direct 768p / Progressive 对照）、<strong>部署吞吐</strong>（串行 vs 并行）。效率计时在 8 张 H20 GPU 上；需要留意口径差异：TaoMate-HD 的区间是「已准备输入 → 解码后 AV」，而 MiniMax-H3、VDN、Lynn 的区间还含在线条件化与编码/封装（论文表述）。</p>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="340" fill="#F7F4EC"/>
+    <text x="20" y="32" font-family="Noto Sans SC,sans-serif" font-size="19" font-weight="bold" fill="#1B4B6F">证据图 · 时间开销与 CER 的双重下降</text>
+    <text x="30" y="66" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50">平均生成时间（秒，同一输入等权平均）</text>
+    <rect x="60" y="80" width="420" height="34" fill="#2C3E50"/><text x="66" y="102" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">Direct 768p · 491s</text>
+    <rect x="60" y="124" width="263" height="34" fill="#1B4B6F"/><text x="66" y="146" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">渐进式串行 · 307s（1.60×）</text>
+    <rect x="60" y="168" width="137" height="34" fill="#5A8F7B"/><text x="66" y="190" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">阶段并行 · 160s（再 1.92×）</text>
+    <text x="500" y="102" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">解析视频线性工作比 0.595</text>
+    <text x="500" y="122" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">实测含上下文编码/音频/通信/解码</text>
+    <text x="500" y="150" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">视频细节：渐进式 768p 精修后</text>
+    <text x="500" y="168" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">手部轮廓/产品表面接近 Direct 768p</text>
+    <text x="500" y="196" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">最终配置 8.99 FPS（8×H20）</text>
+    <text x="30" y="238" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50">CER（%，流式 AV 组内；越低越好）</text>
+    <rect x="60" y="252" width="308" height="30" fill="#E85D4E"/><text x="66" y="272" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">无非对称蒸馏 · 30.75%</text>
+    <rect x="60" y="290" width="196" height="30" fill="#1B4B6F"/><text x="66" y="310" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">TaoMate-HD · 19.57%（−11.18pp）</text>
+    <text x="420" y="272" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">误差分解：替换 −12.64pp，删除 −1.28pp，插入 +2.74pp</text>
+    <text x="420" y="300" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">插入错误不降反升——续说偏「多说」</text>
+    <text x="420" y="322" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">MFCC 端点一致性 0.971 → 0.979；LSE-C 6.239 → 6.341</text>
+  </svg><div class="figcap"><b>图 5</b> · 把两组核心数字放在同一视图：空间调度省下的时间（491→307→160s）与续说训练省下的错误（30.75%→19.57%）是两条独立的收益线。</div></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>配置</th><th>FPS↑</th><th>Temporal↑</th><th>Long-range↑</th><th>Video↑</th><th>Audio↑</th><th>LSE-C↑</th></tr></thead>
+    <tbody>
+      <tr><td class="route">Direct (480p)（低分辨率参照）</td><td>13.90</td><td>0.90</td><td>0.99</td><td>0.88</td><td>0.85</td><td>5.98</td></tr>
+      <tr><td class="route">Direct (768p)</td><td>2.93</td><td>0.91</td><td>0.92</td><td>0.87</td><td>0.89</td><td>6.62</td></tr>
+      <tr><td class="route">Progressive（串行）</td><td>4.68</td><td>0.91</td><td>0.93</td><td>0.85</td><td>0.89</td><td>6.34</td></tr>
+      <tr><td class="route">TaoMate-HD（阶段并行）</td><td>8.99</td><td>0.91</td><td>0.93</td><td>0.85</td><td>0.89</td><td>6.39</td></tr>
+    </tbody></table></div>
+  <p>表中最有信息量的是<strong>非对角线</strong>：Progressive 相比 Direct (768p) 时间近乎减半（4.68 vs 2.93 FPS 的对照），而 Temporal/Long-range 反而略升（0.91/0.93 vs 0.91/0.92），只在 Video（0.85 vs 0.87）与 LSE-C（6.34 vs 6.62）上有轻微让步；放大图显示渐进式精修后的手部轮廓与产品表面保持了接近 Direct 768p 的细节（论文表述）。在流式 AV 组内对比中，串行 TaoMate-HD 取得该组最高的 Temporal（0.913）与 AudioAes（4.407），CER 19.57% 为组内最低，并与 Lynn-Flash 并列最好的 VisualRealism 与 Desync；并行配置保持相同的 Temporal 与 VisualRealism（四舍五入后），AudioAes 4.367、CER 21.28%。吞吐对 MiniMax-H3 的比值为 22.4×（论文表述，注意计时区间口径不同）。</p>
+  <div class="figure"><svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="250" fill="#F7F4EC"/>
+    <text x="20" y="32" font-family="Noto Sans SC,sans-serif" font-size="19" font-weight="bold" fill="#1B4B6F">评估框架 · 论文如何防止「刷单指标」</text>
+    <rect x="30" y="56" width="170" height="64" fill="#1B4B6F"/><text x="44" y="82" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">画质/音质</text><text x="44" y="102" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">VABench 四项</text>
+    <rect x="220" y="56" width="170" height="64" fill="#5A8F7B"/><text x="234" y="82" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">连续性代理</text><text x="234" y="102" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">Temporal / Long-range</text>
+    <rect x="410" y="56" width="170" height="64" fill="#C9A86C"/><text x="424" y="82" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">语音与同步</text><text x="424" y="102" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">CER(Whisper-small) / SyncNet</text>
+    <rect x="600" y="56" width="170" height="64" fill="#2C3E50"/><text x="614" y="82" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">效率</text><text x="614" y="102" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">GPU 数 / FPS / 首帧延迟</text>
+    <text x="30" y="152" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">· 空间消融严格同构：同生成器、同输入、同请求种子、同阶段 AV 历史、同 BF16/SDPA，只改分辨率调度</text>
+    <text x="30" y="176" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">· 蒸馏消融独立成表（CER / MFCC 端点一致性 / LSE-C / LSE-D），并给出 CER 误差类型分解</text>
+    <text x="30" y="200" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">· 仍缺：并行 vs 串行的质量差异只在四舍五入精度上可见；无显著性检验；CER 排除不支持中文的方法</text>
+    <text x="30" y="226" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">· MFCC 端点一致性用首尾 5 秒均值±标准差向量的余弦相似度度量——是代理指标而非听感评测</text>
+  </svg><div class="figcap"><b>图 6</b> · 评估框架图：四路指标 + 同构消融，构成本文结论可信度的骨架；红色标注是框架仍然留白的地方。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 深度洞察 &amp; 批判评估</h2>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>用「生成看未来、打分看过去」破解条件漂移</h4>
+    <p>非对称蒸馏最漂亮的一步是承认一个事实：<strong>描述学生分布的分数必须保留学生当时看到的全部条件（W₁），而驱动生成的条件可以前进（W₂）</strong>。这在数学上是必要的——fake score 学的是学生实际生成序列的分布，若条件文本与学生当时不同，速度回归学到的就是一个从未被采样过的条件分布。这一「生成条件 ≠ 评分条件」的分离，比调重叠窗口长度更本质，也是该方法能同时降替换（−12.64pp）与删除（−1.28pp）错误的结构性原因。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>干净预测作为「跨阶段通用货币」，是可迁移的设计模式</h4>
+    <p>任何多阶段/多尺度生成器都面临「中间产物能否喂给下游」的问题。TaoMate-HD 的答案是：把中间产物<strong>投影到零噪声端点</strong>，使其脱离查询噪声水平与网格的耦合。这可迁移到：级联超分的中间层交接、多模态 DiT 中某模态先行供给另一模态、以及推测解码（speculative decoding）里草稿模型向目标模型交接中间状态——共同点是都需要一个与「当前进度」解耦的规范表示。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>四个必须摆在桌面上的代价</h4>
+    <p><strong>① CER 19.57% 仍是高错误率。</strong>组内最低不等于可用：替换错误虽降 12.64pp，插入错误反而升 2.74pp，说明续说模型偏「多说」（重复/赘语方向），这对数字人产品是可感知的瑕疵。<strong>② 1.92× 部署加速无法归因。</strong>论文自己说明该对比是部署级组合（阶段重叠 + 低阶段融合 + KV 复用 + 选择性 W8A8 + 不同注意力实现 + 编解码调度），各因子贡献未拆分，其中 W8A8 量化对质量的影响也未单独报告。<strong>③ 口径不齐削弱 22.4× 的说服力。</strong>本文计时区间是「准备输入→解码 AV」，对照组含在线条件化与编码/封装；且已发表速率是在 768×512 的不同分辨率口径上测的（论文表述）。<strong>④ 质量代价集中在细粒度。</strong>Video 0.85 vs Direct 768p 的 0.87、LSE-C 6.34 vs 6.62、Long-range 0.930 低于 TaoMate 的 0.983、并行配置 CER 21.28% 略劣于串行 19.57%——渐进调度不是全无代价，只是代价可控。此外评测仅 100 条自建序列、无显著性检验、CER 只覆盖中文语音（排除不支持中文的方法），泛化性证据有限。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>隐藏前提：一切建立在「学生 rollout 分布」之上</h4>
+    <p>续说训练在学生自生成序列上进行，这消除了训练/测试失配（Self Forcing 的立意），但也把误差闭环了：若学生早期 rollout 系统性偏航（例如某类口音/语速下进度推断失灵），训练分布里就没有纠偏信号。论文的收尾样本（端点由转写 + 时间戳 ASR + VAD 离线确认）只覆盖「说完→停」这一种边界，对中途打断、换说话人、语码切换等交互场景未见证据。隐式进度推断（无 ASR/指针）优雅，但其<strong>可辨识性</strong>没有被分析——两个不同的说话进度可能产生相似的近期音频。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s9" ><span class="num">09</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>阶段局部 KV 银行的最优容量与遗忘策略是什么？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>论文固定「首 chunk 视觉锚 + 最近两 chunk 成对 AV」，这是工程选择而非推导结果。若最近窗口过短，长程语音语调漂移；过长则固定容量的意义消失。最优遗忘边界在哪里，直接影响小时级一致性与显存预算。</p>
+    <p><strong>理论分析：</strong>可把 KV 银行视为一个固定容量的有损信源编码问题：历史 AV 流以有限槽位压缩，重建目标是「外观 + 说话进度」两个下游任务的联合保真。视觉锚承担低频（外观）分量、近期窗口承担高频（语流）分量，近似一个显式的两级记忆分解。</p>
+    <p><strong>连接：</strong>与 VideoSSM/TetherCache/SlotMemory 等长视频记忆工作（论文引用 [28–30]）、KV cache 淘汰（H2O/StreamingLLM 的注意力汇）、以及状态空间模型的固定容量递归状态直接对话。</p>
+    <p><strong>探究方向：</strong>做「槽位数 × 锚策略」网格消融（1/2/4 个近期 chunk；锚可更新 vs 不可变），度量 LSE-C、MFCC 端点一致性与 30 分钟后外观漂移；再试按注意力质量加权的软淘汰，验证固定容量下是否存在清晰的容量-质量拐点。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>耦合噪声提升（Eq.2）中 P 与 U 的选择对生成分布的影响有多大？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>论文用正交 P（P·Pᵀ=I）与双线性 U，保证低格噪声标准高斯。但 P 的具体正交基、U 的插值核都非唯一，它们决定了「插值噪声残差」ε_H − U(ε_L) 的谱形状，进而影响高分辨率阶段看到的噪声分布。这直接关系渐进式生成的纹理质量上限。</p>
+    <p><strong>理论分析：</strong>Λ_σ 的修正项等价于把噪声边际精确恢复为 N(0, I) 而保留信号项；不同 U 改变的是残差噪声的空间相关长度。若残差相关长度偏离训练分布，去噪器会把相关纹理误判为信号，产生重复纹理或过度平滑。</p>
+    <p><strong>连接：</strong>与信号处理中的噪声整形（noise shaping）、图像上采样的核设计、以及扩散模型的噪声先验（如 EDM 的 σ-dependent 预条件）相连；也关系 Video DeltaNet 等改注意力结构工作对空间相关性的假设。</p>
+    <p><strong>探究方向：</strong>固定其余变量，扫描 U ∈ {双线性、bicubic、最近邻} 与 P 的构造（随机正交 vs 频域分块），度量 Video/LSE-C 与频谱统计（对比 Direct 768p 的功率谱）；并验证「残差相关长度与训练噪声一致」是否是渐进式生成质量的充分条件。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>重叠窗口 B 的长度与 CER 误差类型之间的定量律是什么？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>消融显示非对称蒸馏让插入错误上升 2.74pp、替换/删除大幅下降。一个自然猜想是：B 越长，续说锚越强、重复越多。若存在定量律，就能按场景（客服 vs 讲解）调窗口策略，而不是全用同一重叠率。</p>
+    <p><strong>理论分析：</strong>B 兼具「待说内容」与「已说上下文」双重身份，模型对 B 中词的说话进度推断是一个隐式贝叶斯去卷积问题：后验不确定度越高，模型越倾向「保守多说」（插入错误）或「跳过」（删除错误）。错误类型分布可能正是进度推断不确定度的可测代理。</p>
+    <p><strong>连接：</strong>与语音识别的端点检测/VAD 不确定度、同声传译的 ear-voice span（翻译延迟）研究、以及 LLM 指令跟随中的重复（repetition）文献相通。</p>
+    <p><strong>探究方向：</strong>构造受控实验：固定训练配置，推理时扫描 B/A 比例与切换位置（句中 vs 句尾），记录插入/替换/删除三类错误与切换延迟；再用音频历史的探针分类器估计进度推断不确定度，检验其与插入错误率的相关性。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>干净估计作为历史，误差如何在自回归链上累积？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>每 chunk 的历史来自 σ=0 处的<strong>预测</strong>端点而非真实去噪完成值——粗阶段的 x̂ 本身就是早期估计。若估计误差经 KV 链条自回归放大，小时级流的后段质量会缓慢劣化；论文的 MFCC 端点一致性（0.979）只度量单条序列首尾，未直接追踪误差传播。</p>
+    <p><strong>理论分析：</strong>这构成一个带反馈的误差动力系统：第 b 段历史误差 e_b = f(e_{b−1}) + ξ_b，其中 ξ 是本段估计噪声。若 |∂f/∂e| &lt; 1 系统稳定（误差饱和），否则沿链放大。最终阶段 bank 存高分辨率端点、粗阶段 bank 存粗估计，两级的增益可能不同。</p>
+    <p><strong>连接：</strong>与自回归生成的曝光偏差（exposure bias）、循环状态空间模型的稳定性分析（收缩映射/Lyapunov 指数）、以及 Kalman 滤波中预测-更新的误差协方差演化相连。</p>
+    <p><strong>探究方向：</strong>人为注入可控历史扰动（对 KV 加噪/替换），测量后续 20 段的 Temporal/Long-range/LSE-C 衰减曲线，估计经验增益；比较粗阶段历史 vs 最终阶段历史的增益差，验证「干净端点预测是否真的实现了 f 的收缩」。</p></div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s10" ><span class="num">10</span> 代码附录</h2>
+  <p>以下代码依据论文方法结构还原，用于表达<strong>算法骨架</strong>；超参、张量形状与工程细节为示意，非论文官方实现。</p>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 渐进分辨率三阶段去噪 + 阶段局部干净历史（对应 Eq.1 / Eq.2 / Eq.3）</span>
+<span class="kw">def</span> <span class="fn">progressive_chunk</span>(gen, u, cond_text, history_banks, sigmas, grids):
+    <span class="cm"># u: 含噪音视频 latent (v, a)；sigmas: [s1, s2, s3, 0]；grids: [L, L, H]</span>
+    N = <span class="fn">len</span>(sigmas) - 1
+    clean_av = {}
+    <span class="kw">for</span> ell <span class="kw">in</span> <span class="fn">range</span>(N):
+        <span class="cm"># 依赖式 T(b,ell) &lt;- {T(b,ell-1), T(b-1,ell)}：读本 chunk 上一阶段 + 上一 chunk 同阶段 KV</span>
+        kv_ctx = history_banks[ell].read(current_prev_stage=clean_av.get(ell - 1))
+        v_hat = gen(u, cond_text, kv_ctx)                    <span class="cm"># 速度场估计 x_clean - eps</span>
+        u_next = u + (sigmas[ell] - sigmas[ell + 1]) * v_hat   <span class="cm"># Euler 更新（式 1 左）</span>
+        x_clean = u + sigmas[ell] * v_hat                    <span class="cm"># 干净端点预测（式 1 右）</span>
+        clean_av[ell] = x_clean
+        <span class="cm"># 干净预测以 sigma=0、本阶段原生网格编码，交下一 chunk 同阶段</span>
+        history_banks[ell].commit_encode(x_clean, sigma=0, grid=grids[ell])
+        <span class="kw">if</span> ell == N - 2:                                   <span class="cm"># 进入 H 网格前：耦合提升（式 2）</span>
+            u_next = coupled_lift(u_next, sigma=sigmas[ell + 1])
+    <span class="kw">return</span> u_next, clean_av
+
+<span class="kw">def</span> <span class="fn">coupled_lift</span>(u_L, sigma, eps_H, P, U):
+    <span class="cm"># eps_H ~ N(0, I)；eps_L = P @ eps_H，P P^T = I 保证 eps_L 标准高斯</span>
+    eps_L = P @ eps_H
+    <span class="kw">return</span> U(u_L) + sigma * (eps_H - U(eps_L))</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 文本窗口边界更新（Algorithm 1）与非对称 DMD 三角色条件（示意）</span>
+<span class="kw">def</span> <span class="fn">switch_text_window</span>(banks, pending_clean, old_cond, new_cond):
+    <span class="kw">if</span> pending_clean <span class="kw">is not</span> None:
+        banks.commit(pending_clean, cond=old_cond)      <span class="cm"># 1. 旧窗口下提交待决干净估计</span>
+    banks.keep(initial_video_kv=True, recent_av=2)        <span class="cm"># 2. 锚 + 最近两 chunk 成对 AV</span>
+    text_proj = refresh_text_projections(new_cond)      <span class="cm"># 3. 激活新窗口，只刷文本投影</span>
+    banks.preserve_kv_and_positions()                   <span class="cm"># 4. KV 与时间位置原封不动</span>
+    <span class="kw">return</span> text_proj
+
+<span class="kw">def</span> <span class="fn">asymmetric_dmd_loss</span>(student_rollout, W1, W2, source_prefix):
+    <span class="cm"># 生成器：切换后用 W2 续说；B 作上下文而非重说</span>
+    gen_out = student.generate(cond=W2, history=student.history_banks)
+    <span class="cm"># fake score 保留 W1（含 W2 缺失开头词 + 扩展台词）：描述学生真实分布</span>
+    fake = score_net(student_rollout.detach(), cond=W1, noise=independent_draw())
+    <span class="cm"># real score 只看源转写前缀：教师锚回源片段</span>
+    real = frozen_teacher(student_rollout, cond=source_prefix, noise=same_noise)
+    dmd = real.velocity - fake.velocity                 <span class="cm"># 共同噪声态上的 DMD 更新</span>
+    <span class="cm"># 每 rollout 采样一个阶段，其干净预测插值到 H 打分；chunk 掩码限制梯度区域</span>
+    <span class="kw">return</span> masked_replay_loss(dmd, selected_stage, resize_to_H=True)</pre>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

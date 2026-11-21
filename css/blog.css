@@ -1,0 +1,143 @@
+/* ============================================================
+   BLOG LAYER — reading-blog layout on top of venus.css
+   Hero 模板 A（浅色渐变 + 图片卡片），与 paper-reading-blog skill 对齐
+   ============================================================ */
+
+/* ---------- HERO (模板 A) ---------- */
+.hero {
+  position: relative; min-height: 92vh; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; padding: 120px 24px 90px;
+  background: linear-gradient(135deg, #faf5ff 0%, #eef3f8 26%, #fdf4e3 60%, #fffbeb 100%);
+}
+.hero::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 560px 340px at 12% 20%, rgba(27,75,111,0.10), transparent 62%),
+    radial-gradient(ellipse 560px 340px at 88% 82%, rgba(201,168,108,0.12), transparent 62%);
+}
+.hero-wrap { position: relative; z-index: 2; width: 100%; max-width: 820px; text-align: center; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.66); backdrop-filter: blur(12px) saturate(1.5);
+  border: 1px solid rgba(27,75,111,0.22); color: var(--color-primary);
+  padding: 8px 22px; border-radius: var(--radius-full);
+  font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: 3px;
+  margin-bottom: 22px; box-shadow: 0 4px 20px rgba(27,75,111,0.10); text-transform: uppercase;
+}
+.hero h1 {
+  font-family: var(--font-display); font-size: var(--text-hero); font-weight: 900;
+  letter-spacing: -0.03em; line-height: 1.08; margin: 10px 0 14px;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-primary) 42%, var(--accent-warm) 78%, var(--accent-gold) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.hero-tagline {
+  font-family: var(--font-handwriting); font-size: clamp(1.15rem,2.5vw,1.65rem);
+  color: var(--color-primary); margin: 6px 0 12px;
+}
+.hero-desc { color: var(--text-secondary); font-size: 1.08rem; max-width: 620px; margin: 0 auto 22px; }
+.hero-art { margin: 18px auto 8px; max-width: 780px; width: 100%; }
+.hero-img {
+  width: 100%; height: auto; border-radius: 22px;
+  box-shadow: 0 26px 70px -26px rgba(30,27,75,0.28); border: 1px solid rgba(27,75,111,0.14);
+}
+.hero-caption { font-family: var(--font-body); font-size: 11px; color: var(--text-muted); margin-top: 12px; font-style: italic; }
+.hero-stats { margin-top: 30px; }
+.scroll-hint {
+  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 3;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--text-muted); text-align: center;
+}
+.scroll-hint span { display: block; font-size: 22px; animation: float 1.8s ease-in-out infinite; }
+@keyframes float { 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(8px);} }
+
+/* ---------- BLOG BODY ---------- */
+.blog-body { position: relative; }
+.blog-container { max-width: 900px; margin: 0 auto; padding: 0 var(--space-4); }
+
+/* breadcrumb */
+.breadcrumb { font-family: var(--font-mono); font-size: 12px; letter-spacing: 1px; margin: var(--space-5) 0 var(--space-3); color: var(--text-muted); }
+.breadcrumb a { color: var(--color-primary); }
+.breadcrumb .sep { margin: 0 8px; }
+
+/* section anchor headings */
+.b-section { margin: var(--space-8) 0; }
+.b-section > h2 {
+  font-size: var(--text-h2); padding-top: var(--space-3); position: relative;
+  display: flex; align-items: baseline; gap: 14px;
+}
+.b-section > h2 .num {
+  font-family: var(--font-mono); font-size: 0.95rem; color: var(--accent-warm);
+  letter-spacing: 1px; flex-shrink: 0;
+}
+.b-section > h2::after {
+  content: ''; flex: 1; height: 2px;
+  background: linear-gradient(90deg, var(--bg-tertiary), transparent);
+}
+.b-section h3 { font-size: var(--text-h3); margin-top: var(--space-5); }
+
+/* lead paragraph */
+.lead { font-size: 1.16rem; line-height: 1.9; color: var(--text-primary); }
+.lead::first-letter { font-family: var(--font-display); font-size: 3.2em; float: left; line-height: 0.85; padding: 6px 12px 0 0; color: var(--color-primary); }
+
+/* prose helpers */
+.prose p strong { color: var(--color-primary); }
+.kbd-term {
+  background: var(--bg-secondary); border: 1px solid var(--bg-tertiary); border-radius: var(--radius-sm);
+  padding: 1px 8px; font-family: var(--font-mono); font-size: 0.82em; color: var(--color-tertiary);
+}
+
+/* definition grid (系统分解) */
+.def-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: var(--space-4) 0; }
+.def-item { background: var(--bg-secondary); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); border: 1px solid var(--bg-tertiary); }
+.def-item .dt { font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent-warm); margin-bottom: 6px; }
+.def-item .dd { font-size: 0.94rem; color: var(--text-primary); }
+.def-item .dd .alt { display: block; margin-top: 6px; font-size: 0.86rem; color: var(--text-muted); }
+
+/* pipeline step strip */
+.pipeline { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: var(--space-4) 0; }
+.pipe-step {
+  background: var(--color-primary); color: #fff; padding: 10px 18px; border-radius: var(--radius-md);
+  font-size: 0.9rem; font-weight: 600; box-shadow: var(--shadow-sm);
+}
+.pipe-step.alt { background: var(--color-secondary); }
+.pipe-arrow { color: var(--accent-warm); font-size: 1.3rem; font-weight: 700; }
+
+/* table */
+.table-wrap { overflow-x: auto; margin: var(--space-4) 0; border-radius: var(--radius-md); border: 1px solid var(--bg-tertiary); }
+table.data { width: 100%; border-collapse: collapse; font-size: 0.92rem; background: var(--bg-primary); }
+table.data th { background: var(--color-primary); color: #fff; text-align: left; padding: 13px 16px; font-weight: 600; font-family: var(--font-body); }
+table.data td { padding: 12px 16px; border-bottom: 1px solid var(--bg-tertiary); color: var(--text-primary); vertical-align: top; }
+table.data tr:nth-child(even) td { background: var(--bg-secondary); }
+table.data tr:hover td { background: rgba(27,75,111,0.05); }
+table.data td.route { font-weight: 600; color: var(--color-primary); }
+
+/* svg figure block */
+.figure { margin: var(--space-5) 0; text-align: center; }
+.figure svg { max-width: 100%; height: auto; border-radius: var(--radius-md); background: var(--bg-secondary); }
+.figure .figcap { font-size: 0.86rem; color: var(--text-muted); margin-top: 12px; font-style: italic; }
+.figure .figcap b { color: var(--color-primary); font-style: normal; }
+
+/* TOC */
+.toc {
+  background: var(--bg-secondary); border: 1px solid var(--bg-tertiary); border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5); margin: var(--space-5) 0;
+}
+.toc-title { font-family: var(--font-mono); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent-warm); margin-bottom: var(--space-3); }
+.toc ol { margin: 0; padding-left: 20px; }
+.toc li { margin-bottom: 9px; }
+.toc a { color: var(--text-secondary); font-size: 0.95rem; }
+.toc a:hover { color: var(--color-primary); }
+
+/* blog footer nav (prev/next) */
+.blog-nav { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin: var(--space-8) 0 var(--space-5); }
+.blog-nav .bn-card { background: var(--bg-secondary); border: 1px solid var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--space-4); transition: all var(--duration) var(--ease-out); }
+.blog-nav .bn-card:hover { border-color: var(--color-primary); transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.blog-nav .bn-dir { font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent-warm); }
+.blog-nav .bn-title { font-family: var(--font-display); font-weight: 600; color: var(--text-primary); margin-top: 6px; }
+.blog-nav .bn-card.next { text-align: right; }
+
+@media (max-width: 700px) {
+  .def-grid { grid-template-columns: 1fr; }
+  .blog-nav { grid-template-columns: 1fr; }
+  .hero { min-height: 82vh; padding: 100px 20px 70px; }
+}

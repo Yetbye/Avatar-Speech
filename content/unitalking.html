@@ -1,0 +1,396 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂与问题动机</h2>
+  <p class="lead">UniTalking 要回答的问题是：<strong>能不能像 Veo3 / Sora2 那样，端到端地联合生成一段「会说话的人像视频 + 对应语音」，并且把架构、数据与训练范式完全开放？</strong>它的答案是：复用 Wan2.2-5B 视频流、搭一个同构孪生音频流，把音视频 latent token 拼在一起做 Joint Attention 共同去噪，再用文本 / 身份图像 / 参考音频三种条件驱动。一句话概括其路线：<strong>双流联合生成（Joint Attention + Flow Matching）</strong>。</p>
+  <p>论文的出发点是一个清晰的结构性缺口：闭源系统（Veo3、Sora2）已经证明了联合音视频生成的能力，但架构、数据、训练方法全部不可见，学术界无法复现；而开源范式里，<strong>级联式</strong>（先音频后视频，或反之）存在时间错位与误差累积，<strong>现有联合生成</strong>又大多停留在 Foley 音效层面（海浪配涛声），达不到语音所需的音素级（phoneme-level）口型精度。说话人视频要求的是「帧级、音素级精确对齐」——这正是 UniTalking 想补上的空位。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「联合生成」的价值不在省一步流水线，而在打破条件生成的信息瓶颈</h4>
+    <p>级联范式里，视频生成器只能看到「已经定稿」的音频，任何音频端的口型歧义都会被固化；而联合去噪中，音视频可以互相协商——文本先定语义，音素与视素（viseme）在同一注意力里互相锚定。论文对 TV2A 任务引入「音频→视频」单向掩码，本质上是把这种协商能力变成可被监督的因果方向，逼模型学出「视觉动作→声学后果」的映射。</p></div>
+  <div class="pipeline"><span class="pipe-step">Text Prompt</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">UMT5 (frozen)</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">MM-DiT 双流去噪</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step alt">Joint Attention</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">Video + Audio</span></div>
+  <p>输入侧支持三种组合：文本（T2AV）、文本+身份图像（TI2AV）、文本+参考音频（TR2AV），分别控制「说什么」「长什么样」「用谁的声音说」。这种多模态条件设计是 UniTalking 相对 Ovi、Universe-1 等联合生成工作在个性化维度上的差异化主张。</p>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 范式定位：级联、单向驱动与联合生成</h2>
+  <p>论文在引言中把现有路线归为两大类，再把自己的工作定位为第三条路。下图把三种范式的时间轴与信息流向画在一起：级联把「音视频一致性」交给中间产物，单向驱动把一致性交给条件信号，而联合生成把一致性<strong>内化为同一去噪过程中的注意力结构</strong>。</p>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <!-- 范式对比：三行 -->
+    <rect x="20" y="20" width="230" height="330" fill="#F4F6F8" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="135" y="48" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="16" fill="#2C3E50" font-weight="bold">级联式（Cascade）</text>
+    <rect x="55" y="80" width="120" height="40" fill="#C9A86C"/><text x="115" y="105" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">TTS 生成音频</text>
+    <path d="M115 125 L115 165" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr)"/>
+    <rect x="55" y="170" width="120" height="40" fill="#1B4B6F"/><text x="115" y="195" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">音频驱动视频</text>
+    <text x="135" y="250" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">时间错位 + 误差累积</text>
+    <text x="135" y="285" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">音频一经定稿不可协商</text>
+    <text x="135" y="330" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">代表：Wav2Lip / SadTalker 系</text>
+
+    <rect x="285" y="20" width="230" height="330" fill="#F4F6F8" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="400" y="48" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="16" fill="#2C3E50" font-weight="bold">单向驱动（A2V / V2A）</text>
+    <rect x="320" y="80" width="160" height="40" fill="#5A8F7B"/><text x="400" y="105" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">已有音频 → 生成视频</text>
+    <path d="M400 125 L400 165" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr)"/>
+    <rect x="320" y="170" width="160" height="40" fill="#5A8F7B"/><text x="400" y="195" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">已有视频 → 生成音频</text>
+    <text x="400" y="250" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">联合分布未被建模</text>
+    <text x="400" y="285" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">Foley 可行，语音精度不足</text>
+    <text x="400" y="330" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">代表：OmniHuman / DeepAudio 系</text>
+
+    <rect x="550" y="20" width="230" height="330" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="2.5"/>
+    <text x="665" y="48" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="16" fill="#1B4B6F" font-weight="bold">联合生成（UniTalking）</text>
+    <rect x="585" y="75" width="160" height="46" fill="#1B4B6F"/><text x="665" y="96" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">同一去噪过程</text>
+    <text x="665" y="114" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">V-Tokens ⊕ A-Tokens</text>
+    <rect x="585" y="145" width="160" height="46" fill="#E85D4E"/><text x="665" y="166" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">Joint Attention</text>
+    <text x="665" y="184" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#F4F6F8">viseme ↔ phoneme 对齐</text>
+    <path d="M665 196 L665 220" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr)"/>
+    <text x="665" y="252" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F">一致性内化在注意力结构中</text>
+    <text x="665" y="285" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">音频 / 视频可互相协商</text>
+    <text x="665" y="330" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">代表：Ovi / JavisDiT / UniTalking</text>
+    <defs><marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 1</b> · 三条范式的信息流对比：把「音视频一致性由谁负责」这一抽象问题具象化——级联交给中间产物、单向驱动交给条件信号、联合生成交给共享注意力。</div></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>路线</th><th>代表性工作（论文引用）</th><th>一致性来源</th><th>局限（论文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">级联 A2V</td><td>Hallo3、HunyuanVideo-Avatar、OmniHuman、MultiTalk</td><td>条件信号（已有音频）</td><td>时间错位、误差累积；联合分布未建模</td></tr>
+      <tr><td class="route">V2A / V2S</td><td>Diff-Foley、FoleyCrafter、MMAudio、AudioGen-Omni</td><td>条件信号（已有视频）</td><td>多为 Foley 音效，语音精度不足</td></tr>
+      <tr><td class="route">联合生成</td><td>JavisDiT、Universe-1（SoE）、Ovi、OmniTalker</td><td>融合块 / 交叉注意力</td><td>多为文本驱动，缺身份与音色个性化</td></tr>
+    </tbody></table></div>
+  <p>值得注意的是，论文对联合生成内部也划出细分：JavisDiT 用双分支 DiT + 多模态双向交叉注意力，Universe-1 用 Stitching of Experts 缝合 Wan2.1 与 ACE-Step 等单模态模型，Ovi 用孪生骨干 + 跨模态融合。UniTalking 的差异化主张有二：<strong>对称孪生流 + 初始化自视频基座</strong>，以及<strong>身份图像与参考音频的多模态条件</strong>。这些对照为后文实验中的基线选择（Universe-1、Ovi、Sora2）埋下伏笔。</p>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> 系统分解：对称双流 MM-DiT</h2>
+  <p>UniTalking 的骨架是 Multi-Modal Diffusion Transformer（MM-DiT）：N 个 MM-DiT block 在<strong>拼接后的视频 + 音频 latent token 序列</strong>上操作，每块内部是「对称双流」设计。所谓对称，是指音频流被刻意造成视频流的<strong>同构孪生（identical twin）</strong>——参数维度、层数完全一致，以鼓励两个模态在 latent 空间无缝融合；视频流继承 Wan2.2-5B 的架构与权重，音频流随机初始化并从头训练到与视觉对端匹配的能力。</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">骨干与规模</div>
+      <div class="dd">N = 30 个 MM-DiT block，模型维度 dim = 3072，注意力 24 头，全模型总参数 10B（论文表述）。<span class="alt">替代方案：MoE 式扩容（如 MOVA）或 SoE 缝合单模态模型（Universe-1）——代价是跨模态一致性更难保证。</span></div></div>
+    <div class="def-item"><div class="dt">视频流</div>
+      <div class="dd">继承 Wan2.2-5B 的架构与预训练权重，提供强视觉先验，使训练高效、视觉保真达 SOTA。</div></div>
+    <div class="def-item"><div class="dt">音频流</div>
+      <div class="dd">与视频流同构的孪生分支，随机初始化；先经 TTS 预训练（见 07 章）再参与联合训练。<span class="alt">替代方案：直接用较小的音频 Transformer（如 MMAudio 式）——论文未采用，理由是「对称性促进融合」（论文表述）。</span></div></div>
+    <div class="def-item"><div class="dt">条件注入</div>
+      <div class="dd">文本（UMT5，冻结）经 Cross Attention 进入；参考音频另设一组 KV 投影，与文本分支输出<strong>逐元素相加</strong>融合；身份图像走图像条件通路。</div></div>
+    <div class="def-item"><div class="dt">位置编码</div>
+      <div class="dd">时间轴用标准 RoPE；音频 token 的空间 (h,w) 维用「单一固定位置导出的 RoPE」——各向异性设计，逼模型优先建模时间动态（沿用 OVI 的做法）。</div></div>
+    <div class="def-item"><div class="dt">输出解码</div>
+      <div class="dd">去噪后的 latent 经各自的冻结解码器还原为视频帧与音频波形（细节见 06 章）。</div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <!-- 架构流 -->
+    <rect x="30" y="40" width="150" height="46" fill="#1B4B6F"/><text x="105" y="60" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">Input Video</text><text x="105" y="78" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">3D Causal VAE (Wan2.2)</text>
+    <rect x="30" y="120" width="150" height="46" fill="#5A8F7B"/><text x="105" y="140" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">Input Audio</text><text x="105" y="158" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#EAF1F5">1D VAE (MMAudio)</text>
+    <rect x="30" y="200" width="150" height="46" fill="#2C3E50"/><text x="105" y="220" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">Text Prompt</text><text x="105" y="238" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">UMT5 (frozen)</text>
+    <rect x="30" y="280" width="150" height="46" fill="#C9A86C"/><text x="105" y="300" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">Ref Image / Ref Audio</text><text x="105" y="318" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">身份 / 音色条件</text>
+
+    <path d="M185 63 L240 100" stroke="#1B4B6F" stroke-width="2.5" marker-end="url(#a2)"/>
+    <path d="M185 143 L240 145" stroke="#5A8F7B" stroke-width="2.5" marker-end="url(#a2)"/>
+    <path d="M185 223 L240 190" stroke="#2C3E50" stroke-width="2.5" marker-end="url(#a2)"/>
+    <path d="M185 303 L240 250" stroke="#C9A86C" stroke-width="2.5" marker-end="url(#a2)"/>
+
+    <rect x="245" y="60" width="200" height="230" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="345" y="86" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#1B4B6F" font-weight="bold">MM-DiT Block × 30</text>
+    <rect x="265" y="100" width="160" height="34" fill="#E85D4E"/><text x="345" y="122" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff">Joint Attention（拼接 V⊕A）</text>
+    <rect x="265" y="146" width="160" height="34" fill="#1B4B6F"/><text x="345" y="168" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff">Cross Attention（T + R）</text>
+    <rect x="265" y="192" width="160" height="34" fill="#5A8F7B"/><text x="345" y="214" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff">FFN（双流各一）</text>
+    <text x="345" y="252" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">AdaLN ← timestep / RoPE(时间轴)</text>
+    <text x="345" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">音频空间维：固定位置 RoPE</text>
+
+    <path d="M450 100 L520 80" stroke="#1B4B6F" stroke-width="2.5" marker-end="url(#a2)"/>
+    <path d="M450 180 L520 220" stroke="#5A8F7B" stroke-width="2.5" marker-end="url(#a2)"/>
+
+    <rect x="525" y="52" width="140" height="52" fill="#1B4B6F"/><text x="595" y="74" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">Video Decoder</text><text x="595" y="94" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">→ 视频帧</text>
+    <rect x="525" y="196" width="140" height="52" fill="#5A8F7B"/><text x="595" y="218" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">Audio Decoder</text><text x="595" y="238" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#EAF1F5">→ Mel → BigVGAN → 44.1kHz</text>
+
+    <path d="M670 78 L720 78" stroke="#2C3E50" stroke-width="2" marker-end="url(#a2)"/>
+    <rect x="722" y="56" width="60" height="44" fill="#2C3E50"/><text x="752" y="83" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff">Video</text>
+    <path d="M670 222 L720 222" stroke="#2C3E50" stroke-width="2" marker-end="url(#a2)"/>
+    <rect x="722" y="200" width="60" height="44" fill="#2C3E50"/><text x="752" y="227" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff">Audio</text>
+    <defs><marker id="a2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 2</b> · 端到端架构流：把「对称双流 + 三种注意力 + 冻结编解码器」的抽象拓扑具象化，注意音频流与视频流在 MM-DiT 内是同等公民（同构孪生）。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「同构孪生」是一个关于优化景观的赌注</h4>
+    <p>音频流随机初始化、视频流带着 Wan2.2 的 5B 先验，二者要在拼接注意力里互相读懂对方的表征。论文赌的是：<strong>结构同构会诱导表征同构</strong>——当两条流的算子形式一致时，Joint Attention 只需学习「对齐」而不必学习「翻译」。代价则显而易见：随机初始化的音频分支要追上预训练视觉分支的收敛速度，这正是论文两阶段训练（07 章）存在的根本原因，也是论文自己承认的「模态收敛速率失衡」假设的来源。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 核心机制：Joint Attention 与多条件 Cross Attention</h2>
+  <p>Multi-Modal Transformer Block 对标准 DiT block 做了三处改造，是全文方法贡献的浓缩：</p>
+  <p><strong>其一，Joint Attention。</strong>标准自注意力被替换为联合注意力：视频与音频的 latent token <strong>拼接（concatenate）</strong>成单一序列，在同一次注意力操作里同时建模模态内与模态间依赖。论文的原话是「迫使模型在一个注意力算子中学到 intra- and inter-modal 依赖」。这与「双分支 + 交叉注意力融合」（JavisDiT、Ovi 路线）形成对照：融合不再是一个独立模块，而是注意力本身的定义域扩大。</p>
+  <p><strong>其二，多条件 Cross Attention。</strong>为同时吃下文本条件 c_text 与参考音频风格 c_audio，交叉注意力模块增加了一组<strong>补充 KV 投影层</strong>：主序列分别对两个条件做注意力，输出<strong>逐元素求和（element-wise summation）</strong>融合。相加而非拼接后投影，是一个轻量选择——参数增量最小，但隐含假设两个条件的作用可加、互不冲突。</p>
+  <p><strong>其三，各向异性 RoPE。</strong>时间轴用标准 RoPE；音频 token 的空间维用「单一固定位置导出的 RoPE」（沿用 OVI 做法），即音频在空间上被视为「只有一个位置」，从而逼模型把表达预算全部投给时间动态，强化音视频时间对齐。</p>
+  <div class="figure"><svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+    <!-- Joint Attention 拼接示意 -->
+    <rect x="40" y="40" width="330" height="60" fill="#1B4B6F"/>
+    <text x="205" y="66" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">V-Tokens（视频 latent，时间 × 空间）</text>
+    <text x="205" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">v_t … v_t（含 16×16×4 压缩）</text>
+    <rect x="40" y="112" width="330" height="60" fill="#5A8F7B"/>
+    <text x="205" y="138" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">A-Tokens（音频 latent，时间轴）</text>
+    <text x="205" y="160" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#EAF1F5">a_t … a_t</text>
+    <path d="M205 178 L205 210" stroke="#2C3E50" stroke-width="2.5" marker-end="url(#a3)"/>
+    <text x="228" y="200" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E" font-weight="bold">Concatenation</text>
+    <rect x="40" y="215" width="330" height="52" fill="#E85D4E"/>
+    <text x="205" y="238" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">[V-Tokens ⊕ A-Tokens] 单序列</text>
+    <text x="205" y="258" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#F4F6F8">RMS Norm + RoPE → Q / K / V → Attention</text>
+
+    <path d="M380 240 L430 240" stroke="#2C3E50" stroke-width="2.5" marker-end="url(#a3)"/>
+    <rect x="435" y="215" width="330" height="52" fill="#2C3E50"/>
+    <text x="600" y="238" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#fff">Joint Attention 输出</text>
+    <text x="600" y="258" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">viseme ↔ phoneme 依赖在单次注意力中成形</text>
+
+    <rect x="435" y="40" width="330" height="120" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="600" y="66" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" font-weight="bold">Cross Attention（双条件）</text>
+    <rect x="455" y="80" width="140" height="30" fill="#1B4B6F"/><text x="525" y="100" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">T-Tokens (UMT5)</text>
+    <rect x="610" y="80" width="140" height="30" fill="#C9A86C"/><text x="680" y="100" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">R-Tokens (Ref Audio)</text>
+    <text x="525" y="132" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">KV 投影 ①</text>
+    <text x="680" y="132" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">补充 KV 投影 ②</text>
+    <text x="600" y="152" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">输出逐元素相加（Summation）</text>
+    <defs><marker id="a3" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 3</b> · Joint Attention 的序列构造与双条件 Cross Attention：把「融合发生在哪一层」这一抽象设计决策具象化——拼接进自注意力 vs. 相加进交叉注意力。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>为什么是「相加」而不是「拼接」？条件可加性假设的得与失</h4>
+    <p>文本条件与音色条件被两个独立的 KV 投影编码后<strong>逐元素相加</strong>。其收益是结构上的极简与 CFG 兼容（见 05 章：条件 c 可以是 c_text、c_image、c_audio 的组合）；其风险是当文本语义与参考音频风格冲突时（例如文本要求低沉、参考音频是高亢音色），相加只能给出折中解。论文没有报告条件冲突场景的消融——这是一个被架构选择隐式定义、却未被实验显式度量的自由度。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>Joint Attention 的计算代价与证据边界</h4>
+    <p>把音视频 token 拼接进单次注意力，序列长度近似翻倍，注意力代价按平方增长——论文报告全模型 10B 参数、bf16 + FSDP 训练，但<strong>未报告拼接序列的实际长度、推理耗时与显存占用</strong>，也未与「双分支交叉注意力」变体做同预算对照。因此「Joint Attention 优于融合块」这一结论目前主要由下游 Sync-C / Sync-D 与主观偏好间接支撑，缺少机制层面的直接对照（例如相同参数量下的 attention-only ablation）。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> 关键公式：Flow Matching 与 Classifier-Free Guidance</h2>
+  <p>UniTalking 全程以 Continuous Normalizing Flow（CNF）的方式训练，目标函数是 Conditional Flow Matching（CFM）。下面两张公式卡的系数与符号均按原文核对。</p>
+  <div class="formula-card"><div class="f-label">Eq.1 · Conditional Flow Matching 目标（原文式 1）</div>
+    <div>$$ \mathcal{L}_{\mathrm{CFM}} = \mathbb{E}_{t,\,q(x_1),\,p_0(x_0)}\left[ \left\| v_\theta(x_t,\,t) - (x_1 - x_0) \right\|^2 \right] $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>x₀ ∼ N(0, I) 是 t=0 的简单先验，x₁ 是数据样本；线性插值路径 x_t = (1−t)x₀ + t·x₁ 的瞬时速度恰为常量 (x₁ − x₀)，于是网络只需回归这个「目标向量场」。生成时从 x₀ 出发数值求解 ODE dx_t/dt = v_θ(x_t, t)。<strong>系数核对：</strong>损失为无加权的 L2 范数平方；论文排版中网络参数写作 v_θ(x_t − t)，按 Flow Matching 惯例应读作 v_θ(x_t, t)（时间条件），此处按原文语义还原，标注「论文表述」。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.2 · 多任务总目标（原文 4.1 节）</div>
+    <div>$$ \mathcal{L}_{\mathrm{total}} = \mathcal{L}^{a}_{\mathrm{CFM}} \quad (\text{纯音频任务}); \qquad \mathcal{L}_{\mathrm{total}} = \mathcal{L}^{a}_{\mathrm{CFM}} + \mathcal{L}^{v}_{\mathrm{CFM}} \quad (\text{联合生成任务}) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>音频与视频各有自己的 CFM 回归项，系数均为 1（等权相加）。纯音频任务（TTS 预训练阶段）只回传音频项，这是第一阶段「只训音频分支」在损失层面的实现。等权意味着论文并未对两个模态的收敛难度做显式再平衡——结合 03 章的「孪生初始化失衡」问题，这可以看作留给两阶段训练策略去消化的隐含假设。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.3 · Classifier-Free Guidance（原文式 2）</div>
+    <div>$$ \hat{v}_\theta(x_t, t, c) = v_\theta(x_t, t, \varnothing) + \omega \cdot \big( v_\theta(x_t, t, c) - v_\theta(x_t, t, \varnothing) \big), \quad \omega > 1 $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>训练时条件 c 以一定概率被替换为空 token ∅（论文未给出替换概率，标注「论文表述」）；推理时沿「无条件 → 有条件」方向外推 ω 倍。关键在于 c 的模块化：c 可由文本 c_text、身份图像 c_image、参考音频 c_audio <strong>组合</strong>而成，于是同一个 CFG 公式同时支撑 T2AV / TI2AV / TR2AV 三种任务——条件组合即任务切换，这是该框架「多任务统一」在采样层面的体现。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <!-- Flow matching 直线路径 -->
+    <line x1="80" y1="240" x2="720" y2="240" stroke="#2C3E50" stroke-width="2"/>
+    <line x1="80" y1="240" x2="80" y2="60" stroke="#2C3E50" stroke-width="2"/>
+    <text x="400" y="275" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">t：0（噪声 x₀）→ 1（数据 x₁）</text>
+    <text x="60" y="55" text-anchor="end" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">x_t</text>
+    <circle cx="80" cy="220" r="8" fill="#5A8F7B"/><text x="80" y="205" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#5A8F7B">x₀ ~ N(0, I)</text>
+    <circle cx="720" cy="80" r="8" fill="#1B4B6F"/><text x="720" y="65" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F">x₁ 数据样本</text>
+    <line x1="80" y1="220" x2="720" y2="80" stroke="#E85D4E" stroke-width="3" stroke-dasharray="8 5"/>
+    <text x="400" y="130" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#E85D4E">x_t = (1−t)·x₀ + t·x₁（线性路径）</text>
+    <text x="400" y="155" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">目标速度 v* = x₁ − x₀（常向量）</text>
+    <circle cx="400" cy="150" r="0" fill="none"/>
+    <rect x="520" y="170" width="240" height="60" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="640" y="192" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F" font-weight="bold">CFG 外推：v̂ = v(∅) + ω·(v(c) − v(∅))</text>
+    <text x="640" y="214" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">c = 文本 ⊕ 身份图 ⊕ 参考音频</text>
+  </svg><div class="figcap"><b>图 4</b> · Flow Matching 的线性插值路径与 CFG 外推：把「回归一个常向量场」的数学结构具象化为一条从噪声到数据的直线，条件组合则决定外推方向。</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> Latent 表示与解码链路</h2>
+  <p>所有模态都经<strong>冻结的预训练编码器</strong>投影进紧凑 latent 空间——这一设计让 MM-DiT 只需专注核心生成任务，但也在模态两侧留下了完全不同的压缩几何。</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">视频 latent</div>
+      <div class="dd">Wan2.2 的 3D causal VAE，时空压缩率 <strong>16 × 16 × 4</strong>（论文表述）。因果卷积结构天然适配流式/分块推理。</div></div>
+    <div class="def-item"><div class="dt">音频 latent</div>
+      <div class="dd">MMAudio 的 1D VAE：原始波形先经 STFT 转 Mel 频谱再编码；推理时先解码回 Mel，再用 BigVGAN 声码器合成为 <strong>44.1kHz</strong> 波形。<span class="alt">替代方案：直接在波形上建模或用离散音频 token——论文选择连续 Mel-VAE，便于与 Flow Matching 的连续 ODE 对接。</span></div></div>
+    <div class="def-item"><div class="dt">文本条件</div>
+      <div class="dd">冻结 UMT5 编码，序列长度固定 512（超长截断、不足补零）。</div></div>
+    <div class="def-item"><div class="dt">参考音频条件</div>
+      <div class="dd">同一 MMAudio VAE 编码，序列长度固定 257（同样截断/补零）。长度固定是为训练稳定性（论文表述）。</div></div>
+    <div class="def-item"><div class="dt">位置对齐</div>
+      <div class="dd">视频 token 带 16×16 空间结构 + 时间轴；音频 token 只有时间轴（空间维用固定位置 RoPE 压平）。两侧的「时间步长含义」并不相同——这正是 Joint Attention 需要隐式学出的跨模态时钟映射。</div></div>
+    <div class="def-item"><div class="dt">冻结策略</div>
+      <div class="dd">全部编码/解码器训练全程冻结，保证 latent 空间语义稳定；代价是 VAE 的重建上限即生成上限。</div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <!-- latent 对齐 -->
+    <text x="400" y="36" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">跨模态时钟：同一段时间在两个 latent 空间中的不同切分</text>
+    <line x1="60" y1="90" x2="740" y2="90" stroke="#2C3E50" stroke-width="2"/>
+    <text x="60" y="80" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F">视频时间轴</text>
+    <g fill="#1B4B6F">
+      <rect x="60" y="70" width="90" height="34"/><rect x="155" y="70" width="90" height="34"/><rect x="250" y="70" width="90" height="34"/><rect x="345" y="70" width="90" height="34"/><rect x="440" y="70" width="90" height="34"/><rect x="535" y="70" width="90" height="34"/><rect x="630" y="70" width="90" height="34"/>
+    </g>
+    <text x="400" y="92" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">帧 → V-token（16×16×4 压缩）</text>
+    <line x1="60" y1="180" x2="740" y2="180" stroke="#2C3E50" stroke-width="2"/>
+    <text x="60" y="170" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#5A8F7B">音频时间轴</text>
+    <g fill="#5A8F7B">
+      <rect x="60" y="160" width="30" height="30"/><rect x="94" y="160" width="30" height="30"/><rect x="128" y="160" width="30" height="30"/><rect x="162" y="160" width="30" height="30"/><rect x="196" y="160" width="30" height="30"/><rect x="230" y="160" width="30" height="30"/><rect x="264" y="160" width="30" height="30"/><rect x="298" y="160" width="30" height="30"/><rect x="332" y="160" width="30" height="30"/><rect x="366" y="160" width="30" height="30"/><rect x="400" y="160" width="30" height="30"/><rect x="434" y="160" width="30" height="30"/><rect x="468" y="160" width="30" height="30"/><rect x="502" y="160" width="30" height="30"/><rect x="536" y="160" width="30" height="30"/><rect x="570" y="160" width="30" height="30"/><rect x="604" y="160" width="30" height="30"/><rect x="638" y="160" width="30" height="30"/><rect x="672" y="160" width="30" height="30"/>
+    </g>
+    <text x="400" y="180" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#EAF1F5">Mel 帧 → A-token（1D VAE）</text>
+    <g stroke="#E85D4E" stroke-width="1.5" stroke-dasharray="4 4">
+      <line x1="155" y1="104" x2="155" y2="158"/><line x1="250" y1="104" x2="250" y2="158"/><line x1="345" y1="104" x2="345" y2="158"/><line x1="440" y1="104" x2="440" y2="158"/><line x1="535" y1="104" x2="535" y2="158"/><line x1="630" y1="104" x2="630" y2="158"/>
+    </g>
+    <text x="400" y="225" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">Joint Attention 隐式学习「哪个 A-token 对应哪个 V-token」</text>
+    <rect x="180" y="250" width="440" height="48" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="400" y="270" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F" font-weight="bold">文本序列固定 512 · 参考音频固定 257（截断 / 补零）</text>
+    <text x="400" y="290" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">冻结编码器保证 latent 语义稳定，VAE 重建上限即生成上限</text>
+  </svg><div class="figcap"><b>图 5</b> · 跨模态时钟错位：视频与音频 token 的时间粒度不同，把「帧级音素对齐」这一难题具象化为两条切分密度不同的时间轴上的对应问题。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>固定序列长度（512 / 257）是工程稳定与表达上限的显式交换</h4>
+    <p>文本截断到 512、参考音频截断到 257，超长即丢信息、超短则补零。这保证了 batch 张量形状稳定、FSDP 分片高效，但也意味着：长台词会被静默截断，长参考音频的音色信息只能取前段。对于「朗读长文」类应用，文本长度与语音时长的关系会被这个上限悄悄改写——论文没有讨论截断策略对长语音生成的影响，属于未被度量的边界条件。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 数据工程与两阶段训练</h2>
+  <p>UniTalking 的数据管线与训练策略在同类论文中属于写得比较扎实的部分。数据来自 OpenHumanVid 开源语料 + 大规模内部集合，经<strong>三级串联过滤</strong>后得到 <strong>230 万</strong>对齐音视频样本（论文表述）。</p>
+  <div class="pipeline"><span class="pipe-step">原始语料</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">Video Filtering（静态/字幕/低质）</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">Audio Filtering（静音/无语音/低 SNR）</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">AV Filtering（画内音/口型差）</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step alt">2.3M 对齐样本</span></div>
+  <p>音频过滤用 PANNs 与 SentenceASD 做语音事件检测；跨模态过滤用 LightASD 剔除「画内音」（diegetic audio，即画面内声源而非说话人语音），再用 LipSync 模型剔除口型对齐差的样本。标注侧为每对样本生成<strong>三种粒度 caption</strong>：(a) 详细视频 caption + 音频 caption，(b) 短视频 caption + 音频 caption，(c) 音视频直接输入 Qwen3-Omni 得到的融合 caption；训练时随机采样其一作为 prompt，工具链包含 Qwen3-VL、Whisper-V3、Qwen3-Omni-Captioner。此外为支撑 TR2AV 任务，用 <strong>IndexTTS2</strong> 为每个视频合成 3 段 3–5 秒的参考音频（原音频作音色参考 + 随机词数文本），把「缺参考音频」的原始数据补成训练对。</p>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <!-- 两阶段训练因果链 -->
+    <text x="400" y="34" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">两阶段渐进训练：先补齐音频分支，再学跨模态相关</text>
+    <rect x="40" y="60" width="340" height="110" fill="#EAF1F5" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="210" y="86" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#5A8F7B" font-weight="bold">Stage 1 · 音频分支预训练（TTS）</text>
+    <text x="210" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">冻结文本/视频分支（含 FFN 与注意力投影）</text>
+    <text x="210" y="130" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">只训：音频输入投影 + 音频 FFN + 注意力投影</text>
+    <text x="210" y="152" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">带/不带音色参考的复合 TTS 任务</text>
+
+    <path d="M390 115 L440 115" stroke="#2C3E50" stroke-width="2.5" marker-end="url(#a4)"/>
+
+    <rect x="445" y="60" width="320" height="110" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="605" y="86" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" font-weight="bold">Stage 2 · 多任务联合音视频训练</text>
+    <text x="605" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">T2AV / TV2A / TI2AV / TR2AV 交替</text>
+    <text x="605" y="130" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">batch 64 · lr 1e-5 · 100k steps · AdamW</text>
+    <text x="605" y="152" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">目标：音视频双向时间相关</text>
+
+    <rect x="40" y="200" width="725" height="120" fill="#F4F6F8" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="400" y="226" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" font-weight="bold">四个任务各自贡献什么约束</text>
+    <text x="120" y="252" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F" font-weight="bold">T2AV</text>
+    <text x="120" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">共享文本脚本</text>
+    <text x="120" y="288" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">→ 粗粒度对齐</text>
+    <text x="315" y="252" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E" font-weight="bold">TV2A</text>
+    <text x="315" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">音频→视频单向掩码</text>
+    <text x="315" y="288" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">→ viseme→phoneme 细粒度</text>
+    <text x="510" y="252" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B" font-weight="bold">TI2AV</text>
+    <text x="510" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">身份图像条件</text>
+    <text x="510" y="288" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">→ 视觉个性化</text>
+    <text x="700" y="252" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C" font-weight="bold">TR2AV</text>
+    <text x="700" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">参考音频条件</text>
+    <text x="700" y="288" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">→ 音色个性化</text>
+    <text x="400" y="312" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">交替训练 = 「多面向约束」，防止模型走简化捷径（论文表述）</text>
+    <defs><marker id="a4" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 6</b> · 两阶段训练与四任务约束的因果链：把「为什么要先单独练音频、为什么 TV2A 要加单向掩码」的设计动机具象化为一张约束地图。</div></div>
+  <p>训练超参（论文表述）：Stage 1 batch 256、lr 1×10⁻⁵、共 100,000 步（内部 TTS 数据）；Stage 2 batch 64、lr 1×10⁻⁵、100,000 步；AdamW（β₁=0.9, β₂=0.999, ε=10⁻⁸）；采样调度用 UniPC 实现；全程 bf16 + FSDP。论文明确报告：消融发现<strong>去掉 Stage 1 会让最终音视频模型的音频质量显著退化</strong>，并把原因归结为模态收敛速率失衡——视频分支吃过大 规模预训练红利，音频分支欠训练。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>TV2A 的单向掩码：把「监督方向」当作跨模态表征的正则器</h4>
+    <p>TV2A 任务中，论文在注意力里加掩码<strong>阻止音频影响视频分支</strong>，只允许用真实视频的 latent 特征去预测音频。这等于把「视频 → 音频」的因果箭头显式写进计算图：模型必须学会「这个口型动作会发出什么声音」，而不是让两边互相抄近路。这与自监督学习里「遮挡一个模态预测另一个」的思路同源，但被嵌进了多任务扩散训练——一个值得推广到其他联合生成任务的机制设计。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">08</span> 实验证据与解读</h2>
+  <p>UniTalking 的评估分三条线：T2AV 盲测偏好（50 条测试 prompt、每对比较 20 名被试）、Sync-C/Sync-D 客观口型指标、TR2AV 音色相似度与 TTS WER。核心数字如下（均引自原文表格）。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>方法</th><th>Sync-C ↑</th><th>Sync-D ↓</th><th>解读</th></tr></thead>
+    <tbody>
+      <tr><td class="route">Universe-1</td><td>1.85</td><td>11.97</td><td>SoE 缝合路线，口型精度差距明显</td></tr>
+      <tr><td class="route">OVI</td><td>6.56</td><td>8.60</td><td>Sync-C 最高，但论文怀疑指标偏爱夸张口型</td></tr>
+      <tr><td class="route">Sora2</td><td>5.35</td><td>7.78</td><td>闭源参照，Sync-D 最优</td></tr>
+      <tr><td class="route">UNITALKING</td><td>4.87</td><td>8.05</td><td>Sync-C 超 Universe-1 3.02 点；Sync-D 超 Universe-1 3.92、超 OVI 0.55</td></tr>
+    </tbody></table></div>
+  <p>主观偏好（OVI 归一化为 100）：音频质量 <strong>116%</strong>、音视频同步 <strong>107%</strong>、视频质量与 OVI 持平——论文把持平归因于两者共享 Wan2.2 预训练，解释合理。音色相似度（TR2AV，英/中）：UniTalking 0.703 / 0.662，高于 ElevenLabs（0.613 / 0.677 的英文端）但低于 MiniMax（0.756 / 0.780）与 Qwen3-Omni（0.773 / 0.772）——论文自己承认「难以超越 SOTA 大音频模型」。TTS WER：UniTalking 0.038，与 FireRedTTS 相当、略逊 Ovi-Aud（0.035）与 F5-TTS（0.018）。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>Sync-C 的「夸张口型偏好」质疑，其实是生成评估的一个普遍陷阱</h4>
+    <p>论文观察到 OVI 的 Sync-C 异常高，并推测 Sync-C（SyncNet 置信度类指标）偏爱夸张嘴部运动而非自然发音。如果该推测成立，那么<strong>所有以 Sync-C 排序的对比表都需要重审</strong>：模型可以通过「过度张嘴」刷分。这与 Hallo-Live 一文中把 SyncNet 分数同时用作奖励和评估指标形成互文——用有偏指标做优化目标会把偏差放大（见 hallo-live 一文的 reward hacking 讨论）。评估指标与生成目标之间的这种循环依赖，是当前口型同步研究里被低估的方法论风险。</p></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>方法</th><th>说话人相似度（英）↑</th><th>说话人相似度（中）↑</th><th>TTS WER ↓</th></tr></thead>
+    <tbody>
+      <tr><td class="route">ElevenLabs</td><td>0.613</td><td>0.677</td><td>—</td></tr>
+      <tr><td class="route">MiniMax</td><td>0.756</td><td>0.780</td><td>—</td></tr>
+      <tr><td class="route">Qwen3-Omni</td><td>0.773</td><td>0.772</td><td>—</td></tr>
+      <tr><td class="route">Ovi-Aud</td><td>—</td><td>—</td><td>0.035</td></tr>
+      <tr><td class="route">UNITALKING</td><td>0.703</td><td>0.662</td><td>0.038</td></tr>
+    </tbody></table></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>证据强度：主观 20 人 × 50 prompt 足以支撑「SOTA」吗？</h4>
+    <p>盲测规模为每对比较 20 人、50 条测试 prompt，属于常见但偏小的主观评估；论文未报告置信区间或显著性检验。客观指标上，UniTalking 的 Sync-C（4.87）低于 OVI（6.56）与 Sora2（5.35），只是 Sync-D 略优；音色相似度全面低于专用 TTS/音频大模型。因此「新的开源 SOTA」这一表述更准确的读法是：<strong>在「开源联合生成」这个子集内综合领先</strong>，而非在单项指标上全面超越。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">09</span> 深度洞察与批判评估</h2>
+  <p>把前面各章的分析收拢成对这篇论文的总体判断。UniTalking 的真正贡献不是某个孤立模块，而是把「开源、可复现、端到端联合说话人生成」这件事的<strong>完整配方</strong>摆上台面：数据管线（230 万样本 + 三级过滤 + 三粒度 caption）、训练配方（两阶段 + 四任务交替）、架构选择（对称孪生 + 拼接注意力 + 各向异性 RoPE）。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>与 Hallo-Live / OmniMate 的路线对照：三种「怎么花参数预算」的哲学</h4>
+    <p>同为音视频联合生成，UniTalking 把预算花在<strong>离线质量</strong>（10B 参数、Wan2.2-5B 先验、100k×2 步训练）；Hallo-Live 花在<strong>流式效率</strong>（Ovi 教师蒸馏、异步双流、20.38 FPS）；OmniMate 花在<strong>交互控制</strong>（GPC 进度控制、MRCM 身份保持）。三者恰好覆盖了「质量—延迟—可控性」三角的三个角，读者可以按部署约束各取所需：离线影视配音看 UniTalking，实时数字人直播看 Hallo-Live，多轮对话交互看 OmniMate。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>三个未被量化的代价</h4>
+    <p><strong>（1）推理成本缺报：</strong>10B 参数 + 拼接注意力的推理延迟、显存占用完全缺席，而「实用化」恰恰卡在这里。<strong>（2）参考音频依赖合成数据：</strong>TR2AV 的训练对由 IndexTTS2 合成（3–5 秒 × 3 段/视频），音色克隆的上限被教师模型的克隆质量锚定——这解释了为什么相似度（0.703/0.662）打不过 MiniMax/Qwen3-Omni。<strong>（3）单人构图假设：</strong>论文明确承认尚不支持 Sora2「Cameo」式的多参考多人生成，且全部实验局限于说话人特写，泛化到一般音视频合成（论文展望的音效、音乐）仍是假设。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>「注意力图揭示了对齐」的证据等级</h4>
+    <p>论文用 Joint Attention 的注意力图展示：音频→视频的高权重落在面部与身体，视频→音频的高权重几乎只落在唇部。这是有趣且合理的定性证据，但注意力权重≠因果贡献；论文自己也承认部分高亮区域随训练步数随机漂移，并推测源于「训练策略缺陷或数据噪声」。要坐实 Joint Attention 是同步性的来源，需要遮蔽/置乱唇区 token 之类的干预实验。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">10</span> 自主科研问题</h2>
+  <p>以下问题从论文的机制设计、证据缺口与跨论文张力中直接长出来，供进一步研究。</p>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>拼接式 Joint Attention 与交叉注意力融合，在同参数预算下谁更有利于音素—视素对齐？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>UniTalking 归因同步性来自「拼接进单次注意力」，但缺少与 JavisDiT/Ovi 式融合块的等预算对照；这个归因决定了双流联合生成的架构主干选择。</p>
+      <p><strong>理论分析：</strong>拼接注意力让每个 token 的感受野直接覆盖异模态 token（一层内可达），交叉注意力则需多层堆叠才能传递同等信息；但拼接的代价是注意力矩阵规模 ~(L_v+L_a)²。信息可达性与计算量之间存在可刻画的权衡曲线。</p>
+      <p><strong>连接：</strong>UniTalking 的 TV2A 单向掩码证明「注意力可见性模式」可以直接塑造因果表征；OmniMate 用 latent 相加而非 cross-attn 注入进度（cross-attn 版出现字幕伪影）说明注入位置会改变生成行为。</p>
+      <p><strong>探究方向：</strong>固定参数量与训练 token 数，实现「拼接注意力 / 交叉注意力 / 混合」三变体，用 Sync-D、音素识别准确率（而非 Sync-C）和注意力可达性探针做对照。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>Sync-C 对夸张口型的偏好有多严重？能否构造不被「过度张嘴」刷分的同步指标？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>UniTalking 怀疑 Sync-C 偏爱夸张口型（OVI 6.56 vs Sora2 5.35），若属实则大量文献的口型对比表结论需要重估。</p>
+      <p><strong>理论分析：</strong>SyncNet 类指标度量的是音视频嵌入的互信息式一致性，对幅度缩放不变性差；夸张口型相当于放大了视觉信号的信噪比，从而系统性抬高置信分。可将「自然度」与「一致性」解耦为两个正交轴来度量。</p>
+      <p><strong>连接：</strong>Hallo-Live 把 SyncNet 分数同时当奖励与评估，存在 Goodhart 化风险（其 β 消融中 β>2 的崩塌是疑似 reward hacking 的信号）；OmniMate 同时报 Sync-D 与 LSE-C/LSE-D 多指标互证，正是规避单指标偏差的实践。</p>
+      <p><strong>探究方向：</strong>用可控的口型幅度缩放实验测各指标的单调性；构建「自然度校正后的同步分」；邀请人类标注对齐程度做校准集。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>两阶段训练之外，模态收敛失衡还有哪些解法？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>UniTalking 用「先 TTS 预训练音频分支」弥合随机初始化音频流与 Wan2.2 预训练视频流的差距，消融证明必要，但这是唯一解吗？</p>
+      <p><strong>理论分析：</strong>问题本质是多模态网络中一支强先验、一支零先验导致的梯度尺度与表征成熟度失衡；可选解包括模态专属学习率、损失权重随收敛速率自适应（如 GradNorm 思路）、或让视频流在早期「等一等」（部分解冻/EMA 教师）。</p>
+      <p><strong>连接：</strong>Hallo-Live 的 Stage I（对冻结 Ovi 教师回归向量场）本质是另一种「先对齐能力再训新机制」的渐进策略；OmniMate 的四阶段管线（微调→蒸馏教师→ODE 初始化→DMD）同样是把难目标拆成有序课程。</p>
+      <p><strong>探究方向：</strong>在一阶段联合训练中引入模态自适应损失权重或课程调度，对比两阶段基线的最终同步质量与总训练成本。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>合成参考音频（IndexTTS2）训练出的音色克隆，其上限由什么决定？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>TR2AV 的训练对全部由 TTS 模型合成，最终克隆相似度（0.703/0.662）低于 MiniMax/Qwen3-Omni；不清楚瓶颈在条件通路、数据还是被教师音色空间限制。</p>
+      <p><strong>理论分析：</strong>用教师合成数据训练学生，学生的音色分布被教师的 vocoder/音色编码器先验截断；这与知识蒸馏中的「教师天花板」问题同构，且合成音频缺少真实录音的信道噪声多样性。</p>
+      <p><strong>连接：</strong>Hallo-Live 的 HP-DMD 显示「学生可借奖励超过教师平均上限」，提示用偏好/相似度奖励微调或许能突破合成数据天花板；OmniMate 的 MRCM 用推理时 latent 替换做免训练音色条件，是绕开训练数据约束的另一条路。</p>
+      <p><strong>探究方向：</strong>混入真实录音参考对、或在 TR2AV 微调阶段加入说话人相似度奖励，量化「合成数据比例—克隆相似度」的响应曲线。</p></div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">11</span> 代码附录</h2>
+  <p>以下代码按论文方法结构还原关键计算流程，均为<strong>示意性实现</strong>（伪代码级，非论文官方开源代码），用于帮助读者把公式落成可读的张量操作。</p>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Multi-Modal Transformer Block：Joint Attention + 双条件 Cross Attention</span>
+<span class="kw">class</span> <span class="fn">MMTransformerBlock</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">forward</span>(self, v_tokens, a_tokens, t_tokens, r_tokens, timestep):
+        <span class="cm"># 1) Joint Attention：拼接 V/A token 为单序列（对称双流共享注意力）</span>
+        x = torch.<span class="fn">cat</span>([v_tokens, a_tokens], dim=1)          <span class="cm"># [B, L_v+L_a, D]</span>
+        x = self.rms_norm(x) + self.rope(x)                  <span class="cm"># 时间轴 RoPE；音频空间维用固定位置</span>
+        x = x + self.joint_attn(<span class="fn">qkv</span>(x))                     <span class="cm"># 模态内 + 模态间依赖</span>
+
+        <span class="cm"># 2) Cross Attention：文本条件与参考音频条件分别做 KV，逐元素相加</span>
+        h_text = self.<span class="fn">cross_attn</span>(x, kv=self.kv_proj_t(t_tokens))     <span class="cm"># UMT5 文本</span>
+        h_ref  = self.<span class="fn">cross_attn</span>(x, kv=self.kv_proj_r(r_tokens))    <span class="cm"># 参考音频（补充 KV 投影）</span>
+        x = x + h_text + h_ref                               <span class="cm"># element-wise summation 融合</span>
+
+        <span class="cm"># 3) FFN + AdaLN（时间步条件）</span>
+        x = x + self.ffn(self.adaln(x, timestep))
+        v_out, a_out = torch.<span class="fn">split</span>(x, [L_v, L_a], dim=1)     <span class="cm"># 分离回双流</span>
+        <span class="kw">return</span> v_out, a_out</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Flow Matching 训练 + CFG 推理（多条件组合 c = text ⊕ image ⊕ audio）</span>
+<span class="kw">def</span> <span class="fn">cfm_loss</span>(model, x1, cond, task):
+    <span class="cm"># 线性路径 x_t = (1-t)x0 + t*x1，目标速度恒为 x1-x0</span>
+    t = torch.<span class="fn">rand</span>(B); x0 = torch.<span class="fn">randn_like</span>(x1)
+    x_t = (1 - t) * x0 + t * x1
+    v_pred = <span class="fn">model</span>(x_t, t, cond)                <span class="cm"># v_theta(x_t, t, c)</span>
+    loss_a = ((v_pred.a - (x1.a - x0.a)) ** 2).<span class="fn">mean</span>()
+    <span class="kw">if</span> task == <span class="str">"T2AV/TI2AV/TR2AV"</span>:               <span class="cm"># 联合生成：双模态回归项等权相加</span>
+        loss_v = ((v_pred.v - (x1.v - x0.v)) ** 2).<span class="fn">mean</span>()
+        <span class="kw">return</span> loss_a + loss_v                    <span class="cm"># L_total = L^a_CFM + L^v_CFM</span>
+    <span class="kw">return</span> loss_a                                  <span class="cm"># 纯 TTS：仅音频项</span>
+
+<span class="kw">def</span> <span class="fn">cfg_sample</span>(model, cond, omega):
+    <span class="cm"># v_hat = v(空) + omega * (v(c) - v(空))</span>
+    v_uncond = <span class="fn">model</span>(x_t, t, cond=NULL_TOKEN)
+    v_cond   = <span class="fn">model</span>(x_t, t, cond)                <span class="cm"># cond 可含 c_text / c_image / c_audio</span>
+    <span class="kw">return</span> v_uncond + omega * (v_cond - v_uncond)  <span class="cm"># omega > 1</span></pre>
+</section>

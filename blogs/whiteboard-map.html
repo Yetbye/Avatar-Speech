@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>白板梳理 · 逐模型 · 论文解读</title>
+<meta name="description" content="严格复刻白板整理结构：LTX-2.3/JavisDiT++/OVI/MOVA/VDN/MiniMax-H3 与 OmniForcing/Hallo-Live/Lynn/TaoMate 逐个定位，落点任务角度与语音-音频对齐。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">白板梳理 · 核心</div>
+    <h1>白板梳理 · 逐模型</h1>
+    <p class="hero-tagline">按白板例子逐模型梳理：基础模型 × 语音-视频 × 任务角度 × S-A 对齐</p>
+    <p class="hero-desc">严格复刻白板整理结构：LTX-2.3/JavisDiT++/OVI/MOVA/VDN/MiniMax-H3 与 OmniForcing/Hallo-Live/Lynn/TaoMate 逐个定位，落点任务角度与语音-音频对齐。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="白板梳理 · 逐模型"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><circle cx="150" cy="130" r="13" fill="#1B4B6F"/><circle cx="150" cy="250" r="13" fill="#5A8F7B"/><line x1="150" y1="146" x2="150" y2="234" stroke="#C9A86C" stroke-width="2.5"/><circle cx="250" cy="160" r="13" fill="#1B4B6F"/><circle cx="250" cy="270" r="13" fill="#5A8F7B"/><line x1="250" y1="176" x2="250" y2="254" stroke="#C9A86C" stroke-width="2.5"/><circle cx="350" cy="190" r="13" fill="#1B4B6F"/><circle cx="350" cy="290" r="13" fill="#5A8F7B"/><line x1="350" y1="206" x2="350" y2="274" stroke="#C9A86C" stroke-width="2.5"/><circle cx="450" cy="220" r="13" fill="#1B4B6F"/><circle cx="450" cy="310" r="13" fill="#5A8F7B"/><line x1="450" y1="236" x2="450" y2="294" stroke="#C9A86C" stroke-width="2.5"/><circle cx="550" cy="250" r="13" fill="#1B4B6F"/><circle cx="550" cy="330" r="13" fill="#5A8F7B"/><line x1="550" y1="266" x2="550" y2="314" stroke="#C9A86C" stroke-width="2.5"/><circle cx="650" cy="280" r="13" fill="#1B4B6F"/><circle cx="650" cy="350" r="13" fill="#5A8F7B"/><line x1="650" y1="296" x2="650" y2="334" stroke="#C9A86C" stroke-width="2.5"/><text x="410" y="410" text-anchor="middle" font-family="Noto Sans SC" font-size="17" font-weight="700" fill="#2C3E50">Latent 对齐 · 共享语义坐标</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：task angle analysis × s-a alignment · 双分类逐模型定位</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#whiteboard">whiteboard</a><span class="sep">/</span>白板梳理 · 逐模型</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 白板总览：Sequential vs Joint 两大范式</a></li><li><a href="#s2">02 音视频基础模型 (Audio-video foundation models)</a></li><li><a href="#s3">03 语音-视频生成 (Speech-Video generation)</a></li><li><a href="#s4">04 路线对照</a></li><li><a href="#s5">05 任务角度分析 (task angle analysis)</a></li><li><a href="#s6">06 语音-音频对齐 (s-a alignment)</a></li><li><a href="#s7">07 深度洞察 &amp;amp; 批判评估</a></li><li><a href="#s8">08 自主科研问题</a></li><li><a href="#s9">09 代码附录（示意性实现）</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 白板总览：Sequential vs Joint 两大范式</h2>
+  <p class="lead">本页把白板上的「音视频基础模型 → 语音-视频生成 → 任务角度分析 → 语音-音频对齐」四层结构逐模型展开：先用一条范式主线（级联式 Sequential vs 联合式 Joint）把全部工作放上地图，再逐个模型梳理方法/范式、Latent 与解码、训练与前置、优势与证据、路线定位，最后落到两条交叉分析维度。事实以 <code>web_landscape.json</code>（已核对 arXiv 索引）、路线笔记（AVG.txt / vidgen.txt）与本地论文抽取（Hallo-Live / TaoMate-HD）为准，补充性分析均标注「补充/示意」。</p>
+
+  <p>白板顶部的第一条对比，是整张地图的地基：<strong>Sequential 级联</strong>把「文本→语音→视频」拆成互不感知的阶段，每一段误差向下串联；<strong>Joint 联合</strong>把 Video 与 Speech（乃至完整 Audio）放进同一个生成过程，用共享注意力 / 交叉注意力 / 共享时间步换来原生同步。</p>
+
+  <div class="pipeline"><span class="pipe-step">Text</span><span class="pipe-arrow">→</span><span class="pipe-step alt">TTS</span><span class="pipe-arrow">→</span><span class="pipe-step">Speech</span><span class="pipe-arrow">→</span><span class="pipe-step alt">VidGen</span><span class="pipe-arrow">→</span><span class="pipe-step">Video</span></div>
+  <p><strong>Sequential 范式</strong>（Speech-to-Video / 级联）：TTS 先定稿语音，视频生成器再按音频驱动画面（如 TaoMate-HD 表 1 中的 S2V 组：OmniAvatar、StableAvatar、Wan2.2-S2V、LiveAvatar、Hallo3，均假设驱动音频已存在）。优点是各阶段可独立迭代，代价是语音一旦定稿，画面的<strong>预期性口型（co-articulation）</strong>只能靠视频端硬追，且环境声、拟音、音乐无处安放。</p>
+
+  <div class="pipeline"><span class="pipe-step">Text</span><span class="pipe-arrow">→</span><span class="pipe-step alt">Joint AV 生成（Vid+Speech）</span><span class="pipe-arrow">→</span><span class="pipe-step">Video + Speech 同步输出</span></div>
+  <p><strong>Joint 范式</strong>（联合音视频生成，JAVG）：音视频在同一个去噪轨迹里共同演化——LTX-2、Ovi、MOVA、JavisDiT++、MiniMax-H3 构成基础模型层，OmniForcing、Hallo-Live、TaoMate-HD 等再把它们蒸馏/改造为流式层。同步不再靠后处理对齐，而是被<strong>写进位置编码、注意力掩码与训练目标</strong>。</p>
+
+  <div class="figure"><svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+    <text x="20" y="28" font-family="Noto Sans SC,sans-serif" font-size="16" fill="#2C3E50" font-weight="bold">Sequential 级联</text>
+    <rect x="20" y="44" width="110" height="44" rx="6" fill="#1B4B6F"/><text x="75" y="71" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#fff" text-anchor="middle">Text</text>
+    <rect x="150" y="44" width="110" height="44" rx="6" fill="#5A8F7B"/><text x="205" y="71" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#fff" text-anchor="middle">TTS</text>
+    <rect x="280" y="44" width="110" height="44" rx="6" fill="#1B4B6F"/><text x="335" y="71" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#fff" text-anchor="middle">Speech</text>
+    <rect x="410" y="44" width="110" height="44" rx="6" fill="#5A8F7B"/><text x="465" y="71" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#fff" text-anchor="middle">VidGen</text>
+    <rect x="540" y="44" width="110" height="44" rx="6" fill="#1B4B6F"/><text x="595" y="71" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#fff" text-anchor="middle">Video</text>
+    <line x1="130" y1="66" x2="150" y2="66" stroke="#2C3E50" stroke-width="2"/><line x1="260" y1="66" x2="280" y2="66" stroke="#2C3E50" stroke-width="2"/><line x1="390" y1="66" x2="410" y2="66" stroke="#2C3E50" stroke-width="2"/><line x1="520" y1="66" x2="540" y2="66" stroke="#2C3E50" stroke-width="2"/>
+    <text x="20" y="116" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">✘ 误差串联：TTS 韵律定稿 → 视频只能事后追逐口型；无环境声/拟音通路</text>
+    <text x="20" y="138" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">代表：S2V 组（OmniAvatar / StableAvatar / Wan2.2-S2V / LiveAvatar / Hallo3，TaoMate-HD 表 1）</text>
+    <line x1="20" y1="162" x2="780" y2="162" stroke="#C9A86C" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="20" y="192" font-family="Noto Sans SC,sans-serif" font-size="16" fill="#2C3E50" font-weight="bold">Joint 联合（Vid + Speech / 完整 Audio）</text>
+    <rect x="20" y="210" width="110" height="44" rx="6" fill="#1B4B6F"/><text x="75" y="237" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#fff" text-anchor="middle">Text</text>
+    <rect x="160" y="200" width="330" height="120" rx="10" fill="#2C3E50"/>
+    <text x="325" y="228" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#fff" text-anchor="middle">Joint AV DiT / 双流 Transformer</text>
+    <rect x="185" y="242" width="130" height="34" rx="6" fill="#5A8F7B"/><text x="250" y="264" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff" text-anchor="middle">视频流（大容量）</text>
+    <rect x="335" y="242" width="130" height="34" rx="6" fill="#E85D4E"/><text x="400" y="264" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff" text-anchor="middle">音频流（稠密 token）</text>
+    <line x1="315" y1="259" x2="335" y2="259" stroke="#C9A86C" stroke-width="3"/>
+    <text x="325" y="302" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C" text-anchor="middle">双向交叉注意力 · 共享时间步 · Aligned/TA-RoPE</text>
+    <line x1="130" y1="232" x2="160" y2="232" stroke="#2C3E50" stroke-width="2"/>
+    <rect x="530" y="210" width="120" height="44" rx="6" fill="#1B4B6F"/><text x="590" y="237" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#fff" text-anchor="middle">Video</text>
+    <rect x="530" y="272" width="120" height="44" rx="6" fill="#E85D4E"/><text x="590" y="299" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#fff" text-anchor="middle">Speech+SFX</text>
+    <line x1="490" y1="240" x2="530" y2="232" stroke="#2C3E50" stroke-width="2"/><line x1="490" y1="280" x2="530" y2="294" stroke="#2C3E50" stroke-width="2"/>
+    <text x="20" y="348" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#5A8F7B">✔ 同步是生成过程的内生属性：唇形、说话人、环境声在同一轨迹中共同演化</text>
+  </svg><div class="figcap"><b>图 1</b> · 范式对比：Sequential 把同步问题推给下游 VidGen，Joint 把同步写进注意力与位置编码（把白板顶部的抽象对立具象化为数据通路图）。</div></div>
+
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「同步」的三种注入点：结构 · 位置 · 目标</h4>
+    <p>把全部工作放在一起看，跨模态同步只有三个入口：<strong>① 结构/延迟</strong>（因果掩码、look-ahead 窗口、非对称块对齐——OmniForcing 的非对称块因果对齐、Hallo-Live 的 Future-Expanding Attention）；<strong>② 位置编码</strong>（把音视频映射到同一物理时间轴——MOVA 的 Aligned RoPE、JavisDiT++ 的 TA-RoPE、Ovi 的缩放 RoPE）；<strong>③ 训练目标</strong>（同步作为可优化信号——JavisDiT++ 的 AV-DPO、Hallo-Live 的 SyncNet reward、JoVA 的嘴部 Flow Matching 损失）。白板后半页的「task angle analysis」与「s-a alignment」两节，本质上就是对这三个入口的正交展开。<span class="alt">补充/示意：三个入口的归纳来自跨论文对比，非任何单篇论文的原文表述。</span></p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 音视频基础模型 (Audio-video foundation models)</h2>
+  <p>白板第一大节的六个条目构成「联合音视频基座」的谱系：LTX-2.3、JavisDiT++、OVI、MOVA、VDN、MiniMax-H3。它们回答的是<strong>离线高保真联合生成</strong>的问题：怎样让语音、音效与画面在同一生成过程中既高质量又同步。</p>
+
+  <h3>2.1 LTX-2.3（以 LTX-2 代表，arXiv:2601.03233）</h3>
+  <p><strong>命名说明：</strong>LTX-2.3 无独立论文；本条以 LTX-2（<em>LTX-2: Efficient Joint Audio-Visual Foundation Model</em>，arXiv:2601.03233，2026-01）代表该路线。TaoMate-HD 的对比表中亦以「LTX-2.3 [1]」指代这一系模型。</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法 / 范式</div>
+      <div class="dd">非对称双流 Transformer：<strong>14B 视频流 + 5B 音频流</strong>，经双向音视频交叉注意力与 cross-modality AdaLN 共享时间步条件联合生成；配模态感知 CFG（modality-aware CFG）分别控制文本遵循度与声画关联度。<span class="alt">替代方案：对称孪生（Ovi）与双塔 Bridge（MOVA）。</span></div></div>
+    <div class="def-item"><div class="dt">Latent 与解码</div>
+      <div class="dd">音视频<strong>各自保留 VAE latent</strong>，在双流交互中共同演化，最后分别解码：视频出画面，音频出包含 speech、环境声与拟音（foley）的完整音轨。</div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">数据需同步视频 + 音轨 + 完整 caption（含台词、说话人、语言、口音、环境声描述）；双流骨干与文本连接模块共同训练。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">开源统一视听基础模型；原报告提供音视频人评与跨模态 guidance 分析，观察到<strong>增强跨模态 guidance 可改善同步与语义一致性</strong>。第三方口径（TaoMate-HD 表 1）：单卡 0.301 FPS、Desync 0.050，属基础模型组中同步较优者。</div></div>
+    <div class="def-item"><div class="dt">路线定位</div>
+      <div class="dd">「非对称双流 + 模态感知 CFG」的工程完备代表；后续 Omni-LiveAvatar 以 LTX-2 为教师蒸馏提速 33 倍（web_landscape.json），是流式层最常用的教师之一。</div></div>
+  </div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>参数非对称（14B/5B）与 token 稠密度非对称是两回事</h4>
+    <p>LTX-2 给视频 14B、音频 5B，看上去「重视频、轻音频」；但路线笔记（AVG.txt，MOVA 条）明确指出 <strong>audio 的 latent 要远比 video 的 latent 稠密</strong>——同一秒里音频 token 数量更多。两种非对称方向相反，恰说明二者补偿的是不同瓶颈：参数补的是视觉世界的熵与多样性，token 密度反映的是声学波形的采样率。任何联合注意力设计都必须同时消化这两种失配，否则跨模态注意力会被音频 token 淹没、或让视频 token 饿死。<span class="alt">补充/示意：两种失配的对照解读。</span></p></div>
+
+  <h3>2.2 JavisDiT++（arXiv:2602.19163；前身 JavisDiT，arXiv:2503.23377）</h3>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法 / 范式</div>
+      <div class="dd">面向联合音视频生成（JAVG）的统一建模与优化框架：<strong>MS-MoE（模态特定专家混合）</strong>兼顾跨模态交互与单模态质量；<strong>TA-RoPE（时序对齐 RoPE）</strong>实现音频与视频 token 的显式帧级同步；<strong>AV-DPO（音视频直接偏好优化）</strong>从质量、一致性、同步三个维度对齐人类偏好。前身 JavisDiT（2025-03）以分层时空同步先验估计器（HiST-Sypo）引导细粒度同步，并发布 JavisBench（含 10,140 条有声视频描述）与专用同步度量。</div></div>
+    <div class="def-item"><div class="dt">核心机制</div>
+      <div class="dd">TA-RoPE 把音视频 token 显式钉到帧级时间格；MS-MoE 在共享骨干里保留模态专属专家，缓解「共享参数伤单模态质量、分开参数伤交互」的两难。<span class="alt">替代方案：MOVA 的 Aligned RoPE（映射到统一物理时间尺度）与 Ovi 的缩放 RoPE。</span></div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">基于 <strong>Wan2.1-1.3B-T2V</strong> 构建，仅用<strong>约 1M 公开样本</strong>达到当时 SOTA，显著超越既有开源方法、逼近 Veo3（论文摘要表述）；代码、模型、数据集均已公开（ICLR 2026 接收）。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">消融验证三个模块各自收益；以小数据+小骨干取得强对齐，说明<strong>同步主要靠表示与目标设计而非堆参数</strong>。第三方口径（TaoMate-HD 表 1）：单卡 0.477 FPS；注意其 Desync 1.050 为该表基础模型组最高，评测口径见第 07 节批判。</div></div>
+    <div class="def-item"><div class="dt">路线定位</div>
+      <div class="dd">「统一建模 + 偏好优化」的轻量路线旗手；把同步从架构先验（HiST-Sypo）推进到位置编码（TA-RoPE）与偏好目标（AV-DPO）三代演进的完整谱系。</div></div>
+  </div>
+
+  <h3>2.3 OVI（Ovi，arXiv:2510.01284）</h3>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法 / 范式</div>
+      <div class="dd">孪生 DiT（twin backbone）<strong>块级跨模态融合</strong>：scaled-RoPE 负责时序交换、双向交叉注意力负责语义交换；音频塔与强视频模型<strong>同构初始化</strong>。把音视频作为单一生成过程统一建模，实现自然同步。论文标题为 <em>Ovi: Twin Backbone Cross-Modal Fusion</em>（「OmniVerse」命名未出现在论文正文——据 web_landscape.json 备注）。</div></div>
+    <div class="def-item"><div class="dt">Latent 与解码</div>
+      <div class="dd">分别编码、联合去噪：视频用 Wan VAE，音频用 <strong>MMAudio 的 VAE</strong>，生成 latent 解码为频谱后经 <strong>BigVGAN</strong> 输出波形。</div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">先预训练音频塔并补充音效数据（音频塔从<strong>数十万小时原始音频</strong>训练出带说话人身份与情感的语音和逼真音效），再在同步音视频上训练融合；融合阶段<strong>冻结 FFN</strong>，只更新单模态与跨模态注意力。前置包括通用音频能力、同步过滤、含台词的声景描述。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">Verse-Bench 人评中相对 JavisDiT、UniVerse-1 在音视频质量与同步上占优。更关键的下游证据：<strong>Hallo-Live 以 Ovi 为教师</strong>蒸馏出 20.38 FPS 流式系统，教师的音画同步底座是其被选中的直接原因。</div></div>
+    <div class="def-item"><div class="dt">路线定位</div>
+      <div class="dd">「对称双 DiT + 逐层双向交互」的代表；与 LTX-2 的非对称设计互为对照——Ovi 用架构同构换融合简洁性，用音频预训练补音频短板。</div></div>
+  </div>
+
+  <h3>2.4 MOVA（arXiv:2602.08794）</h3>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法 / 范式</div>
+      <div class="dd">开源 MOSS Video and Audio 模型：双塔 <strong>Wan2.2 视频 DiT + 1.3B 音频 DiT</strong> 在文本条件下联合去噪，经<strong>双向 Bridge Cross-Attention</strong> 交换特征；<strong>Aligned RoPE</strong> 把两路位置映射到统一时间尺度以保音画同步。整体为 MoE 架构（<strong>32B 总参 / 18B 激活</strong>），支持 <strong>IT2VA</strong>（图-文到视频-音频）任务并开放权重与代码。</div></div>
+    <div class="def-item"><div class="dt">Latent 与解码</div>
+      <div class="dd">视频与音频保留<strong>各自 latent</strong>，通过 Bridge 在生成过程中交互；时间位置编码统一到物理时间轴，最终分别解码为视频与含 speech、音效、音乐的完整音轨。<strong>audio 的 latent 远比 video 稠密</strong>（路线笔记原文），Aligned RoPE 的时间重标定正是对这一失配的直接回应。</div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">先建立音频塔生成能力，再联合训练双塔与 Bridge；Bridge 与骨干采用<strong>差异学习率</strong>，音视频采用<strong>可分别调节的噪声调度</strong>。前置：同步音视频、准确台词、声景描述。注意：冻结双塔的暖启动较早达到平台，最终采用<strong>联合更新</strong>（论文 4.4 节）。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">含唇形同步语音、环境感知音效、内容对齐音乐；论文提供语音、音画对齐与人评，并对推理控制消融。第三方口径（TaoMate-HD 表 1）：单卡 0.145 FPS（基础模型组最慢之一），印证 32B MoE 的算力代价。</div></div>
+    <div class="def-item"><div class="dt">路线定位</div>
+      <div class="dd">「双塔 Bridge + Aligned RoPE + MoE 规模化」路线；是把「audio latent 稠密」问题明确写进位置设计的代表作。</div></div>
+  </div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>Aligned RoPE 的本质：把「一个时间轴」变成合同</h4>
+    <p>MOVA 的 Aligned RoPE、JavisDiT++ 的 TA-RoPE、Ovi 的 scaled RoPE 名字不同、机制同源：把两路 token 的位置编码<strong>重标定到同一物理时间轴</strong>，让「同一时刻」在注意力内积中成为一个可计算的概念。其深意在于——当音频 token 比视频 token 稠密数倍时，朴素拼接位置编号会令 1 秒音频与 1 秒视频在位置空间里错位；统一时间尺度等价于给跨模态注意力签了一份<strong>时间合同</strong>：查询与键只有落在同一物理时刻附近才容易对上。这也是白板「s-a alignment」一节里「共享 vs 各自 latent」之争的第一条答案：<strong>latent 可以分开，时间轴必须统一</strong>。<span class="alt">补充/示意：合同隐喻与推论。</span></p></div>
+
+  <h3>2.5 VDN（Video DeltaNet，arXiv:2609.20744）</h3>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法 / 范式</div>
+      <div class="dd"><strong>视频原生混合注意力</strong>：局部 Softmax 注意力 + 双向线性记忆（Video Delta Attention，VDA，每帧更新一次记忆并联合吸收该帧全部空间 token）；两路分支各配独立输出投影与可学习门控校准。关键设计约束：<strong>只把混合注意力用于视频-视频交互，涉及文本或音频的交互保留 Softmax</strong>。</div></div>
+    <div class="def-item"><div class="dt">核心机制</div>
+      <div class="dd">直击视频扩散「长时空 token 序列反复重算、注意力成为算力瓶颈」的问题；线性注意力单独用会丢细粒度交互，故与局部 Softmax 混合，并用<strong>分阶段教师对齐训练</strong>把新通路渐进注入预训练模型。</div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">实例化于 <strong>MiniMax H3</strong>：8 步蒸馏 + 优化的 SGLang 推理栈；开源代码与权重（OpenVDN/vdn-minimax-h3）。教师对齐配方保证预训练生成先验不被线性化破坏。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">14.3 秒 768p 视频的 DiT 去噪在 8×B200 上仅需 <strong>6.70 秒（相对 50 步 dense H3 提速 14.5×）</strong>。第三方口径（TaoMate-HD 表 1）：8 卡 2.21 FPS，为基础模型组最快（MiniMax-H3 同硬件仅 0.40 FPS）。</div></div>
+    <div class="def-item"><div class="dt">路线定位</div>
+      <div class="dd">「注意力效率」路线：不动生成范式，只换视频-视频注意力内核。对语音-视频的启示是其<strong>刻意保留音频 Softmax</strong>——音频交互对细粒度敏感，线性化风险大于视频。<span class="alt">补充/示意：该取舍对 S-A 对齐的推论。</span></div></div>
+  </div>
+
+  <h3>2.6 MiniMax-H3（arXiv:2609.18323，评测代表条目）</h3>
+  <p><strong>命名说明：</strong>MiniMax-H3/Hailuo 无独立模型卡论文，但它是被大量论文引用的真实开源音视频基座（33B，据 web_landscape.json 备注），此处以直接评测它的 arXiv:2609.18323 作代表条目。</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法 / 范式</div>
+      <div class="dd">全模态生成模型：<strong>在共享隐空间中结合多模态上下文理解与联合音视生成</strong>。TaoMate-HD 图 1 揭示其流式用法：以 T2AV 开场 clip + 陆续 I2AV clip 延伸生成，每 5 秒请求执行 <strong>49 步去噪</strong>、固定分辨率、传一帧到下一 clip。</div></div>
+    <div class="def-item"><div class="dt">核心机制</div>
+      <div class="dd">共享隐空间（shared latent framework）是它区别于双塔路线的最大特征：理解与生成共用一套表示。VDN（2.5 节）与 TaoMate-HD（3.4 节，从 MiniMax-H3 FL2VA 模型做 rank-128 LoRA）都以它为底座改造。</div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">无公开模型卡，训练细节不可考（评测论文只测不训）。推理侧前置为多模态上下文（文本/图像/音/视频输入）与在线 conditioning。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">物理世界推理评测（517 实例）：<strong>总体成功率 41.97%</strong>，视频决策推理最高（<strong>56%</strong>）、<strong>音频消歧最弱（27.4%）</strong>。长流质量（TaoMate-HD 表 1）：Temporal 0.872 / Long-range 0.673，音画 Desync 0.000，但 8 卡仅 0.40 FPS。</div></div>
+    <div class="def-item"><div class="dt">路线定位</div>
+      <div class="dd">「理解+生成统一基座」路线的锚点模型；也是流式改造（VDN、TaoMate 系）的公共出发点。音频消歧 27.4% 的短板直接呼应白板「60% Audio / 40% Speech」的 A 分布问题——弱结构音频段恰是最难的部分。</div></div>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 语音-视频生成 (Speech-Video generation)</h2>
+  <p>白板第二大节把镜头从「离线基座」转向「流式与说话人场景」：OmniForcing、Hallo-Live、Lynn、TaoMate。这一节的共同命题是——<strong>把双向联合模型变成可实时交互的因果生成器，同时不丢同步与画质</strong>。</p>
+
+  <h3>3.1 OmniForcing（arXiv:2603.11647）</h3>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法 / 范式</div>
+      <div class="dd"><strong>首个把离线双流双向扩散模型蒸馏为高保真流式自回归生成器的框架</strong>。四大机制（摘要核对）：① 非对称块因果对齐 + <strong>零截断全局前缀</strong>，防多模态同步漂移；② <strong>音频 Sink Token（Identity RoPE 约束）</strong>，解决因果位移下音频 token 极端稀疏引发的梯度爆炸；③ <strong>联合自强迫蒸馏（Joint Self-Forcing）</strong>，在长 rollout 中动态自纠 exposure bias 累积的跨模态误差；④ <strong>模态无关滚动 KV-cache</strong> 推理。</div></div>
+    <div class="def-item"><div class="dt">核心机制</div>
+      <div class="dd">关键诊断：双流架构的<strong>模态间极端时间不对称</strong>与由此产生的 token 稀疏性，使朴素因果蒸馏严重不稳定。Sink Token 用 Identity RoPE 给稀疏音频流一个「不动点」，非对称块对齐则承认音视频可见性不必对称。</div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">教师为离线双向双流扩散模型；训练含自强迫 rollout（学生自生成历史），推理维持滚动 KV-cache。前置为同步音视频数据与教师权重。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">单卡约 <strong>25 FPS</strong> 实时联合音视生成，同步与画质媲美双向教师（摘要表述）。第三方口径（TaoMate-HD 表 1）：单卡 8.32 FPS、Long-range 仅 0.278（长程色彩/亮度连续性弱，小时级场景会漂）。后续 Salt++ 在 480p 4 步因果设置下视觉/运动质量较 OmniForcing 提升 57%/45%（web_landscape.json）。</div></div>
+    <div class="def-item"><div class="dt">路线定位</div>
+      <div class="dd">流式蒸馏路线的奠基工作；Hallo-Live 直接以其为对照（严格块因果掩码被标注为「OmniForcing 式」），其「audio 稀疏性」诊断成为后续所有流式工作的公共议题。</div></div>
+  </div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「音频 token 稀疏」与「audio latent 稠密」并不矛盾</h4>
+    <p>MOVA 路线笔记说 audio latent <strong>稠密</strong>（token 多），OmniForcing 摘要说音频 token <strong>稀疏</strong>（引发梯度爆炸）。两说并存恰恰是白板「s-a alignment」的核心张力：<strong>token 数量稠密 ≠ 信息密度高</strong>。语音在同一段时间里被切成大量高度冗余的声学帧（数量稠密），但因果位移后「有效新信息」极稀（静音段、拖音、共发音），于是线性记忆/Sink Token 一类机制应运而生。度量 S-A 失配时必须区分「采样密度」与「有效信息密度」，否则 Aligned RoPE（补采样密度）与 Sink Token（补有效信息稀疏）会被误认为在解决同一个问题。<span class="alt">补充/示意：两说的统一解读。</span></p></div>
+
+  <h3>3.2 Hallo-Live（arXiv:2604.23632，本地详实）</h3>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法 / 范式</div>
+      <div class="dd"><strong>异步双流扩散 + 以人为中心的偏好引导蒸馏</strong>（自述为首个把流式双流扩散与偏好引导蒸馏结合的实时文本驱动音视频生成框架）。两大组件：<strong>Future-Expanding Attention</strong>——每个视频块可看到同步音频 + 一小段未来音素线索（口型的共发音预期）；<strong>HP-DMD</strong>——用视觉保真（VideoAlign）、语音自然度（AudioBox）、音画同步（SyncNet）三路 reward 加权蒸馏样本。</div></div>
+    <div class="def-item"><div class="dt">核心机制</div>
+      <div class="dd">严格块因果掩码下视频只能看到当前与过去音频，而真实口型常<strong>先于声学起点</strong>（co-articulation）。于是音频侧以扩展噪声输入 <span style="white-space:nowrap;">z<sup>a,+</sup> = z<sup>a</sup><sub>t</sub> ⊕ z<sup>a</sup><sub>t+1</sub></span> 同时去噪「已提交块 + 临时前瞻块」；前瞻块 Ẫ<sub>t+1</sub> 只作跨模态条件、不直接提交，窗口滑动后被覆盖，<strong>不累积投机误差</strong>。跨模态掩码（1 视频帧 ↔ r=5 音频 token，前瞻窗 W=1 帧）。</div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">两阶段：Stage I 用冻结 Ovi 教师做双流 ODE 初始化（速度回归，继承联合去噪先验）；Stage II 自回归 self-rollout + 双流 DMD + reward 加权。推理维持音视频 KV cache。教师为 <strong>Ovi</strong>；数据含台词（&lt;S&gt;…&lt;E&gt; 标注）与音频描述（&lt;AUDCAP&gt;）。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">2×H200 上 <strong>20.38 FPS、延迟 0.94s</strong>，相对教师 Ovi <strong>吞吐 16.0×、延迟降 99.3×</strong>；VideoAlign 总分与 Sync Confidence 与教师相当，优于其他加速基线的质效权衡；定性展示真人、多说话人、卡通风格泛化。</div></div>
+    <div class="def-item"><div class="dt">路线定位</div>
+      <div class="dd">「结构给延迟、reward 给质量」的双轨路线：Future-Expanding 回答 into-delay 维度（用一块前瞻换口型预期），HP-DMD 回答 loss/reward 维度（reward-tilted 分布允许学生超越教师均值）。直接针对 OmniForcing 的两条痛点（未来音频不可见、激进蒸馏的 mean-seeking 退化）。</div></div>
+  </div>
+
+  <h3>3.3 Lynn = LynnReal-Omni（arXiv:2609.15863，31 页技术报告）</h3>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">记录更正</div>
+      <div class="dd"><strong>此前本页按关键词「Lynn」检索未命中，误标为「arXiv 未检索到」——这是检索词问题，非论文不存在。</strong>经用户提供的链接确认，白板的「Lynn」即 <strong>LynnReal-Omni: Native multi-modal Video Generation for Agentic Visual Workflows</strong>（LynnReal AI）。这与本地 TaoMate-HD 转引的「LynnReal-Omni Standard / Flash」完全吻合，可交叉印证。</div></div>
+    <div class="def-item"><div class="dt">方法 / 范式</div>
+      <div class="dd"><strong>面向智能体视觉工作流的原生多模态视频生成</strong>。核心命题：视频扩散模型<strong>随机、难控制</strong>（精确内容需反复采样且不保证成功），且长时场景在外观/交互/时间连贯性上漂移。解法是<strong>显式参考条件 + 统一模型</strong>内组合视觉条件。含 <strong>27B Flash</strong> 共享多模态扩散 Transformer 专用于实时渲染，配轻量 VAE 解码器、深度/token 削减、量化、算子融合、解码器替换。</div></div>
+    <div class="def-item"><div class="dt">数据与蒸馏</div>
+      <div class="dd">系统数据管线：<strong>视频清洗 → 主体关联 → 多模态标注 → 对齐控制构造</strong>。对 Standard 与 Flash 两变体都做<strong>少步蒸馏</strong>，强调<strong>多模态控制保持</strong>（蒸馏易掉控制能力）。单 H100 上 22 帧 540p 的 warm generation + decoding。</div></div>
+    <div class="def-item"><div class="dt">路线定位</div>
+      <div class="dd">属于「流式联合音视频 + 有界历史」一族：与 TaoMate-HD 的 stage-local 干净历史、OmniForcing 的滚动 KV-cache 同属白板「历史表示」问题的不同答案。TaoMate-HD 评测表中 <strong>Lynn / Lynn-Flash</strong> 两行（1 卡 1.05 / 1.66 FPS）对应其 Standard/Flash 变体，「有界 latent 历史 + 边界重叠」「每窗口 4/3 步去噪」「持久 media KV」均可与 LynnReal-Omni 原文互证。</div></div>
+  </div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>跨论文效率数字仍只可做量级感知</h4>
+    <p>即使 Lynn 已确认为 LynnReal-Omni，TaoMate-HD 表中的效率数字仍来自<em>竞争对手的测量</em>：① 计时区间不同（TaoMate-HD 自述其区间为「输入就绪→AV 解码完成」，而 Lynn 的区间含在线 conditioning 与 encode/mux）；② 双变体（Standard/Flash）质量速度差异大，须标明变体；③ 技术报告的内部配置难复现。故跨表比较仍只用于<strong>量级感知</strong>，严格横比需重测。</p></div>
+
+  <h3>3.4 TaoMate（= TaoMate-HD，arXiv:2611.03394，本地详实）</h3>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法 / 范式</div>
+      <div class="dd"><strong>渐进分辨率自回归音视频流式生成</strong>：每个短片段（chunk）先用两步去噪在低分辨率上确立视频粗结构，最后一步把视频精化到高分辨率，<strong>音频在整条轨迹中同步生成</strong>（音频 latent 几何全程不变）。每一阶段把其<strong>干净估计（clean prediction）传给下一 chunk 的同一阶段</strong>作历史，实现 stage-parallel 反对角线流水线。文本窗口推进时保留历史 + 重叠文本（A+B → B+C）做<strong>续说</strong>，无需 ASR/文本指针即从音频历史推断说话进度。</div></div>
+    <div class="def-item"><div class="dt">核心机制</div>
+      <div class="dd">① 渐进生成：N=3、网格 L(480×864)→H(768×1376)，低-高分辨率切换用耦合噪声 Λ<sub>σ</sub> 保持信号/噪声分解；② <strong>stage-local KV 历史库</strong>：每阶段以零噪声编码本阶段干净估计，粗阶段库与高分辨率终点库分开，长流时固定容量（初始视频作视觉锚 + 最近两 chunk 音视频）；③ <strong>非对称文本条件蒸馏</strong>：生成器看新窗口 W₂，fake score 从头看 W₁，real score 用源文本前缀；另加「说完即停」的语音完成样例。</div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">从 <strong>MiniMax-H3 FL2VA</strong> 模型以 <strong>rank-128 LoRA</strong> 训练于 10,000 组自建蒸馏对；学生自生成 rollout 上训练；前置为同主题扩展台词、语速映射、ASR+VAD 离线确认的语音终点。部署：stage-parallel 推理。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">渐进生成较直接高分辨率<strong>提速 1.60×</strong>，stage-parallel 部署再提速至 <strong>1.9×</strong>（8×H20 上 8.99 FPS）；续说训练把 <strong>CER 从 30.75% 降到 19.57%（−11.18 pp）</strong>；演示 <strong>小时级</strong> 1376×768 音视频流；流式组内 Temporal 0.913、AudioAes 4.407 最高。</div></div>
+    <div class="def-item"><div class="dt">路线定位</div>
+      <div class="dd">「算力放在粗网格、历史放在各阶段」的效率路线；与 OmniForcing（蒸馏成少步因果）正交可叠加——它不减少每 chunk 的语义计算量，而是减少高分辨率计算量并让 chunk 间空隙并行化。</div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <text x="20" y="26" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">流式因果掩码：严格块因果（OmniForcing 式） vs Future-Expanding（Hallo-Live）</text>
+    <text x="20" y="62" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" font-weight="bold">(a) 严格块因果：视频帧 Vt 只见 ≤t 音频</text>
+    <rect x="60" y="80" width="60" height="30" fill="#C9A86C"/><text x="90" y="100" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">A t-1</text>
+    <rect x="130" y="80" width="60" height="30" fill="#C9A86C"/><text x="160" y="100" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">A t</text>
+    <rect x="200" y="80" width="60" height="30" fill="#eee" stroke="#2C3E50" stroke-dasharray="4 3"/><text x="230" y="100" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#999" text-anchor="middle">A t+1</text>
+    <rect x="270" y="80" width="60" height="30" fill="#eee" stroke="#2C3E50" stroke-dasharray="4 3"/><text x="300" y="100" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#999" text-anchor="middle">A t+2</text>
+    <rect x="60" y="124" width="60" height="30" fill="#1B4B6F"/><text x="90" y="144" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff" text-anchor="middle">V t-1</text>
+    <rect x="130" y="124" width="60" height="30" fill="#E85D4E"/><text x="160" y="144" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff" text-anchor="middle">V t</text>
+    <text x="360" y="112" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">✘ 口型滞后：共发音需要的未来音素不可见</text>
+    <line x1="20" y1="180" x2="780" y2="180" stroke="#C9A86C" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="20" y="208" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" font-weight="bold">(b) Future-Expanding（W=1 帧前瞻，r=5 音频 token/帧）</text>
+    <rect x="60" y="222" width="60" height="30" fill="#C9A86C"/><text x="90" y="242" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">Â t-1</text>
+    <rect x="130" y="222" width="60" height="30" fill="#C9A86C"/><text x="160" y="242" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">A t</text>
+    <rect x="200" y="222" width="60" height="30" fill="#5A8F7B"/><text x="230" y="242" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff" text-anchor="middle">Ã t+1</text>
+    <rect x="270" y="222" width="60" height="30" fill="#eee" stroke="#2C3E50" stroke-dasharray="4 3"/><text x="300" y="242" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#999" text-anchor="middle">A t+2</text>
+    <rect x="60" y="266" width="60" height="30" fill="#1B4B6F"/><text x="90" y="286" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff" text-anchor="middle">V t-1</text>
+    <rect x="130" y="266" width="60" height="30" fill="#E85D4E"/><text x="160" y="286" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff" text-anchor="middle">V t</text>
+    <path d="M 160 258 C 200 250, 230 250, 230 240" fill="none" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="360" y="256" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">✔ 前瞻块 Ãt+1 只作条件、滑窗后覆盖 → 不累积投机误差</text>
+  </svg><div class="figcap"><b>图 2</b> · 因果掩码对比：把「口型先于声学」这一语音学事实翻译成注意力可见性设计（据 Hallo-Live 图 3/4 与式 (5) 重绘，示意）。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 路线对照</h2>
+  <p>把十个工作按「同步/效率问题的解法」聚类，白板的两节模型就从罗列变成<strong>问题—答案矩阵</strong>。下表前四行取自路线笔记（AVG.txt / vidgen.txt）的原表并按本页模型修订，后三行为本页新增的流式与评测维度。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>路线</th><th>工作</th><th>对应要研究的问题</th><th>代表性证据</th></tr></thead>
+    <tbody>
+      <tr><td class="route">双流/双塔联合生成</td><td>LTX-2、Ovi、MOVA、UniAVGen</td><td>生成过程中如何交互、对齐时间，并平衡语音与视频质量</td><td>Ovi 逐层双向交叉注意力；MOVA Aligned RoPE；LTX-2 模态感知 CFG</td></tr>
+      <tr><td class="route">统一/对齐表示</td><td>AVTok、OmniVAE</td><td>tokenizer / codebook / VAE latent 应共享和对齐到什么程度</td><td>AVTok：vanilla 共享 latent 效果不好、双流重建更好；OmniVAE：片段级对比 + 语义蒸馏</td></tr>
+      <tr><td class="route">先对齐后共享融合</td><td>NAVA、JavisDiT++（TA-RoPE）</td><td>模态专属对齐与共享生成如何衔接，如何注入台词与音色</td><td>NAVA Align-then-Fuse MMDiT + Timbre-in-Context；TA-RoPE 帧级同步</td></tr>
+      <tr><td class="route">多声源分轨控制</td><td>Soundwich、Unison</td><td>speech、背景声与音效如何同步生成并独立编辑</td><td>Unison 显式 speech/SFX 双 latent（PQ 6.12→6.34，DS 0.19→0.08）；Soundwich training-free 分轨</td></tr>
+      <tr><td class="route">注意力效率</td><td>VDN</td><td>长时空序列的注意力算力瓶颈能否只在视频侧化解</td><td>视频侧混合注意力、音频保留 Softmax；8 步蒸馏 14.5× 提速（8×B200）</td></tr>
+      <tr><td class="route">流式蒸馏（loss 侧）</td><td>OmniForcing、Hallo-Live、Salt++</td><td>双向教师 → 因果学生的暴露偏差、均值寻求退化与同步漂移</td><td>OmniForcing ~25FPS；Hallo-Live 20.38FPS/0.94s、reward 加权 DMD</td></tr>
+      <tr><td class="route">流式历史与部署</td><td>TaoMate-HD、LynnReal-Omni、Omni-LiveAvatar</td><td>跨 chunk 历史用什么表示、何时可用、文本更新如何续说</td><td>TaoMate-HD stage-local clean 历史 + 非对称文本条件，CER 30.75%→19.57%</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <text x="20" y="26" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">共享程度光谱：从「同一隐变量」到「完全独立级联」</text>
+    <line x1="60" y1="120" x2="740" y2="120" stroke="#2C3E50" stroke-width="3"/>
+    <circle cx="100" cy="120" r="12" fill="#E85D4E"/><circle cx="240" cy="120" r="12" fill="#C9A86C"/><circle cx="380" cy="120" r="12" fill="#5A8F7B"/><circle cx="520" cy="120" r="12" fill="#1B4B6F"/><circle cx="680" cy="120" r="12" fill="#2C3E50"/>
+    <text x="100" y="88" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">共享 latent</text>
+    <text x="100" y="104" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E" text-anchor="middle">（AVTok vanilla ✘）</text>
+    <text x="240" y="88" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">共享 codebook</text>
+    <text x="240" y="104" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50" text-anchor="middle">（AVTok 双流）</text>
+    <text x="380" y="88" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">对齐表示</text>
+    <text x="380" y="104" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50" text-anchor="middle">（OmniVAE 对比+蒸馏）</text>
+    <text x="520" y="88" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">融合层交互</text>
+    <text x="520" y="104" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50" text-anchor="middle">（NAVA / MOVA / Ovi / LTX-2）</text>
+    <text x="680" y="88" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">独立级联</text>
+    <text x="680" y="104" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50" text-anchor="middle">（Sequential）</text>
+    <path d="M 100 160 Q 380 200 680 165" fill="none" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="390" y="212" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B" text-anchor="middle">音画同步性（越靠中间融合越好，示意）</text>
+    <path d="M 100 245 Q 380 225 680 250" fill="none" stroke="#E85D4E" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="390" y="272" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E" text-anchor="middle">单模态重建保真（越共享越受损，示意）</text>
+    <text x="20" y="292" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#999">注：两条曲线为示意性权衡，非实测数据；「共享 latent 效果不好」为 AVTok 笔记原文。</text>
+  </svg><div class="figcap"><b>图 3</b> · 统一表示 vs 双流：把「共享到什么程度」画成一条可定位的光谱，白板上每个模型都能在轴上找到位置（示意）。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 任务角度分析 (task angle analysis)</h2>
+  <p>白板的第三块是交叉分析维度：<strong>task angle analysis（任务角度分析）</strong>。它不是又一个模型，而是审视全部工作的一组透镜：A/S/V 任务拆解、A 的 60% Audio / 40% Speech 分布、SAV/ASV 组织方式、into loss / into delay、loss / reward。以下展开中标注「补充/示意」者为对白板速记的解读与论证，事实部分照引来源。</p>
+
+  <h3>5.1 A/S/V 任务拆解与 60/40 的 A 分布</h3>
+  <p>把「音视频」拆成 <strong>A（Audio，环境声/拟音/音乐）、S（Speech，含语言的语音）、V（Video）</strong> 三个任务面后，白板给出一个关键的经验分布：<strong>A 通道内部约 60% 是非语音音频、40% 是语音</strong>（白板经验值，非论文统计；标注「补充/示意」）。这个 60/40 有两层含义：</p>
+  <p><strong>其一，结构不对称。</strong>S 是强结构信号——有音素序列、词汇、说话人身份、韵律，可被 ASR/TTS/文本精确监督；A 的 60% 是弱结构信号——声景、拟音、音乐只有场景级语义。模型必须同时握住强结构与弱结构先验，这解释了为什么几乎所有系统都做「音频塔预训练 + 联合微调」两段式（Ovi：数十万小时原始音频预训练音频塔；UniTalking 消融显示音频预训练对最终音质关键；MOVA：先建立音频塔生成能力再联合训练）。</p>
+  <p><strong>其二，弱结构恰是短板。</strong>MiniMax-H3 的物理推理评测里，<strong>音频消歧最弱（27.4%）</strong>、视频决策最强（56%）——模型对「看得见的因果」远好于对「听得出来的因果」。60% 的 A 分布意味着这一短板覆盖了音频任务的多数面。Unison 的应对是显式把 speech/SFX 两路 latent 分开、各自预测再协调；Soundwich 干脆把人声/音效/背景声做成可独立编辑的多轨。<span class="alt">补充/示意：60/40 与短板数据的因果关联论证。</span></p>
+
+  <h3>5.2 SAV / ASV：组织顺序的两种答案</h3>
+  <p>白板速记「SAV / ASV」指向任务组织方式之争（补充/示意：解读）——<strong>ASV</strong> 把 Audio 视为整体、Speech 只是音轨里的一段（Ovi、LTX-2、MOVA：一条完整音轨含 speech+环境声+音乐）；<strong>SAV</strong> 把 Speech 提为一等公民、与非语音 Audio 并列再联合 Video（Unison 的 speech/SFX 双 latent、MM-Sonate 的统一指令-音素输入、JoVA 的嘴部区域 Flow Matching 损失、UniTalking 先 TTS 预训练音频分支）。判据是场景：只要求唇音同步的数字人（S2V 一族）天然是 ASV；要求「说完话后杯子放下还有碰撞声」的复杂声景则必须 SAV。代价也清晰：SAV 需要分离器（Unison 用 Mel-Roformer 分离人声/音效）或强标注（台词、说话人、口型关键点），数据前置成本高。</p>
+
+  <h3>5.3 into loss / into delay / loss / reward：约束的三种去处</h3>
+  <p>白板的「into loss/delay」「loss/reward」两组速记，指向跨模态约束进入系统的两条轴（补充/示意：解读）：</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">into loss（写进损失）</div>
+      <div class="dd">同步/对齐作为可微目标：JoVA 的嘴部区域 Flow Matching 损失、OmniVAE 的片段级对比学习、JavisDiT++ 的 AV-DPO、Hallo-Live Stage I 的速度回归初始化损失。优点是梯度信号直接；缺点是需要可微的对齐度量或标注（嘴部关键点、同步配对）。</div></div>
+    <div class="def-item"><div class="dt">into delay（写进结构与延迟）</div>
+      <div class="dd">同步作为可见性/延迟预算：OmniForcing 的非对称块因果对齐与零截断全局前缀、Hallo-Live 的一块前瞻（W=1）、TaoMate-HD 的重叠文本窗口、LynnReal-Omni 的边界重叠。优点是推理期免费获得预期性；缺点是延迟预算一旦定死，快慢场景共用一个 W。</div></div>
+    <div class="def-item"><div class="dt">loss（回归/分布匹配）</div>
+      <div class="dd">优化以模仿为主：Flow Matching 速度回归、DMD 分布匹配（OmniForcing、Hallo-Live、TaoMate-HD 均以 DMD/自强迫为主体）。稳定、可复现，但受限于教师流形——vanilla 蒸馏会 mean-seeking。</div></div>
+    <div class="def-item"><div class="dt">reward（奖励/偏好）</div>
+      <div class="dd">优化引入人类中心信号：HP-DMD 以 VideoAlign/AudioBox/SyncNet 三路 reward 加权（Hallo-Live 式 (6)-(10)）、AV-DPO 偏好对齐（JavisDiT++）、AVC-Reward 可作在线 RL 信号（web_landscape.json）。优点是能超越教师均值；缺点是 reward 模型本身的偏差会被放大（见第 07 节）。</div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <text x="20" y="26" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">任务角度矩阵：模态面 × 约束去处（示意）</text>
+    <rect x="150" y="46" width="200" height="34" fill="#1B4B6F"/><text x="250" y="68" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff" text-anchor="middle">into loss</text>
+    <rect x="360" y="46" width="200" height="34" fill="#5A8F7B"/><text x="460" y="68" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff" text-anchor="middle">into delay / 结构</text>
+    <rect x="570" y="46" width="200" height="34" fill="#E85D4E"/><text x="670" y="68" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff" text-anchor="middle">reward / 偏好</text>
+    <rect x="20" y="90" width="120" height="60" fill="#C9A86C"/><text x="80" y="118" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">S（Speech）</text><text x="80" y="136" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50" text-anchor="middle">强结构 · 40%</text>
+    <rect x="150" y="90" width="200" height="60" fill="#eee" stroke="#2C3E50"/><text x="250" y="115" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">嘴部 FM 损失(JoVA)</text><text x="250" y="133" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">指令-音素对齐(MM-Sonate)</text>
+    <rect x="360" y="90" width="200" height="60" fill="#eee" stroke="#2C3E50"/><text x="460" y="115" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">未来音素前瞻(FEA)</text><text x="460" y="133" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">重叠文本续说(TaoMate-HD)</text>
+    <rect x="570" y="90" width="200" height="60" fill="#eee" stroke="#2C3E50"/><text x="670" y="115" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">Sync reward(HP-DMD)</text><text x="670" y="133" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">AV-DPO 同步维</text>
+    <rect x="20" y="160" width="120" height="60" fill="#C9A86C"/><text x="80" y="188" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">A（Audio）</text><text x="80" y="206" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50" text-anchor="middle">弱结构 · 60%</text>
+    <rect x="150" y="160" width="200" height="60" fill="#eee" stroke="#2C3E50"/><text x="250" y="185" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">speech/SFX 分轨监督(Unison)</text><text x="250" y="203" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">对比+语义蒸馏(OmniVAE)</text>
+    <rect x="360" y="160" width="200" height="60" fill="#eee" stroke="#2C3E50"/><text x="460" y="185" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">Sink Token 防梯度爆炸</text><text x="460" y="203" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">声源时间窗控制(Soundwich)</text>
+    <rect x="570" y="160" width="200" height="60" fill="#eee" stroke="#2C3E50"/><text x="670" y="185" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">AudioBox reward</text><text x="670" y="203" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">AVC-Reward 事件一致性</text>
+    <rect x="20" y="230" width="120" height="60" fill="#C9A86C"/><text x="80" y="258" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">V（Video）</text><text x="80" y="276" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50" text-anchor="middle">高熵 · 大参数</text>
+    <rect x="150" y="230" width="200" height="60" fill="#eee" stroke="#2C3E50"/><text x="250" y="255" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">Face-Aware 调制(UniAVGen)</text><text x="250" y="273" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">嘴部关键点定位</text>
+    <rect x="360" y="230" width="200" height="60" fill="#eee" stroke="#2C3E50"/><text x="460" y="255" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">粗网格先结构(TaoMate-HD)</text><text x="460" y="273" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">视觉锚 KV 防漂移</text>
+    <rect x="570" y="230" width="200" height="60" fill="#eee" stroke="#2C3E50"/><text x="670" y="255" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">VideoAlign reward</text><text x="670" y="273" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">AV-DPO 质量/一致性维</text>
+  </svg><div class="figcap"><b>图 4</b> · 任务角度矩阵：每一格都由本页某个模型的具体机制填满，说明「任务角度」不是抽象分类而是设计选择的坐标系（示意，机制归属见正文）。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.1 · HP-DMD 的 reward 加权蒸馏（Hallo-Live 式 (6)-(10)，论文原式）</div>
+    <div>$$ z_{i,k}=\frac{R_{i,k}-\mu_k}{\sigma_k+\epsilon},\qquad w_i=\exp\Big(\sum_{k=1}^{K}\beta_k z_{i,k}\Big),\qquad \mathcal{L}_{final}(\theta,x_i)=w_i\cdot\mathcal{L}_{dmd}(x_i) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>三路奖励 <span style="white-space:nowrap;">R<sub>i,k</sub></span>（k ∈ {视觉保真 VideoAlign，语音自然度 AudioBox，同步 SyncNet}）先在批内标准化为 <span style="white-space:nowrap;">z<sub>i,k</sub></span>，再指数聚合成样本权重 w<sub>i</sub>；好的样本对蒸馏梯度贡献更大。等价于拟合 reward-tilted 目标分布 <span style="white-space:nowrap;">p* ∝ p<sub>T</sub>·exp(R)</span> 而非教师分布 p<sub>T</sub>——这是「loss/reward」轴上学生<strong>超越教师均值</strong>的机制化解释。β<sub>k</sub> 控制各模态贡献。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>loss、delay、reward 是同一个同步问题的三种货币</h4>
+    <p>同一份「音画要同步」的知识，可以记在三本账上：loss 账（可微、需标注）、delay 账（推理期结构、吃延迟预算）、reward 账（可无标注、吃奖励模型质量）。2025-2026 的路线演化呈现出清晰的<strong>兑换趋势</strong>：早期工作集中把同步记入 loss（对比学习、嘴部损失），流式化浪潮迫使同步改记入 delay（因果掩码、前瞻窗），而偏好对齐兴起后同步又开始记入 reward（HP-DMD、AV-DPO）。三本账各有兑换损耗：loss 需要配对数据，delay 牺牲延迟或引入投机，reward 引入 reward hacking 风险。<strong>当前没有工作同时优化三本账的兑换率</strong>——这是一个可切入的空白（见 Q1）。<span class="alt">补充/示意：跨论文演化论证。</span></p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 语音-音频对齐 (s-a alignment)</h2>
+  <p>白板最后一块交叉维度是 <strong>s-a alignment（语音-音频对齐）</strong>。注意它与「音画同步」不同轴：这里问的是 <strong>S 与 A 这两个声学模态之间</strong>——以及它们与 V 的三方关系——如何对齐。白板速记包括：S+V 对齐、共享 vs 各自 latent、audio latent 更稠密、Aligned RoPE / 对比对齐 / 共享 DiT。</p>
+
+  <h3>6.1 S+V 对齐：为什么语音-视频是最硬的一对</h3>
+  <p>唇音同步是毫秒级约束（SyncNet 度量、LSE-C/LSE-D），而环境声与画面只需事件级一致（AVC-Reward 的三级一致性：全局叙事/事件级时序/细粒度属性）。于是所有语音-视频系统都把预算花在 S-V 边界上：Hallo-Live 用 r=5 音频 token/视频帧的细粒度跨模态掩码 + 前瞻；JoVA 加嘴部区域损失；MM-Sonate 用统一指令-音素输入保证严格语言与时序对齐；TaoMate-HD 用 CER（Whisper 转写对比台词）作为语音正确性的直接度量。反过来说，<strong>S-A 对齐（语音与其背景声）几乎无人单独度量</strong>——Unison 的 DS 失同步指标与 AVC-Reward 是少数例外。<span class="alt">补充/示意：度量空白的观察。</span></p>
+
+  <h3>6.2 共享 vs 各自 latent：证据已经偏向「各自」</h3>
+  <p>AVTok 的对照实验是白板上最硬的一条证据：<strong>vanilla 尝试过共享 latent、共享参数，效果不好；最终双流（各自 token 序列 + 共享编解码器主干与码本）重建更好</strong>。OmniVAE 同样保留两路可重建 latent，只在上面加片段级双向对比与语义蒸馏。到生成侧，全部主力模型（LTX-2 / Ovi / MOVA / NAVA / UniTalking / JoVA）无一例外采用「<strong>各自 VAE latent + 融合层交互 + 各自解码</strong>」。结论：共享的正确层级是<strong>时间与语义坐标</strong>（Aligned RoPE、对比对齐），而非采样表示本身。</p>
+
+  <h3>6.3 audio latent 更稠密：三种补偿机制</h3>
+  <p>路线笔记原文：「audio 的 latent 要远远稠密 video 的 latent」。稠密不是免费的——跨模态注意力的算力与信噪比都随音频 token 数倾斜。三种补偿各有代表：</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">位置重标定（Aligned RoPE / TA-RoPE / scaled RoPE）</div>
+      <div class="dd">MOVA 把两路映射到统一时间尺度；JavisDiT++ 显式帧级；Ovi 缩放 RoPE 时序交换。补偿的是<strong>位置错位</strong>。</div></div>
+    <div class="def-item"><div class="dt">表示级对齐（对比 + 蒸馏）</div>
+      <div class="dd">OmniVAE 在各自 latent 上加片段级双向对比学习并从语义教师蒸馏；AVTok 共享码本但保留各自序列。补偿的是<strong>语义坐标错位</strong>。</div></div>
+    <div class="def-item"><div class="dt">稀疏性保护（Sink Token / 非对称对齐）</div>
+      <div class="dd">OmniForcing 的音频 Sink Token（Identity RoPE）与非对称块因果对齐，针对因果化后音频有效信息稀疏引发的梯度爆炸与同步漂移。补偿的是<strong>有效信息密度失衡</strong>（注意与 token 数量稠密并不矛盾，见 3.1 节洞察）。</div></div>
+    <div class="def-item"><div class="dt">共享 DiT（单塔融合）</div>
+      <div class="dd">JavisDiT（联合 DiT + 分层时空先验）、Apollo（单塔统一 DiT 块 + Omni-Full Attention）、DaVinci-MagiHuman 的单流简化：干脆不分流，用紧致共享换取对齐。代价是单模态容量与预训练复用受限。<span class="alt">替代方案：双塔 Bridge（MOVA）介于两极之间。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <text x="20" y="26" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">S-A 对齐：token 密度失配与三条对齐轴</text>
+    <text x="20" y="58" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F">V token（稀疏，高熵）</text>
+    <rect x="170" y="44" width="34" height="20" fill="#1B4B6F"/><rect x="216" y="44" width="34" height="20" fill="#1B4B6F"/><rect x="262" y="44" width="34" height="20" fill="#1B4B6F"/><rect x="308" y="44" width="34" height="20" fill="#1B4B6F"/><rect x="354" y="44" width="34" height="20" fill="#1B4B6F"/><rect x="400" y="44" width="34" height="20" fill="#1B4B6F"/>
+    <text x="20" y="112" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">A/S token（稠密，高冗余）</text>
+    <rect x="170" y="96" width="11" height="20" fill="#E85D4E"/><rect x="184" y="96" width="11" height="20" fill="#E85D4E"/><rect x="198" y="96" width="11" height="20" fill="#E85D4E"/><rect x="212" y="96" width="11" height="20" fill="#E85D4E"/><rect x="226" y="96" width="11" height="20" fill="#E85D4E"/><rect x="240" y="96" width="11" height="20" fill="#E85D4E"/><rect x="254" y="96" width="11" height="20" fill="#E85D4E"/><rect x="268" y="96" width="11" height="20" fill="#E85D4E"/><rect x="282" y="96" width="11" height="20" fill="#E85D4E"/><rect x="296" y="96" width="11" height="20" fill="#E85D4E"/><rect x="310" y="96" width="11" height="20" fill="#E85D4E"/><rect x="324" y="96" width="11" height="20" fill="#E85D4E"/><rect x="338" y="96" width="11" height="20" fill="#E85D4E"/><rect x="352" y="96" width="11" height="20" fill="#E85D4E"/><rect x="366" y="96" width="11" height="20" fill="#E85D4E"/><rect x="380" y="96" width="11" height="20" fill="#E85D4E"/><rect x="394" y="96" width="11" height="20" fill="#E85D4E"/><rect x="408" y="96" width="11" height="20" fill="#E85D4E"/><rect x="422" y="96" width="11" height="20" fill="#E85D4E"/>
+    <line x1="187" y1="40" x2="187" y2="130" stroke="#C9A86C" stroke-width="2" stroke-dasharray="4 3"/><line x1="233" y1="40" x2="233" y2="130" stroke="#C9A86C" stroke-width="2" stroke-dasharray="4 3"/><line x1="279" y1="40" x2="279" y2="130" stroke="#C9A86C" stroke-width="2" stroke-dasharray="4 3"/><line x1="325" y1="40" x2="325" y2="130" stroke="#C9A86C" stroke-width="2" stroke-dasharray="4 3"/><line x1="371" y1="40" x2="371" y2="130" stroke="#C9A86C" stroke-width="2" stroke-dasharray="4 3"/><line x1="417" y1="40" x2="417" y2="130" stroke="#C9A86C" stroke-width="2" stroke-dasharray="4 3"/>
+    <text x="300" y="150" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C" text-anchor="middle">统一物理时间轴（Aligned/TA/scaled RoPE）</text>
+    <rect x="20" y="182" width="230" height="120" rx="8" fill="#1B4B6F"/>
+    <text x="135" y="210" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff" text-anchor="middle">各自 latent + 时间对齐</text>
+    <text x="135" y="234" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#C9A86C" text-anchor="middle">MOVA Aligned RoPE · Ovi scaled RoPE</text>
+    <text x="135" y="252" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#C9A86C" text-anchor="middle">LTX-2 双流 · UniTalking/JoVA 时间 RoPE</text>
+    <text x="135" y="278" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#fff" text-anchor="middle">证据面最广（主流选择）</text>
+    <rect x="270" y="182" width="230" height="120" rx="8" fill="#5A8F7B"/>
+    <text x="385" y="210" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff" text-anchor="middle">表示级对齐</text>
+    <text x="385" y="234" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#fff" text-anchor="middle">OmniVAE 片段对比 + 语义蒸馏</text>
+    <text x="385" y="252" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#fff" text-anchor="middle">AVTok 共享码本/主干、各自序列</text>
+    <text x="385" y="278" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#fff" text-anchor="middle">让下游生成器「更容易学」</text>
+    <rect x="520" y="182" width="250" height="120" rx="8" fill="#2C3E50"/>
+    <text x="645" y="210" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff" text-anchor="middle">共享 DiT（单塔）</text>
+    <text x="645" y="234" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#C9A86C" text-anchor="middle">JavisDiT 分层时空先验 · Apollo Omni-Full</text>
+    <text x="645" y="252" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#C9A86C" text-anchor="middle">紧致对齐，单模态容量受限</text>
+    <text x="645" y="278" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#fff" text-anchor="middle">vanilla 共享 latent 已被 AVTok 否证</text>
+    <text x="20" y="330" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#999">token 密度为示意比例（audio latent 远稠密于 video latent，AVG.txt 笔记原文）。</text>
+  </svg><div class="figcap"><b>图 5</b> · S-A 对齐三轴：密度失配（上）与三种共享/对齐答案（下），把「共享 vs 各自 latent」之争落成可比较的设计空间。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.2 · 时间对齐 RoPE 的统一映射（补充/示意，综合 MOVA/JavisDiT++/Ovi 思路）</div>
+    <div>$$ \tau_m(i) = \frac{i}{f_m}\quad\text{（token } i \text{ 的物理时刻，} f_m \text{ 为模态 } m \text{ 的 token 率）};\qquad \theta_{m,i} = \omega\cdot \tau_m(i) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>不对齐时，音视频各自按 token 序号加旋转角，1 秒音频（token 多）与 1 秒视频（token 少）在位置空间错位；统一映射后，跨模态注意力只在物理时刻相近处得分高。MOVA 的 Aligned RoPE（统一时间尺度）、JavisDiT++ 的 TA-RoPE（显式帧级）、Ovi 的 scaled RoPE（时序交换缩放）是同一思想的三种实现。<strong>此式为示意性综合，非任一论文原式</strong>；真实实现含各模型自己的频率设计。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>S-A 对齐的终极形态可能是「一个时间轴 + 多个信息通道」</h4>
+    <p>把本节证据串起来：latent 该分（AVTok/重建证据）、时间轴该合（三种 RoPE）、语义坐标该对齐（OmniVAE 蒸馏）、稀疏流该保护（Sink Token）。这四条合起来指向一个架构原则：<strong>对齐的对象不应是表示本身，而是表示所依附的坐标系</strong>——物理时间轴 + 共享语义坐标，其余保持模态自由。这与白板「S+V 对齐、共享 vs 各自 latent」的速记完全吻合，也解释了为什么「共享 latent」的 vanilla 尝试失败而「共享时间尺度」的 Aligned RoPE 成功：前者共享了不该共享的（信息载体），后者共享了必须共享的（坐标系）。<span class="alt">补充/示意：原则性归纳。</span></p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 深度洞察 &amp; 批判评估</h2>
+  <p>把全图最有张力的两条证据链单独拎出来，并给出不回避代价的评估。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>流式化的本质是「历史表示」问题，而非「步数」问题</h4>
+    <p>四个流式工作对「跨 chunk 传什么历史」给出了四个答案：OmniForcing 传<strong>滚动 KV-cache</strong>（模态无关）；Hallo-Live 传<strong>已提交块 + 覆盖式前瞻块</strong>；LynnReal-Omni传<strong>有界 latent 历史 + 边界重叠</strong>；TaoMate-HD 传<strong>各阶段干净估计（零噪声编码）</strong>。步数只是表象——4 步还是 3 步由蒸馏决定，而长时一致性、续说能力、能否 stage-parallel 取决于历史表示。TaoMate-HD 的干净估计尤其优雅：它让「去噪未完成的中间产物」提前成为可用上下文，把 chunk 间等待时间从 critical path 上拆掉（1.6× 空间加速 + 1.9× 部署加速的乘法由此而来）。<span class="alt">补充/示意：四方案的统一抽象。</span></p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>蒸馏是新的「第二次训练」：学生在 reward 帮助下可以越过教师</h4>
+    <p>Hallo-Live 的 HP-DMD 把目标分布从 p<sub>T</sub> 改成 p* ∝ p<sub>T</sub>·exp(R)，理论上允许学生在教师流形的高奖励区域过采样、超越教师均值；OmniForcing 的联合自强迫则让学生在自生成历史上学习自纠误差。两者合起来说明：<strong>蒸馏阶段不再只是压缩，而是吸收人类偏好与暴露偏差修正的第二次训练</strong>。TaoMate-HD 的续说训练（CER 30.75%→19.57%）进一步表明，流式特有的能力（跨文本窗口续说、说完即停）只能在蒸馏/后训练阶段获得，教师根本没有这个任务。<span class="alt">补充/示意：趋势性论证。</span></p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>效率数字不可比：计时区间、硬件、分辨率三重口径混乱</h4>
+    <p>表面看 25 FPS（OmniForcing）/ 20.38 FPS（Hallo-Live）/ 8.99 FPS（TaoMate-HD parallel）可横比，实际不然：硬件覆盖单卡（型号各异）、2×H200、8×H20、8×B200；分辨率从 768×512、768p 到 1376×768；计时区间不同（TaoMate-HD 自述其区间含文本预编码外的解码，而 MiniMax-H3/VDN/Lynn 含在线 conditioning 与 encode/mux）。连 TaoMate-HD 自己的「22.4× 相对 MiniMax-H3 吞吐比」也是在各自区间下的比值。<strong>本页表格只做量级排序，任何严格效率结论都需重测。</strong></p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>reward 路线的循环依赖：用模型评价模型</h4>
+    <p>HP-DMD 的三路奖励（VideoAlign、AudioBox、SyncNet）与 AV-DPO 的偏好数据都是模型产物。风险有三：① reward hacking——学生学会讨好 SyncNet 而非真正同步（SyncNet 本身可被对抗）；② 教师缺陷继承——Hallo-Live 从 Ovi 初始化，Ovi 的口型/韵律偏差会沿蒸馏传下去；③ 人评缺位——Hallo-Live 自述质量「comparable」是在自动指标维度，大规模人评未见。同类问题也见于 UniAVGen（情绪一致性由多模态模型打分，笔记明确「值得补充人类盲评」）。<strong>奖励越多，越需要独立于奖励体系的人类验证。</strong></p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>全模态基座的「理解」仍很浅：41.97% 总成功率</h4>
+    <p>MiniMax-H3 的物理推理评测（517 实例）总体成功率仅 41.97%，音频消歧 27.4%——共享隐空间并未自动带来跨模态推理能力。这打击了「统一表示 ⇒ 涌现理解」的乐观叙事：联合生成质量的进步（Desync 0.000）与理解能力的进步（41.97%）并不同步。<strong>把生成基座当世界模型用，证据远未就绪。</strong></p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 自主科研问题</h2>
+  <p>从白板两条交叉维度直接生长出的四个可探究问题，每个都锚定具体证据缺口。</p>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>同步约束应记入 loss、delay 还是 reward？三者的最优兑换率是什么？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>三本账（05.3 节）目前被各工作单独使用，无任何工作联合优化并度量兑换损耗。</p>
+    <p><strong>理论分析：</strong>loss 受限于可微对齐度量与标注密度；delay 受限于延迟预算（Hallo-Live 固定 W=1，快慢场景同权）；reward 受限于奖励模型误差的指数放大（Eq.1 中 exp 会放大 β 加权的偏差）。</p>
+    <p><strong>连接：</strong>Hallo-Live（delay+reward）、JavisDiT++（loss+reward）、OmniForcing（delay+loss）恰好各占两两组合，缺三者联立。</p>
+    <p><strong>探究方向：</strong>构造三轴消融：固定参数量与数据，扫 (loss 权重, 前瞻窗 W, reward 温度 β)，测 SyncNet/人评/延迟 Pareto 面，检验是否存在内点最优而非角点解。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>audio latent 稠密性与有效信息稀疏性的失配，能否被一个可计算指标统一描述？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>MOVA 说 audio latent 稠密、OmniForcing 说 audio token 稀疏，两者都对但维度不同（3.1 节洞察）；缺乏统一量度导致 Aligned RoPE 与 Sink Token 被混为一谈。</p>
+    <p><strong>理论分析：</strong>可用「每物理秒 token 数 × 每 token 熵」的二维刻画；稠密-低熵（语音拖音段）对应 Sink Token 需求，稠密-高熵（瞬态音效）对应位置重标定需求。</p>
+    <p><strong>连接：</strong>AVTok 的「共享 latent 效果不好」可能正是熵失衡的表现；MiniMax-H3 音频消歧 27.4% 最弱也指向音频信息利用不足。</p>
+    <p><strong>探究方向：</strong>在 Ovi/MOVA 上探针测量两模态逐位置熵与跨模态注意力质量的相关性，再按熵分段替换对齐机制，验证指标的预测力。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>流式历史表示：滚动 KV、覆盖式前瞻、有界 latent、干净估计——各自的失效边界在哪里？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>四种历史表示（07 节洞察）没有统一评测；OmniForcing 的 Long-range 0.278 与 TaoMate 的 0.983 暗示差异巨大，但口径不可比。</p>
+    <p><strong>理论分析：</strong>历史表示在「信息保留、算力、误差累积」三角里各占一角：KV-cache 保真但显存线性、干净估计可复用但有估计误差、有界 latent 恒定开销但丢长程、前瞻块免累积但吃延迟。</p>
+    <p><strong>连接：</strong>TaoMate-HD 的固定容量库（视觉锚 + 最近两 chunk）是显式的三角权衡；Hallo-Live 的覆盖式前瞻回答了「投机不累积」约束。</p>
+    <p><strong>探究方向：</strong>同一教师（Ovi 或 MiniMax-H3）上实现四种历史接口的受控对比：扫 10 分钟~1 小时时长，测 CER、LSE-C、Long-range、显存与首包延迟曲线。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>60/40 的 A 分布下，Speech 与非语音 Audio 应该分 latent 还是合 latent？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>Unison 用显式 speech/SFX 双 latent（消融 PQ 6.12→6.34、DS 0.19→0.08），Ovi/LTX-2 用单一音轨；两种做法没有在同一基准上正面比较。</p>
+    <p><strong>理论分析：</strong>S 强结构（可被文本/音素监督）、A 弱结构（仅场景级描述）；分轨使监督各得其所但需要分离器（Mel-Roformer）与协调机制（Bi-ACA 门控），合轨省前置但让弱结构段被强结构段主导。</p>
+    <p><strong>连接：</strong>这正是 SAV/ASV 之争（05.2 节）；MM-Sonate 的统一指令-音素输入提供了第三条路——不分 latent 但分输入通道。</p>
+    <p><strong>探究方向：</strong>以 Unison 与 Ovi 为两端，在同数据上做「1/2/3 路音频 latent」扫描，按 60/40 混合比例与场景复杂度分桶评测语音可懂度（WER）、音效自然度与互扰指标。</p></div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s9" ><span class="num">09</span> 代码附录（示意性实现）</h2>
+  <p>以下两段伪代码把本页两个核心机制落到实现层面，均为<strong>示意性实现</strong>，非论文官方代码。</p>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Hallo-Live 式 Future-Expanding Block-Causal Mask（据论文式 (5) 重写）</span>
+<span class="cm"># 1 视频帧对齐 r=5 个音频 token；W 为前瞻帧数（论文用 W=1）</span>
+<span class="kw">def</span> <span class="fn">future_expanding_mask</span>(num_v_frames, r=5, W=1):
+    num_a = num_v_frames * r
+    mask = np.zeros((num_v_frames, num_a), dtype=bool)
+    <span class="kw">for</span> t <span class="kw">in</span> <span class="fn">range</span>(num_v_frames):
+        <span class="cm"># 视频帧 t 可见音频 token 序号 ≤ r*(t+W)：同步 + 前瞻 W 帧</span>
+        mask[t, : r * (t + W + 1) - 1] = <span class="kw">True</span>
+    <span class="kw">return</span> mask  <span class="cm"># W=0 时退化为严格块因果（OmniForcing 式）</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># HP-DMD：reward 加权的双流 DMD 一步（据 Hallo-Live 式 (6)-(10) 重写）</span>
+<span class="kw">def</span> <span class="fn">hp_dmd_step</span>(student, prompts, betas=(0.4, 0.3, 0.3)):
+    x = student.sample(prompts)                      <span class="cm"># 学生自生成音视频样本</span>
+    R = stack([videobox(x), audiobox(x), syncnet(x)])  <span class="cm"># K=3 路奖励</span>
+    z = (R - R.mean(0)) / (R.std(0) + 1e-6)          <span class="cm"># 批内标准化</span>
+    w = exp(z @ betas)                                <span class="cm"># 样本权重 w_i</span>
+    loss_dmd = dmd_loss(real_score, fake_score, x)    <span class="cm"># 分布匹配项</span>
+    <span class="kw">return</span> (w * loss_dmd).mean()                       <span class="cm"># 拟合 p* ∝ p_T·exp(R)</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># TaoMate-HD 式 stage-local 干净估计与 KV 提交（据其式 (1)(3) 与 Algorithm 1 重写）</span>
+<span class="kw">def</span> <span class="fn">chunk_stage</span>(u, sigma, sigma_next, v_hat, stage, banks):
+    euler = u + (sigma - sigma_next) * v_hat         <span class="cm"># Euler 前进</span>
+    x_clean = u + sigma * v_hat                       <span class="cm"># 干净估计：零噪声端点</span>
+    banks[stage].write(encode(x_clean, noise=0))      <span class="cm"># 同阶段下 chunk 复用</span>
+    <span class="kw">return</span> euler, x_clean
+<span class="cm"># 文本窗口切换：提交待决估计 → 保留初始视觉锚 + 最近两 chunk → 刷新文本投影</span></pre>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

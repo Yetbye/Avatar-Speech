@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ovi · 论文解读</title>
+<meta name="description" content="对称双 DiT（Wan2.2-5B 视频初始化 + 匹配音频塔）逐层双向 Cross-Attention，配合缩放 RoPE 对齐时间，联合生成视频与完整音轨。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2025 · Preprint</div>
+    <h1>Ovi</h1>
+    <p class="hero-tagline">双塔同构 × 逐层双向交互：把声音长进视频骨干里</p>
+    <p class="hero-desc">对称双 DiT（Wan2.2-5B 视频初始化 + 匹配音频塔）逐层双向 Cross-Attention，配合缩放 RoPE 对齐时间，联合生成视频与完整音轨。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ovi"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="90" y="90" width="180" height="70" rx="12" fill="#1B4B6F" stroke="#1B4B6F" stroke-width="2"/><text x="180.0" y="131.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Video Tokens</text><rect x="90" y="250" width="180" height="70" rx="12" fill="#5A8F7B" stroke="#5A8F7B" stroke-width="2"/><text x="180.0" y="291.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Audio Tokens</text><rect x="560" y="170" width="180" height="70" rx="12" fill="#2C3E50" stroke="#2C3E50" stroke-width="2"/><text x="650.0" y="211.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Joint DiT</text><line x1="285" y1="125" x2="555" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><line x1="285" y1="285" x2="555" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><text x="410" y="150" text-anchor="middle" font-family="Noto Sans SC" font-size="15" fill="#E85D4E" font-weight="700">Joint / Cross Attention</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：对称双塔 + 逐层双向 Cross-Attention</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#av-foundation">av-foundation</a><span class="sep">/</span>Ovi</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂：让两个同构 DiT 在每一层「握手」</a></li><li><a href="#s2">02 双塔同构：把音频塔「长成视频塔的样子」</a></li><li><a href="#s3">03 逐层 blockwise 融合：时间走 RoPE，语义走注意力</a></li><li><a href="#s4">04 训练三段式：先学会「发声」，再学会「伴奏」</a></li><li><a href="#s5">05 关键公式：联合流匹配与不对称损失权重</a></li><li><a href="#s6">06 优势与证据：人评胜出 + 统一音频塔不输专用模型</a></li><li><a href="#s7">07 批判评估</a></li><li><a href="#s8">08 自主科研问题</a></li><li><a href="#s9">09 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂：让两个同构 DiT 在每一层「握手」</h2>
+  <p class="lead">Ovi 的核心主张很朴素却反直觉：既然视频和音频都是「随时间演化的信号」，那就<strong>不要让它们住进两套不同的架构</strong>。它把音频塔做成与视频塔<strong>逐参数同构</strong>的双 DiT，然后在每一个 transformer block 里插入双向跨模态注意力，让时间对齐与语义对齐分别走两条通道。</p>
+  <p>产出的形态很具体：<strong>5 秒、720×720、24 fps 的同步音视频片段</strong>，带台词、音效与环境声。论文把它定位为「单一生成过程」——不是先用 T2V 出画面再配声，也不是用音频驱动口型，而是两路 latent 一起被噪声化、一起被去噪。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「同构」是一个被低估的设计约束</h4>
+    <p>大多数联合模型允许两个模态用不同深度/宽度（如 LTX-2 的 14B:5B 非对称）。Ovi 反过来强制<strong>同构</strong>，看似浪费音频容量，实则换来一个关键性质：第 k 层的视频特征与第 k 层的音频特征处于<em>同一语义粒度</em>，跨模态注意力不必做「跨尺度翻译」。这正是它敢在<em>每一层</em>都插入融合的前提——若两塔深度不同，逐层融合就无从定义。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 双塔同构：把音频塔「长成视频塔的样子」</h2>
+  <p>Ovi 的做法是：先有一个强视频模型（Wan2.2-5B），然后把音频塔<strong>按它的超参逐项复制</strong>——不是复制权重，而是复制<em>形状</em>。原文 Table 1 给出的双塔超参完全一致：</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>超参</th><th>数值</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td class="route">Model Dim</td><td>3072</td><td>隐藏维度（两塔相同）</td></tr>
+      <tr><td class="route">FFN Dim</td><td>14336</td><td>前馈层宽度</td></tr>
+      <tr><td class="route">Heads / Head Dim</td><td>24 / 128</td><td>注意力头数与每头维度</td></tr>
+      <tr><td class="route">Blocks</td><td>30</td><td>深度</td></tr>
+      <tr><td class="route">Self-Attn / Text Cross / AV Cross</td><td>30 / 30 / 30</td><td>每层都含三重注意力</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 370" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="370" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">Ovi 双塔：逐层同构 + 每层三重注意力</text>
+    <!-- T5 -->
+    <rect x="300" y="48" width="200" height="38" rx="8" fill="#C9A86C"/>
+    <text x="400" y="73" text-anchor="middle" font-size="12" fill="#fff" font-family="Noto Sans SC">冻结 T5（共享文本条件）</text>
+    <line x1="360" y1="86" x2="230" y2="120" stroke="#C9A86C" stroke-width="2" marker-end="url(#b1)"/>
+    <line x1="440" y1="86" x2="570" y2="120" stroke="#C9A86C" stroke-width="2" marker-end="url(#b1)"/>
+    <!-- video tower -->
+    <rect x="110" y="120" width="240" height="215" rx="10" fill="#1B4B6F" opacity="0.12" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="230" y="144" text-anchor="middle" font-size="13" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">视频塔（Wan2.2-5B 初始化）</text>
+    <rect x="130" y="158" width="200" height="28" rx="5" fill="#1B4B6F"/><text x="230" y="177" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Self-Attn</text>
+    <rect x="130" y="194" width="200" height="28" rx="5" fill="#1B4B6F" opacity="0.8"/><text x="230" y="213" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Text Cross-Attn（共享 T5）</text>
+    <rect x="130" y="230" width="200" height="28" rx="5" fill="#C9A86C"/><text x="230" y="249" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">AV Cross-Attn（双向）</text>
+    <rect x="130" y="266" width="200" height="28" rx="5" fill="#5D6D7E"/><text x="230" y="285" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">FFN</text>
+    <text x="230" y="318" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="JetBrains Mono,monospace">× 30 blocks</text>
+    <!-- audio tower -->
+    <rect x="450" y="120" width="240" height="215" rx="10" fill="#5A8F7B" opacity="0.14" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="570" y="144" text-anchor="middle" font-size="13" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">音频塔（同构，从零训练）</text>
+    <rect x="470" y="158" width="200" height="28" rx="5" fill="#5A8F7B"/><text x="570" y="177" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Self-Attn</text>
+    <rect x="470" y="194" width="200" height="28" rx="5" fill="#5A8F7B" opacity="0.8"/><text x="570" y="213" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Text Cross-Attn（共享 T5）</text>
+    <rect x="470" y="230" width="200" height="28" rx="5" fill="#C9A86C"/><text x="570" y="249" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">AV Cross-Attn（双向）</text>
+    <rect x="470" y="266" width="200" height="28" rx="5" fill="#5D6D7E"/><text x="570" y="285" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">FFN</text>
+    <text x="570" y="318" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="JetBrains Mono,monospace">× 30 blocks</text>
+    <!-- blockwise arrows -->
+    <line x1="334" y1="244" x2="466" y2="244" stroke="#E85D4E" stroke-width="3" marker-end="url(#b2)"/>
+    <line x1="466" y1="262" x2="334" y2="262" stroke="#E85D4E" stroke-width="3" marker-end="url(#b2)"/>
+    <text x="400" y="238" text-anchor="middle" font-size="10.5" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">逐层交换</text>
+    <!-- outputs -->
+    <rect x="130" y="342" width="200" height="20" rx="4" fill="#1B4B6F"/><text x="230" y="356" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">→ 视频 VAE</text>
+    <rect x="470" y="342" width="200" height="20" rx="4" fill="#5A8F7B"/><text x="570" y="356" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">→ 音频 VAE</text>
+    <defs>
+      <marker id="b1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#C9A86C"/></marker>
+      <marker id="b2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#E85D4E"/></marker>
+    </defs>
+  </svg><div class="figcap"><b>图 1</b> · 双塔同构 + 每层三重注意力（Self / Text Cross / AV Cross）+ 冻结 T5 共享条件</div></div>
+  <p>注意一个细节：<strong>文本条件也被统一了</strong>。视频塔与音频塔都用同一个冻结 T5 编码的自然语言 prompt 作条件。这省掉了一套文本编码器，更重要的是让「同一个 prompt」在两侧形成同一语义锚点。论文的消融（Table 3）报告：统一文本嵌入后 WER 相当，但音频保真与对齐类指标（FD/IS/CLAP）明显改善。</p>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 逐层 blockwise 融合：时间走 RoPE，语义走注意力</h2>
+  <p>Ovi 的融合机制把「对齐」拆成两类问题，分别用不同工具解决：</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">时间对齐 · scaled RoPE</div>
+      <div class="dd">两个模态的时间分辨率天生不同（视频帧率 vs 音频 token 率）。Ovi 对所有注意力施加<strong>缩放 RoPE</strong>，把两侧位置映射到可比较的时间尺度。<span class="alt">替代方案：重采样到同一帧率（会丢信息或引入插值误差）；或用可学习时间嵌入（难外推到更长时长）。</span></div></div>
+    <div class="def-item"><div class="dt">语义对齐 · 双向交叉注意力</div>
+      <div class="dd">在每个 block 内插入双向 AV 交叉注意力：视频 query 看音频 key/value，音频 query 也看视频。这使「撞击 → 拟音」「口型 → 音素」在每层都被互相约束。<span class="alt">替代方案：单向（音频→视频）只能做口型驱动；单向（视频→音频）无法让声音反推画面细节。</span></div></div>
+    <div class="def-item"><div class="dt">为什么必须逐层</div>
+      <div class="dd">浅层对齐局部事件（起音、口型开合），深层对齐叙事语义（情绪、场景氛围）。只在末层融合会丢掉早期可对齐的机会。<span class="alt">替代方案：LTX-2 也是贯穿深度的交叉注意力；差别在 Ovi 强调「blockwise 成对」而非非对称。</span></div></div>
+    <div class="def-item"><div class="dt">条件方式</div>
+      <div class="dd">单一共享 T5 文本条件（非每条模态各一个编码器）。<span class="alt">代价：文本与模态的专用适配变弱；论文用消融表明利大于弊。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">两条对齐通道：RoPE 管「何时」，注意力管「什么」</text>
+    <!-- time axis -->
+    <text x="20" y="70" font-size="12" fill="#1B4B6F" font-family="Noto Sans SC" font-weight="700">时间通道（scaled RoPE）</text>
+    <line x1="60" y1="100" x2="380" y2="100" stroke="#1B4B6F" stroke-width="2"/>
+    <g fill="#1B4B6F">
+      <circle cx="70" cy="100" r="5"/><circle cx="120" cy="100" r="5"/><circle cx="170" cy="100" r="5"/>
+      <circle cx="220" cy="100" r="5"/><circle cx="270" cy="100" r="5"/><circle cx="320" cy="100" r="5"/>
+    </g>
+    <text x="70" y="84" font-size="10" fill="#1B4B6F" font-family="JetBrains Mono,monospace">f0</text>
+    <text x="320" y="84" font-size="10" fill="#1B4B6F" font-family="JetBrains Mono,monospace">f5</text>
+    <text x="60" y="128" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">视频：离散帧</text>
+    <line x1="60" y1="170" x2="380" y2="170" stroke="#5A8F7B" stroke-width="2"/>
+    <g fill="#5A8F7B">
+      <circle cx="70" cy="170" r="3.5"/><circle cx="88" cy="170" r="3.5"/><circle cx="106" cy="170" r="3.5"/><circle cx="124" cy="170" r="3.5"/>
+      <circle cx="142" cy="170" r="3.5"/><circle cx="160" cy="170" r="3.5"/><circle cx="178" cy="170" r="3.5"/><circle cx="196" cy="170" r="3.5"/>
+      <circle cx="214" cy="170" r="3.5"/><circle cx="232" cy="170" r="3.5"/><circle cx="250" cy="170" r="3.5"/><circle cx="268" cy="170" r="3.5"/>
+      <circle cx="286" cy="170" r="3.5"/><circle cx="304" cy="170" r="3.5"/><circle cx="322" cy="170" r="3.5"/><circle cx="340" cy="170" r="3.5"/>
+    </g>
+    <text x="60" y="198" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">音频：更密的 token</text>
+    <text x="400" y="140" font-size="12.5" fill="#E85D4E" font-family="Noto Sans SC" font-weight="700">↑ 分辨率不同 → 必须缩放到同一时间尺度</text>
+    <!-- semantic channel -->
+    <text x="20" y="232" font-size="12" fill="#C9A86C" font-family="Noto Sans SC" font-weight="700">语义通道（双向交叉注意力）</text>
+    <rect x="60" y="246" width="120" height="34" rx="7" fill="#1B4B6F"/><text x="120" y="268" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">视频事件</text>
+    <rect x="320" y="246" width="120" height="34" rx="7" fill="#5A8F7B"/><text x="380" y="268" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">音频事件</text>
+    <line x1="184" y1="258" x2="316" y2="258" stroke="#E85D4E" stroke-width="2.5" marker-end="url(#c1)"/>
+    <line x1="316" y1="272" x2="184" y2="272" stroke="#E85D4E" stroke-width="2.5" marker-end="url(#c1)"/>
+    <text x="250" y="240" text-anchor="middle" font-size="10.5" fill="#E85D4E" font-family="Noto Sans SC">"撞击" ↔ "砰"</text>
+    <defs><marker id="c1" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#E85D4E"/></marker></defs>
+  </svg><div class="figcap"><b>图 2</b> · 时间分辨率失配（上）与语义事件对应（下）是两类不同问题</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 训练三段式：先学会「发声」，再学会「伴奏」</h2>
+  <p>Ovi 没有直接拿音视频对去训一个双塔，而是先让音频塔成为独立的强音频模型，再做融合。原文表述的训练 recipe 是三步：<strong>音频预训练 → 音频后训练 → 融合微调</strong>。</p>
+  <div class="pipeline">
+    <span class="pipe-step">① 音频预训练</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step alt">② 音频后训练</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">③ 融合微调</span>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">三段式训练：数据形态与目标的变化</text>
+    <!-- stage 1 -->
+    <rect x="30" y="60" width="220" height="150" rx="10" fill="#5A8F7B" opacity="0.15" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="140" y="86" text-anchor="middle" font-size="12.5" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">① 音频预训练</text>
+    <text x="140" y="112" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">波形 ≤ 12 秒</text>
+    <text x="140" y="134" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">以人类语音为主</text>
+    <text x="140" y="156" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">语言多样性 / 韵律 / 音色</text>
+    <text x="140" y="184" text-anchor="middle" font-size="10.5" fill="#C9A86C" font-family="Noto Sans SC">目标：语音能力 + 说话人身份</text>
+    <!-- stage 2 -->
+    <rect x="280" y="60" width="220" height="150" rx="10" fill="#C9A86C" opacity="0.18" stroke="#C9A86C" stroke-width="2"/>
+    <text x="390" y="86" text-anchor="middle" font-size="12.5" font-weight="700" fill="#C9A86C" font-family="Noto Sans SC">② 音频后训练</text>
+    <text x="390" y="112" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">波形 5 秒</text>
+    <text x="390" y="134" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">强调音效（VGGSound 等公开数据）</text>
+    <text x="390" y="156" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">对齐最终部署条件</text>
+    <text x="390" y="184" text-anchor="middle" font-size="10.5" fill="#C9A86C" font-family="Noto Sans SC">目标：拟音/环境声泛化</text>
+    <!-- stage 3 -->
+    <rect x="530" y="60" width="240" height="150" rx="10" fill="#1B4B6F" opacity="0.12" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="650" y="86" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">③ 融合微调</text>
+    <text x="650" y="112" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">音视频对（内部 + 公开）</text>
+    <text x="650" y="134" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">双塔联合训练</text>
+    <text x="650" y="156" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">逐层 AV 交叉注意力激活</text>
+    <text x="650" y="184" text-anchor="middle" font-size="10.5" fill="#1B4B6F" font-family="Noto Sans SC">目标：同步 + 电影级音景</text>
+    <line x1="254" y1="135" x2="276" y2="135" stroke="#5D6D7E" stroke-width="2.5" marker-end="url(#d1)"/>
+    <line x1="504" y1="135" x2="526" y2="135" stroke="#5D6D7E" stroke-width="2.5" marker-end="url(#d1)"/>
+    <text x="20" y="248" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">关键工程细节：预训练用 ≤12s、后训练用 5s，但通过 <tspan font-weight="700">scaled RoPE 统一到一套位置编码</tspan>，避免切换时长时重适配。</text>
+    <text x="20" y="272" font-size="11.5" fill="#95A5A6" font-family="Noto Sans SC">论文另述：输出统一为 5 秒、720×720、24 fps 的片段。</text>
+    <defs><marker id="d1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#5D6D7E"/></marker></defs>
+  </svg><div class="figcap"><b>图 3</b> · 三段式训练：数据时长、数据分布与优化目标逐段变化</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「先做音频专家、再做融合」的深层理由</h4>
+    <p>如果直接用音视频对训双塔，音频塔会被视频信号「带偏」：它会倾向于生成与画面**大致**匹配的声音，而放弃音质细节（因为音质对人类评分的边际贡献小于同步）。先独立训练音频能力，等于先把「发声」这个下限做高，再让融合只负责「对齐」——这避免了联合训练中最常见的<strong>模态坍塌</strong>（一个模态退化为另一个的附属）。Apollo 后来用「随机模态掩码」解决同一问题的另一条路径。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 关键公式：联合流匹配与不对称损失权重</h2>
+  <div class="formula-card"><div class="f-label">Eq.1 · 联合流匹配（两模态共享时间步）</div>
+    <div>$$ \mathcal{L}=\lambda_v\,\mathcal{L}_v+\lambda_a\,\mathcal{L}_a,\qquad \mathcal{L}_m=\mathbb{E}_{t,z_0,z_1}\big\|v_\theta^{(m)}(z_t,t)-u_t^{(m)}\big\|^2 $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>两路各自做条件流匹配，但共享同一个 <span class="kbd-term">t</span>（因为要同步）；总损失按模态加权。<br>
+    <strong>原文取值：</strong><span class="kbd-term">λ_v=0.85，λ_a=0.15</span>。这个 6:1 的悬殊比例说明：优化重心几乎全在视频质量上，音频主要靠「不拖后腿 + 对齐正确」得分。这是对「人评对视频质量更敏感」的一次直接编码。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="260" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">损失权重：85% 视频 / 15% 音频</text>
+    <rect x="60" y="70" width="680" height="56" rx="8" fill="#1B4B6F"/>
+    <rect x="60" y="70" width="578" height="56" rx="8" fill="#1B4B6F"/>
+    <rect x="638" y="70" width="102" height="56" rx="8" fill="#5A8F7B"/>
+    <text x="360" y="104" text-anchor="middle" font-size="13" font-weight="700" fill="#fff" font-family="Noto Sans SC">λ_v = 0.85（视频）</text>
+    <text x="689" y="104" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="Noto Sans SC">λ_a=0.15</text>
+    <text x="20" y="170" font-size="12" fill="#5D6D7E" font-family="Noto Sans SC">解读：这不是「音频不重要」，而是「音频的评分曲线更陡」——音质略降不易被察觉，</text>
+    <text x="20" y="194" font-size="12" fill="#5D6D7E" font-family="Noto Sans SC">但一旦失同步就非常刺眼。权重设计因此把预算倾斜到「更难在低权重下仍不出错」的视频侧。</text>
+    <text x="20" y="224" font-size="11.5" fill="#E85D4E" font-family="Noto Sans SC">↑ 这是一个可被质疑的假设：不同任务（歌唱、多人对话）应有不同权重。</text>
+  </svg><div class="figcap"><b>图 4</b> · 联合损失的两模态权重分配</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 优势与证据：人评胜出 + 统一音频塔不输专用模型</h2>
+  <p>Ovi 的证据分两块：<strong>联合生成的人评</strong>与<strong>音频塔的单模态能力</strong>。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>证据</th><th>结论</th><th>口径说明</th></tr></thead>
+    <tbody>
+      <tr><td class="route">Verse-Bench 人评（PWR）</td><td>在音频质量、视频质量、音视频同步三个维度上一致优于 JavisDiT 与 UniVerse-1</td><td>原文以图 4 给出 pairwise win rate，正文未列具体数值</td></tr>
+      <tr><td class="route">OVI-AUD（统一 T2A + TTS）</td><td>与其各自专用 SOTA 可比，而非被碾压</td><td>Table 2：T2A 指标沿用 MMAudio 协议；WER 在 Seed-TTS test-en 上为 0.035</td></tr>
+      <tr><td class="route">统一文本嵌入消融</td><td>WER 相当，FD/IS/CLAP 等保真与对齐指标改善</td><td>Table 3</td></tr>
+      <tr><td class="route">输出规格</td><td>5 秒、720×720、24 fps，含台词/音效/环境声</td><td>原文明确</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="250" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">人评三方向（定性示意，非原图数值）</text>
+    <g font-family="Noto Sans SC" font-size="11.5">
+      <text x="40" y="80" fill="#5D6D7E">音频质量</text>
+      <rect x="150" y="64" width="480" height="22" rx="4" fill="#1B4B6F" opacity="0.85"/>
+      <text x="640" y="80" fill="#1B4B6F" font-weight="700">Ovi 偏好明显更高</text>
+      <text x="40" y="130" fill="#5D6D7E">视频质量</text>
+      <rect x="150" y="114" width="420" height="22" rx="4" fill="#1B4B6F" opacity="0.75"/>
+      <text x="580" y="130" fill="#1B4B6F" font-weight="700">一致优于两个基线</text>
+      <text x="40" y="180" fill="#5D6D7E">音视频同步</text>
+      <rect x="150" y="164" width="450" height="22" rx="4" fill="#1B4B6F" opacity="0.8"/>
+      <text x="610" y="180" fill="#1B4B6F" font-weight="700">"substantial margins"</text>
+    </g>
+    <text x="20" y="222" font-size="11" fill="#95A5A6" font-family="Noto Sans SC">原文措辞：clear and consistent preference across all three dimensions；条形长度仅为示意。</text>
+  </svg><div class="figcap"><b>图 5</b> · Verse-Bench 人评三方向（示意）</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 5 秒 / 720×720 的规格，把「电影级」说早了</h4>
+    <p>摘要用「movie-grade video clips」形容输出，但实际规格是 <strong>5 秒、720×720</strong>。电影级通常意味着更长时长、更高分辨率与更强叙事一致性。这不是方法缺陷，而是<strong>措辞与规格的落差</strong>：读者应把「电影级」理解为「音画质感」而非「可直接用于影视」。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. λ_a=0.15 隐含「音频只需不拖后腿」</h4>
+    <p>6:1 的权重在通用场景合理，但对<strong>以音频为主的任务</strong>（歌唱、乐器演奏、ASMR）会系统性欠拟合——这些任务里音频质量才是主评分项。论文没有给出按任务调整权重的实验，因此这个比例更像「面向通用电影片段」的折中。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 人评是主证据，但缺自动同步指标的完整对照</h4>
+    <p>从抽取文本中没有看到系统性的 Sync-C / Sync-D 级别自动指标表（有音质类 T2A 指标与 WER）。人评固然重要，但缺少可复现的自动指标会让第三方难以横比——尤其当基线是 JavisDiT 这类同样报告同步指标的工作时。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 同构双塔的算力代价被淡化</h4>
+    <p>强制音频塔与 5B 视频塔同构，意味着音频侧参数远超其信息需求（音频 128 维/40ms 的 latent 比视频稀疏得多）。论文强调「效率」，但真正的大头是<strong>同构带来的参数浪费</strong>。LTX-2 的非对称 14:5 正相反——两条路线谁更优，缺一个同算力对照实验。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>同构 vs 非对称：在固定总算力下谁更优？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>Ovi 强制同构，LTX-2 用 14:5 非对称，两者都自称高效。缺少同算力、同数据的对照，领域无法判断哪条路更优。</p>
+      <p><strong>理论分析：</strong>设总参数 P，模态 m 的有效维度为 d_m、token 率 r_m。同构相当于强制 P_v=P_a；非对称允许 P_m ∝ r_m·d_m。若音频 latent 的信息率显著低于视频，则最优分配应偏向视频——这是一个可用率失真理论形式化的预测。</p>
+      <p><strong>连接：</strong>MOVA 观察到「audio latent 远稠密」，与此处的容量问题直接相关；Apollo 用单塔共享参数则给出第三种答案。</p>
+      <p><strong>探究方向：</strong>在 Ovi 上把音频塔宽度缩到 0.4×/0.7×，保持总参数不变，比较 Verse-Bench 三维人评与训练 FLOPs。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>逐层融合是否真的必要？融合深度的收益曲线是什么？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>Ovi 在全部 30 层插入 AV 交叉注意力，代价是 30 组额外注意力。若收益主要在浅层或深层，可大幅省算力。</p>
+      <p><strong>理论分析：</strong>可把「同步误差」按融合层深度做归因：早期层对齐局部瞬态，深层对齐语义。若同步误差的主要方差来自瞬态，则浅层融合收益更大——可用逐层消融 + onset 偏差指标验证。</p>
+      <p><strong>连接：</strong>LTX-2 也强调「贯穿深度」；MOVA 用 Bridge 而非逐层；三种深度策略构成一组天然对照。</p>
+      <p><strong>探究方向：</strong>扫描融合层 {前 1/3, 后 1/3, 中段, 全层, 仅末层}，报告 Sync 与 FD 的帕累托前沿。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>从 5 秒到分钟级，双塔结构需要怎样的状态传递？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>5 秒是训练窗口；对话与直播需要分钟级，且要求身份与音色不漂移。</p>
+      <p><strong>理论分析：</strong>把长时生成看作「窗口内扩散 + 窗口间状态」的复合映射。若状态更新算子为 T，漂移对应 T 的谱半径 > 1 的分量。设计目标即让 T 收缩。</p>
+      <p><strong>连接：</strong>Omni-LiveAvatar（分钟级流式）、Salt++（少步流式后训练）、FlowLong（滑窗融合）给出三条路线；Ovi 的 causal?（论文未明确音频 VAE 是否因果）是关键未知。</p>
+      <p><strong>探究方向：</strong>以 Ovi 为基座，接最小状态记忆（首帧特征 + 音频说话人嵌入），测量 60s 处 Face-Sim 与说话人相似度衰减。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s9" ><span class="num">09</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 双塔 blockwise 融合（依据论文 3.x 与 Table 1 重建，非官方实现）</span>
+<span class="kw">class</span> <span class="fn">TwinBlock</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, dim=<span class="st">3072</span>, heads=<span class="st">24</span>, head_dim=<span class="st">128</span>):
+        super().__init__()
+        self.v_self = Attn(dim, heads, head_dim)
+        self.a_self = Attn(dim, heads, head_dim)
+        self.v_text = CrossAttn(dim, heads, head_dim)   <span class="cm"># 共享 T5 条件</span>
+        self.a_text = CrossAttn(dim, heads, head_dim)
+        self.v_av   = CrossAttn(dim, heads, head_dim)   <span class="cm"># 视频 ← 音频</span>
+        self.a_av   = CrossAttn(dim, heads, head_dim)   <span class="cm"># 音频 ← 视频</span>
+        self.ffn_v, self.ffn_a = FFN(dim, <span class="st">14336</span>), FFN(dim, <span class="st">14336</span>)
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, v, a, text, rope_v, rope_a):
+        v = self.v_self(v, rope=rope_v);  a = self.a_self(a, rope=rope_a)
+        v = self.v_text(v, text);         a = self.a_text(a, text)
+        <span class="cm"># 双向交叉：两侧都用「对方更新前」的特征，避免信息回流</span>
+        v_new = self.v_av(v, kv=a, rope_q=rope_v, rope_k=rope_a)
+        a_new = self.a_av(a, kv=v, rope_q=rope_a, rope_k=rope_v)
+        v, a = self.ffn_v(v + v_new), self.ffn_a(a + a_new)
+        <span class="kw">return</span> v, a</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># scaled RoPE：把两模态不同时间分辨率映射到可比时间尺度（示意）</span>
+<span class="kw">def</span> <span class="fn">scaled_rope_positions</span>(n_tokens, duration_s, base_scale):
+    <span class="cm"># 视频：n_frames / duration；音频：n_audio_tokens / duration</span>
+    t_sec = torch.linspace(<span class="st">0</span>, duration_s, n_tokens)
+    <span class="kw">return</span> t_sec * base_scale          <span class="cm"># 映射到统一「物理时间坐标」</span>
+
+<span class="cm"># 训练三段式的数据规格（论文陈述）</span>
+STAGES = [
+    dict(name=<span class="st">"audio_pretrain"</span>, max_sec=<span class="st">12</span>, emphasis=<span class="st">"human speech"</span>),
+    dict(name=<span class="st">"audio_posttrain"</span>, max_sec=<span class="st">5</span>,  emphasis=<span class="st">"sound effects (VGGSound 等)"</span>),
+    dict(name=<span class="st">"fusion_finetune"</span>, max_sec=<span class="st">5</span>, emphasis=<span class="st">"joint AV"</span>),
+]
+LOSS_W = dict(lambda_v=<span class="st">0.85</span>, lambda_a=<span class="st">0.15</span>)   <span class="cm"># Eq.1</span></pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「双向」的实现细节比「双向」这个词更重要</h4>
+    <p>双向交叉注意力有两种写法：(a) 先更新视频再用<em>新</em>视频更新音频；(b) 各自用<em>对方更新前</em>的特征更新。前者让音频依赖视频的当层输出，形成隐式的单向偏置；后者才真正对称。论文强调「blockwise exchange」，工程上要落到 (b) 才符合直觉——这也是复现时最容易写错的一处。</p>
+  </div>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seedance 2.0 · 论文解读</title>
+<meta name="description" content="统一大规模多模态音视频联合生成，支持 text/image/audio/video 四模态输入与参考编辑，4–15s、480p–720p。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2026 · 模型卡</div>
+    <h1>Seedance 2.0</h1>
+    <p class="hero-tagline">面向世界复杂度的工业级多模态音视频生成</p>
+    <p class="hero-desc">统一大规模多模态音视频联合生成，支持 text/image/audio/video 四模态输入与参考编辑，4–15s、480p–720p。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Seedance 2.0"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="90" y="90" width="180" height="70" rx="12" fill="#1B4B6F" stroke="#1B4B6F" stroke-width="2"/><text x="180.0" y="131.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Video Tokens</text><rect x="90" y="250" width="180" height="70" rx="12" fill="#5A8F7B" stroke="#5A8F7B" stroke-width="2"/><text x="180.0" y="291.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Audio Tokens</text><rect x="560" y="170" width="180" height="70" rx="12" fill="#2C3E50" stroke="#2C3E50" stroke-width="2"/><text x="650.0" y="211.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Joint DiT</text><line x1="285" y1="125" x2="555" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><line x1="285" y1="285" x2="555" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><text x="410" y="150" text-anchor="middle" font-family="Noto Sans SC" font-size="15" fill="#E85D4E" font-weight="700">Joint / Cross Attention</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：工业级统一多模态音视频生成（模型卡）</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#av-foundation">av-foundation</a><span class="sep">/</span>Seedance 2.0</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 先说清楚：这是一份「模型卡」，不是技术论文</a></li><li><a href="#s2">02 能力边界：四模态输入 × 4–15 秒 × 480p/720p</a></li><li><a href="#s3">03 与前代的对比：统一架构的定位</a></li><li><a href="#s4">04 与学术工作的关系：它印证了哪些趋势</a></li><li><a href="#s5">05 批判评估：模型卡的诚实读法</a></li><li><a href="#s6">06 自主科研问题</a></li><li><a href="#s7">07 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 先说清楚：这是一份「模型卡」，不是技术论文</h2>
+  <p class="lead">Seedance 2.0 是字节跳动 Seed 在 <strong>2026 年 2 月初</strong>发布的<strong>原生多模态音视频生成模型</strong>。但这篇 arXiv 文本是它的<strong>模型卡 / 技术报告</strong>，而非常规学术论文——因此<strong>大量实现细节并未披露</strong>。本解读会诚实标注哪些是原文给出的、哪些是「论文未披露」，不脑补结构。</p>
+  <p>相对前代 Seedance 1.0 与 1.5 Pro，它采用<strong>统一、高效、大规模</strong>的多模态音视频联合生成架构，支持 <strong>text / image / audio / video 四种输入模态</strong>，可直接生成 <strong>4–15 秒</strong>、原生 <strong>480p / 720p</strong> 的音视频内容。</p>
+  <div class="critique-card"><span class="cc-tag">阅读提示</span>
+    <h4>模型卡的价值与边界</h4>
+    <p>模型卡的价值在于告诉你<strong>一个工业系统能做什么、做到什么程度</strong>；边界在于它<strong>不告诉你怎么做到</strong>。因此对它的解读，重点应放在「能力边界 + 评测结论 + 与学术工作的关系」，而非「方法创新」——后者它没说。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 能力边界：四模态输入 × 4–15 秒 × 480p/720p</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>规格（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">发布</td><td>2026 年 2 月初，中国正式发布</td></tr>
+      <tr><td class="route">输入模态</td><td>text、image、audio、video（四模态）</td></tr>
+      <tr><td class="route">输出时长</td><td>4–15 秒</td></tr>
+      <tr><td class="route">输出分辨率</td><td>480p、720p（原生）</td></tr>
+      <tr><td class="route">参考输入上限</td><td>3 视频片段、9 图像、3 音频片段</td></tr>
+      <tr><td class="route">版本</td><td>Seedance 2.0 + Seedance 2.0 Fast（低延迟）</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">四模态输入 → 统一音视频生成</text>
+    <!-- inputs -->
+    <rect x="40" y="60" width="110" height="44" rx="9" fill="#1B4B6F"/><text x="95" y="87" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Text</text>
+    <rect x="40" y="116" width="110" height="44" rx="9" fill="#5A8F7B"/><text x="95" y="143" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Image</text>
+    <rect x="40" y="172" width="110" height="44" rx="9" fill="#C9A86C"/><text x="95" y="199" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Audio</text>
+    <rect x="40" y="228" width="110" height="44" rx="9" fill="#E85D4E"/><text x="95" y="255" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Video</text>
+    <!-- engine -->
+    <rect x="230" y="110" width="240" height="110" rx="12" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="350" y="150" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">统一多模态架构</text>
+    <text x="350" y="176" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">（结构未披露）</text>
+    <text x="350" y="198" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">highly efficient · large-scale</text>
+    <g stroke="#95A5A6" stroke-width="2">
+      <line x1="152" y1="82" x2="226" y2="130"/><line x1="152" y1="138" x2="226" y2="150"/>
+      <line x1="152" y1="194" x2="226" y2="180"/><line x1="152" y1="250" x2="226" y2="200"/>
+    </g>
+    <!-- output -->
+    <rect x="530" y="110" width="230" height="110" rx="12" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="645" y="146" text-anchor="middle" font-size="11.5" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">音视频输出</text>
+    <text x="645" y="172" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">4–15 秒 · 480p/720p</text>
+    <text x="645" y="196" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">含语音 / 音效 / 音乐</text>
+    <line x1="472" y1="165" x2="526" y2="165" stroke="#5A8F7B" stroke-width="2.5" marker-end="url(#y1)"/>
+    <defs><marker id="y1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#5A8F7B"/></marker></defs>
+  </svg><div class="figcap"><b>图 1</b> · 四模态输入 → 统一架构 → 音视频输出（架构细节未披露）</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 与前代的对比：统一架构的定位</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">相对 Seedance 1.0 / 1.5 Pro</div><div class="dd">采用<strong>统一</strong>架构做多模态音视频联合生成。<span class="alt">前代可能偏视频或多阶段；2.0 强调「原生联合」。</span></div></div>
+    <div class="def-item"><div class="dt">统一的意义</div><div class="dd">四模态输入 + 音视频联合输出，能力面更广。<span class="alt">与 Apollo 的单塔多任务、JavisDiT++ 的统一建模同一趋势。</span></div></div>
+    <div class="def-item"><div class="dt">Fast 版本</div><div class="dd">提供 <strong>Seedance 2.0 Fast</strong>，面向低延迟场景。<span class="alt">与 OmniForcing / Salt++ / LeapTalk 的「实时化」是同一产品诉求。</span></div></div>
+    <div class="def-item"><div class="dt">开放平台能力</div><div class="dd">支持多参考（3 视频 / 9 图像 / 3 音频）用于参考与编辑。<span class="alt">多模态参考编辑是工业产品的重要能力，学术工作较少覆盖。</span></div></div>
+  </div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>工业模型卡揭示了「产品侧真正需要什么」</h4>
+    <p>学术论文追求方法新颖；工业模型卡暴露的是<strong>需求</strong>：多模态参考（3 视频/9 图像/3 音频）、低延迟版本（Fast）、4–15 秒的实用时长、480p/720p 的实用分辨率。这些规格比「又提升 2 个点」更能说明行业要什么。读模型卡，重点看<em>规格与边界</em>——它们是真实需求的投影。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 与学术工作的关系：它印证了哪些趋势</h2>
+  <div class="figure"><svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="280" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">Seedance 2.0 印证的三个趋势</text>
+    <rect x="30" y="60" width="235" height="140" rx="11" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="147" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">① 联合生成</text>
+    <text x="48" y="118" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">原生音视频联合，</text>
+    <text x="48" y="142" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">而非级联</text>
+    <text x="48" y="172" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">对应本门户多数工作</text>
+    <rect x="282" y="60" width="235" height="140" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="399" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">② 多模态输入</text>
+    <text x="300" y="118" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">text/image/audio/video</text>
+    <text x="300" y="142" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">四模态参考</text>
+    <text x="300" y="172" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">对应 Apollo 的多任务统一</text>
+    <rect x="534" y="60" width="235" height="140" rx="11" fill="#C9A86C" opacity="0.14" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="651" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">③ 实时/低延迟</text>
+    <text x="552" y="118" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">Fast 版本面向</text>
+    <text x="552" y="142" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">低延迟场景</text>
+    <text x="552" y="172" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">对应 OmniForcing/Salt++/LeapTalk</text>
+    <text x="30" y="238" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">工业产品的三个方向，与学术前沿的研究方向高度重合 —— 说明这些方向不是「论文需求」，而是真实需求。</text>
+  </svg><div class="figcap"><b>图 2</b> · Seedance 2.0 印证的三个趋势：联合、多模态、实时</div></div>
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">规格即需求：模型卡暴露的三个产品诉求</text>
+    <rect x="30" y="60" width="235" height="110" rx="11" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="147" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">多模态参考</text>
+    <text x="48" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">3 视频 / 9 图像 / 3 音频</text>
+    <text x="48" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">参考 + 编辑</text>
+    <rect x="282" y="60" width="235" height="110" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="399" y="88" text-anchor="middle" size="12" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">低延迟版本</text>
+    <text x="300" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">Seedance 2.0 Fast</text>
+    <text x="300" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">面向低延迟场景</text>
+    <rect x="534" y="60" width="235" height="110" rx="11" fill="#C9A86C" opacity="0.14" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="651" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">实用时长/分辨率</text>
+    <text x="552" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">4–15 秒 · 480p/720p</text>
+    <text x="552" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">产品级而非实验室级</text>
+    <text x="30" y="208" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">→ 「15 秒不够」指向长时生成；「Fast」指向实时化；「多参考」指向多模态控制。</text>
+  </svg><div class="figcap"><b>图 3</b> · 规格即需求：模型卡暴露的三个产品诉求</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「规格」是被翻译过的「需求」</h4>
+    <p>模型卡不写「用户需要什么」，但规格会替它写：为什么是 4–15 秒？因为短视频/广告的实用长度。为什么需要 Fast？因为交互场景等不起。为什么支持 3 视频/9 图像参考？因为创作需要多素材控制。<em>读懂规格背后的动机，比记住参数更有用</em>——它告诉你下一个值得做的研究是什么。</p>
+  </div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 「对标 Veo 3 / Sora 2」类结论缺受控评测</h4>
+    <p>模型卡常给「与领先模型相当」的表述，但缺公开提示集、评分细则与样本量。这类结论不可复现，应读作「在作者设定下不落下风」。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 批判评估：模型卡的诚实读法</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 架构细节「未披露」，因此无从评判创新性</h4>
+    <p>统一架构、音视频联合、四模态输入都是<strong>能力描述</strong>，而非<strong>机制描述</strong>。它究竟用单塔还是双塔、如何对齐、如何训练，全部未说。所以「Seedance 2.0 创新在哪」这个问题，从模型卡得不到答案——只能知道「它能做到」。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 4–15 秒 / 480p-720p 的规格是「产品选择」而非「能力上限」</h4>
+    <p>这些是开放平台支持的规格，未必是模型的能力上限。把它们当作技术极限是误读。同时也提示：对直播/长视频需求，15 秒仍不足。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 评测结论的可复现性接近于零</h4>
+    <p>模型卡的评测通常在内部数据、内部人评上做，第三方无法复现。这是所有闭源模型卡的共性，不应据此下「优于 X」的强结论。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 与学术工作难以直接比较</h4>
+    <p>因评测口径、数据、指标均不公开，Seedance 2.0 与 JavisDiT、MOVA、LTX-2 等无法公平对比。它的价值是「行业标杆的存在」，而非「可比的技术指标」。</p></div>
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">模型卡 vs 技术论文：信息披露的差别</text>
+    <rect x="30" y="60" width="355" height="110" rx="11" fill="#95A5A6" opacity="0.12" stroke="#95A5A6" stroke-width="1.5"/>
+    <text x="207" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#5D6D7E" font-family="Noto Sans SC">模型卡（Seedance 2.0）</text>
+    <text x="48" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">✓ 能力、规格、边界</text>
+    <text x="48" y="140" font-size="11" fill="#E85D4E" font-family="Noto Sans SC">✗ 架构、训练、消融</text>
+    <rect x="415" y="60" width="355" height="110" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="592" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">技术论文（如 JavisDiT）</text>
+    <text x="433" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">✓ 方法、公式、消融、基准</text>
+    <text x="433" y="140" font-size="11" fill="#5A8F7B" font-family="Noto Sans SC">✓ 可复现（理想情况）</text>
+    <text x="30" y="212" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">读法：模型卡看「能不能、多强」；论文看「怎么做、为何有效」。两者互补，不可互相替代。</text>
+  </svg><div class="figcap"><b>图 3</b> · 模型卡与技术论文的信息披露边界</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>工业模型卡能否成为「能力评测」的可信参照？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>闭源模型卡的结论无法复现。若要用它作行业参照，需要怎样的评测协议？</p>
+      <p><strong>理论分析：</strong>可设计「盲测协议」：由第三方提供统一提示集与评分细则，各模型匿名生成，人评打分。这消除厂商自评的偏差。</p>
+      <p><strong>连接：</strong>AVC-Benchmark 的「人类上界 + pairwise accuracy」是可借鉴的严谨协议。</p>
+      <p><strong>探究方向：</strong>组织跨厂商盲测，比较 Seedance 2.0 与开源模型（LTX-2、MOVA 等）。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>「Fast 版本」的延迟-质量权衡曲线是什么形状？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>Seedance 2.0 Fast 说明低延迟是刚需，但权衡曲线未公开。曲线形状决定「多少延迟换多少质量」。</p>
+      <p><strong>理论分析：</strong>可假设延迟-质量满足边际递减：初始提速损失质量小，越往实时端损失越大。这与 LeapTalk 观察到的权衡曲线一致。</p>
+      <p><strong>连接：</strong>LeapTalk 用 bridge 跳出权衡曲线；若 Seedance 2.0 的曲线仍为传统形状，说明它未解决根本权衡。</p>
+      <p><strong>探究方向：</strong>在多个延迟档位测质量，拟合曲线并与 LeapTalk 的跳出点对比。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>四模态参考输入，是否引入「条件冲突」问题？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>同时给 text/image/audio/video 参考，若它们相互矛盾（如图像说 A、音频说 B），模型如何裁决？</p>
+      <p><strong>理论分析：</strong>可把条件冲突建模为多信号的贝叶斯融合：各模态条件的置信度决定权重。冲突时应有明确的优先级或融合规则。</p>
+      <p><strong>连接：</strong>MiniMax-H3 的「多模态整合失败」正是这类问题的体现（音频消歧弱）。</p>
+      <p><strong>探究方向：</strong>构造条件冲突的提示，测模型的裁决行为与稳定性。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Seedance 2.0 的能力规格（据模型卡整理，非官方实现）</span>
+SEEDANCE_2 = dict(
+    released=<span class="st">"2026-02 (China)"</span>,
+    input_modalities=[<span class="st">"text"</span>, <span class="st">"image"</span>, <span class="st">"audio"</span>, <span class="st">"video"</span>],
+    output_duration_s=(<span class="st">4</span>, <span class="st">15</span>),
+    output_res=[<span class="st">"480p"</span>, <span class="st">"720p"</span>],
+    max_reference=dict(video_clips=<span class="st">3</span>, images=<span class="st">9</span>, audio_clips=<span class="st">3</span>),
+    variants=[<span class="st">"Seedance 2.0"</span>, <span class="st">"Seedance 2.0 Fast"</span>],
+    architecture=<span class="st">"undisclosed"</span>,   <span class="cm"># 未披露，勿臆造</span>
+)</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 四模态条件融合（示意：模型卡未给机制，此为通用假设）</span>
+<span class="kw">def</span> <span class="fn">fuse_conditions</span>(conds, confidences):
+    <span class="cm"># conds = {"text":..., "image":..., "audio":..., "video":...}</span>
+    w = softmax(confidences)                <span class="cm"># 各模态置信度 → 权重</span>
+    fused = sum(w[k] * encode(k, conds[k]) <span class="kw">for</span> k <span class="kw">in</span> conds)
+    <span class="kw">return</span> fused                            <span class="cm"># 模型卡未说明实际融合方式</span></pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>模型卡是「需求地图」，不是「方法地图」</h4>
+    <p>把 Seedance 2.0 当论文读会失望（没有方法），当<strong>需求地图</strong>读则收获很大：它告诉你行业要「四模态参考、低延迟、4–15 秒、480p/720p、音视频联合」。这些规格反推学术研究的选题价值——比如「15 秒不够」直接指向长时生成（VDN、FlowLong、Omni-LiveAvatar），「Fast 版本」直接指向实时化（OmniForcing、Salt++、LeapTalk）。<em>用模型卡校准研究方向，比追着论文跑更前瞻。</em></p>
+  </div>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

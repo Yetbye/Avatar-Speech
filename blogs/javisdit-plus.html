@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JavisDiT++ · 论文解读</title>
+<meta name="description" content="在 JavisDiT 谱系上推进统一建模与优化，统一刻画音视频联合生成的训练与推理。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">ICLR 2026 · 正式论文</div>
+    <h1>JavisDiT++</h1>
+    <p class="hero-tagline">统一建模 × 统一优化：把音视频联合生成做到一处</p>
+    <p class="hero-desc">在 JavisDiT 谱系上推进统一建模与优化，统一刻画音视频联合生成的训练与推理。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="JavisDiT++"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="90" y="90" width="180" height="70" rx="12" fill="#1B4B6F" stroke="#1B4B6F" stroke-width="2"/><text x="180.0" y="131.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Video Tokens</text><rect x="90" y="250" width="180" height="70" rx="12" fill="#5A8F7B" stroke="#5A8F7B" stroke-width="2"/><text x="180.0" y="291.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Audio Tokens</text><rect x="560" y="170" width="180" height="70" rx="12" fill="#2C3E50" stroke="#2C3E50" stroke-width="2"/><text x="650.0" y="211.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Joint DiT</text><line x1="285" y1="125" x2="555" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><line x1="285" y1="285" x2="555" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><text x="410" y="150" text-anchor="middle" font-family="Noto Sans SC" font-size="15" fill="#E85D4E" font-weight="700">Joint / Cross Attention</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：统一建模与优化（Joint AV）</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#av-foundation">av-foundation</a><span class="sep">/</span>JavisDiT++</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂：一个「简洁但强大」的统一建模与优化框架</a></li><li><a href="#s2">02 MS-MoE：模态专属混合专家</a></li><li><a href="#s3">03 架构研究：把 Wan2.1-T2V 适配成联合生成</a></li><li><a href="#s4">04 关键公式（示意性形式化）</a></li><li><a href="#s5">05 优势与证据</a></li><li><a href="#s6">06 批判评估</a></li><li><a href="#s7">07 自主科研问题</a></li><li><a href="#s8">08 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂：一个「简洁但强大」的统一建模与优化框架</h2>
+  <p class="lead">JavisDiT++（<strong>ICLR 2026</strong>）延续 JavisDiT 谱系，目标是把联合音视频生成（JAVG）的<strong>建模与优化统一起来</strong>。它自称「concise yet powerful」，核心设计是一个 <strong>模态专属混合专家（MS-MoE）</strong>：在保持跨模态交互效率的同时，让每个模态有自己的专家路径。它还系统研究了「如何把 Wan2.1-T2V 适配到联合音视频生成」的架构设计。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>MS-MoE 是「统一」与「分工」的折中解</h4>
+    <p>联合生成面临一个根本张力：<strong>完全共享</strong>（Apollo 单塔）表达力受限，<strong>完全分开</strong>（Ovi 双塔）同步靠融合。MS-MoE 给出第三条路——<strong>共享路由 + 模态专属专家</strong>：既让模态在关键计算上分工（各走各的专家），又让它们在路由层面交互。这与「共享语义、分工渲染」的模式（JAVIS）精神一致，只是把分工点放在了专家层。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> MS-MoE：模态专属混合专家</h2>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">MS-MoE：共享路由 + 模态专属专家</text>
+    <!-- input -->
+    <rect x="40" y="80" width="130" height="46" rx="9" fill="#C9A86C"/><text x="105" y="108" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">token（含模态）</text>
+    <!-- router -->
+    <rect x="230" y="80" width="140" height="46" rx="9" fill="#E85D4E" opacity="0.18" stroke="#E85D4E" stroke-width="2"/>
+    <text x="300" y="108" text-anchor="middle" font-size="11" fill="#E85D4E" font-family="Noto Sans SC">共享 Router</text>
+    <!-- experts -->
+    <rect x="450" y="52" width="160" height="46" rx="9" fill="#1B4B6F"/><text x="530" y="80" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">视频专家</text>
+    <rect x="450" y="112" width="160" height="46" rx="9" fill="#5A8F7B"/><text x="530" y="140" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">音频专家</text>
+    <rect x="450" y="172" width="160" height="46" rx="9" fill="#5D6D7E"/><text x="530" y="200" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">共享专家</text>
+    <!-- output -->
+    <rect x="660" y="112" width="110" height="46" rx="9" fill="#1B4B6F" opacity="0.16" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="715" y="140" text-anchor="middle" font-size="11" fill="#1B4B6F" font-family="Noto Sans SC">融合输出</text>
+    <line x1="172" y1="103" x2="226" y2="103" stroke="#95A5A6" stroke-width="2" marker-end="url(#u1)"/>
+    <line x1="372" y1="92" x2="446" y2="76" stroke="#E85D4E" stroke-width="2" marker-end="url(#u1)"/>
+    <line x1="372" y1="103" x2="446" y2="134" stroke="#E85D4E" stroke-width="2" marker-end="url(#u1)"/>
+    <line x1="372" y1="114" x2="446" y2="192" stroke="#E85D4E" stroke-width="2" marker-end="url(#u1)"/>
+    <line x1="612" y1="135" x2="656" y2="135" stroke="#1B4B6F" stroke-width="2" marker-end="url(#u1)"/>
+    <!-- comparison -->
+    <text x="40" y="252" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">对比：</text>
+    <text x="110" y="252" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">单塔（全共享）→ 表达力受限</text>
+    <text x="430" y="252" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">双塔（全分开）→ 同步靠融合</text>
+    <text x="40" y="280" font-size="11" fill="#5A8F7B" font-family="Noto Sans SC">MS-MoE：路由层交互 + 专家层分工 → 兼顾表达与同步</text>
+    <defs><marker id="u1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#95A5A6"/></marker></defs>
+  </svg><div class="figcap"><b>图 1</b> · MS-MoE：共享路由 + 模态专属专家，介于单塔与双塔之间</div></div>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">模态专属专家</div><div class="dd">视频与音频各有专属专家，负责模态特化计算。<span class="alt">避免「一个专家硬学两种信号」的表达力浪费。</span></div></div>
+    <div class="def-item"><div class="dt">共享 Router</div><div class="dd">路由层让模态信息交互，决定 token 走哪个专家。<span class="alt">交互效率高（不需每层全注意力）。</span></div></div>
+    <div class="def-item"><div class="dt">跨模态效率</div><div class="dd">原文强调 MS-MoE 在保持<strong>跨模态交互有效性</strong>的同时提升效率。<span class="alt">相比全注意力（Apollo）省算力，相比逐层融合（Ovi）更灵活。</span></div></div>
+    <div class="def-item"><div class="dt">统一建模</div><div class="dd">同一框架下做建模与优化的统一。<span class="alt">「简洁但强大」的设计哲学。</span></div></div>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 架构研究：把 Wan2.1-T2V 适配成联合生成</h2>
+  <p>这篇论文的一个实用贡献是系统回答了「如何把一个现成的 T2V 模型改成联合音视频生成」。原文 Table 2 对若干架构设计做了消融，度量三个维度：<strong>Quality / Consistency / Synchrony</strong>（对应 FVD / FAD / TV-IB / TA-IB 等指标）。</p>
+  <div class="figure"><svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="280" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">适配 Wan2.1-T2V → 联合音视频生成：三个度量维度</text>
+    <rect x="30" y="60" width="235" height="130" rx="11" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="147" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">Quality</text>
+    <text x="48" y="118" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">生成质量</text>
+    <text x="48" y="142" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">FVD / FAD</text>
+    <rect x="282" y="60" width="235" height="130" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="399" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">Consistency</text>
+    <text x="300" y="118" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">音画内容一致</text>
+    <text x="300" y="142" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">TV-IB / TA-IB</text>
+    <rect x="534" y="60" width="235" height="130" rx="11" fill="#C9A86C" opacity="0.14" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="651" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">Synchrony</text>
+    <text x="552" y="118" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">时间同步</text>
+    <text x="552" y="142" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">同步专用指标</text>
+    <text x="30" y="228" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">三个维度常相互牵制：提升同步可能降质量，反之亦然。架构选择的本质是找帕累托最优。</text>
+    <text x="30" y="256" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">注：Table 2 为架构消融，具体数值以原文为准。</text>
+  </svg><div class="figcap"><b>图 2</b> · 适配架构消融的三个度量维度：质量 / 一致性 / 同步</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「适配研究」是连接研究界与工程界的桥</h4>
+    <p>很多论文只提「我们的架构更好」，却不回答「如果你想在现有 T2V 上做，该怎么改」。JavisDiT++ 的架构消融正是回答后者——它把「哪些设计真的有用」量化出来，让工程师不必从零试错。这类「适配指南」类贡献实用价值很高，但常被学术评价低估。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 关键公式（示意性形式化）</h2>
+  <div class="formula-card"><div class="f-label">Eq.1 · MS-MoE 的路由（示意）</div>
+    <div>$$ y = \sum_{m \in \{v,a,s\}} g_m(x)\cdot E_m(x), \qquad g = \text{Softmax}(\text{Router}(x)) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>每个 token 经<em>共享路由器</em> g 决定走视频专家 E_v、音频专家 E_a 或共享专家 E_s，输出加权和。<br>
+    <strong>注意：</strong>此式为按 MoE 范式的<em>示意性形式化</em>；原文的路由设计（是否 top-k、专家数）需查原文。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.2 · 三维度权衡（示意）</div>
+    <div>$$ \mathcal{L} = \lambda_q \mathcal{L}_{\text{quality}} + \lambda_c \mathcal{L}_{\text{consistency}} + \lambda_s \mathcal{L}_{\text{sync}} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>三个度量维度各有权重，架构选择影响三者的帕累托前沿。<span class="kbd-term">λ</span> 反映应用取向（如直播更看重同步）。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 优势与证据</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>结论（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">主结果</td><td>Table 1（JavisBench，240p4s）：报 11 个指标中的 7 个</td></tr>
+      <tr><td class="route">规模</td><td>JavisBench 10,140 条主实验 + JavisBench-mini 1,000 条消融</td></tr>
+      <tr><td class="route">架构消融</td><td>Table 2：适配 Wan2.1-T2V 的多种设计（Quality/Consistency/Synchrony）</td></tr>
+      <tr><td class="route">设计</td><td>MS-MoE 兼顾跨模态交互有效性与效率</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">JavisDiT++ 的「统一」体现在哪</text>
+    <rect x="30" y="60" width="355" height="120" rx="11" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="207" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">建模统一</text>
+    <text x="48" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">MS-MoE：共享路由 + 专属专家</text>
+    <text x="48" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">→ 一个框架覆盖两模态</text>
+    <rect x="415" y="60" width="355" height="120" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="592" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">优化统一</text>
+    <text x="433" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">建模与优化在同一框架内</text>
+    <text x="433" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">→ 不需分别调</text>
+    <text x="30" y="212" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">「concise yet powerful」：简洁是设计目标，不是偷懒。</text>
+  </svg><div class="figcap"><b>图 3</b> · 建模统一与优化统一</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 「concise」缺少效率数字支撑</h4>
+    <p>自称简洁高效，但抽取文本未见明确的参数量/延迟/吞吐对比。若无效率数字，「简洁」只是定性说法。相对 LTX-2（18× 加速）、VDN（3.38×），本文的效率主张需更硬的数据。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 只报 11 个指标中的 7 个</h4>
+    <p>原文称「for efficiency, we report 7 out of the 11 full metrics」。选择性报告可能隐藏不利维度。理想做法是全部报告，或说明被省略的 4 个为何不重要。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 与前身 JavisDiT 的提升幅度需明确</h4>
+    <p>同系列工作，JavisDiT++ 相对 JavisDiT 的增量贡献应清晰量化。若提升主要来自更细的调参而非 MS-MoE，则「统一框架」的贡献被高估。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. MoE 的训练稳定性与路由坍塌未讨论</h4>
+    <p>MoE 常见问题是路由坍塌（所有 token 挤到一个专家）。模态专属专家有一定缓解（天然分工），但共享专家仍可能被冷落。需报告各专家的负载分布。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>专家数与模态数该如何配比？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>MS-MoE 用视频/音频/共享专家。若细分（如音频再分语音/音效），收益如何？</p>
+      <p><strong>理论分析：</strong>专家数应与「模态内部的子分布数」匹配。音频含语音、音效、音乐三种，用单一音频专家可能欠拟合。可用聚类估计最优专家数。</p>
+      <p><strong>连接：</strong>Soundwich 的多声源分轨是「按声源分专家」的极端化；两者构成粒度光谱。</p>
+      <p><strong>探究方向：</strong>扫描音频专家数（1/2/4），测语音、音效、音乐各维度的生成质量。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>MoE 的路由能否承担「同步对齐」的功能？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>路由决定 token 走哪个专家，但未显式考虑同步。若把「同步对齐」编码进路由，是否更好？</p>
+      <p><strong>理论分析：</strong>可把路由扩展为「带时间感知」的路由：同时匹配模态与时间片，使同一事件的音视频 token 走同一专家。</p>
+      <p><strong>连接：</strong>JavisDiT 的 HiST-Sypo 显式估计同步先验；若把先验接入路由，是两条路线的融合。</p>
+      <p><strong>探究方向：</strong>对比普通路由与时间感知路由，测同步指标的提升。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>「适配研究」的结论能否跨骨干泛化？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>架构消融在 Wan2.1-T2V 上做。这些结论对 LTX-2、Wan2.2 等其他骨干是否成立？</p>
+      <p><strong>理论分析：</strong>若架构设计的收益来自「通用的模态分工原理」，则应跨骨干泛化；若来自「Wan2.1 的特定结构」，则不普适。可做跨骨干验证。</p>
+      <p><strong>连接：</strong>OmniForcing 用 LTX-2 作教师、MOVA 用 Wan2.2——不同骨干的选择影响结论迁移。</p>
+      <p><strong>探究方向：</strong>在 2-3 个骨干上重跑关键消融，测结论一致性。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># MS-MoE：共享路由 + 模态专属专家（示意，非官方实现）</span>
+<span class="kw">class</span> <span class="fn">MSMoE</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, dim):
+        super().__init__()
+        self.router   = nn.Linear(dim, <span class="st">3</span>)   <span class="cm"># 视频/音频/共享</span>
+        self.exp_v    = Expert(dim)          <span class="cm"># 视频专家</span>
+        self.exp_a    = Expert(dim)          <span class="cm"># 音频专家</span>
+        self.exp_shared = Expert(dim)        <span class="cm"># 共享专家</span>
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x, modality):
+        g = F.softmax(self.router(x), dim=-<span class="st">1</span>)   <span class="cm"># 共享路由</span>
+        out = g[...,<span class="st">0</span>:<span class="st">1</span>]*self.exp_v(x) + g[...,<span class="st">1</span>:<span class="st">2</span>]*self.exp_a(x) + g[...,<span class="st">2</span>:<span class="st">3</span>]*self.exp_shared(x)
+        <span class="kw">return</span> out</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 三维度权衡（对应原文 Table 2 的架构消融口径）</span>
+METRICS = dict(
+    quality     = [<span class="st">"FVD"</span>, <span class="st">"FAD"</span>],
+    consistency = [<span class="st">"TV-IB"</span>, <span class="st">"TA-IB"</span>],
+    synchrony   = [<span class="st">"sync-metric"</span>],
+)
+<span class="cm"># 评测设置（原文）：JavisBench 10,140 主实验 / JavisBench-mini 1,000 消融，240p 4s</span>
+BENCH = dict(main=<span class="st">10140</span>, ablation=<span class="st">1000</span>, res=<span class="st">"240p"</span>, dur=<span class="st">"4s"</span>)</pre>
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">三种联合架构的「交互效率 vs 表达力」位置</text>
+    <!-- axes -->
+    <line x1="110" y1="185" x2="740" y2="185" stroke="#5D6D7E" stroke-width="2"/>
+    <line x1="110" y1="185" x2="110" y2="55" stroke="#5D6D7E" stroke-width="2"/>
+    <text x="425" y="215" text-anchor="middle" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">跨模态交互效率（越右越省算力）</text>
+    <text x="78" y="120" text-anchor="middle" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC" transform="rotate(-90 78 120)">模态表达力</text>
+    <!-- single tower -->
+    <circle cx="200" cy="80" r="11" fill="#1B4B6F"/>
+    <text x="216" y="76" font-size="11" fill="#1B4B6F" font-family="Noto Sans SC">单塔（Apollo）</text>
+    <text x="216" y="94" font-size="9.5" fill="#95A5A6" font-family="Noto Sans SC">表达受限、全注意力</text>
+    <!-- dual tower -->
+    <circle cx="330" cy="120" r="11" fill="#C9A86C"/>
+    <text x="346" y="116" font-size="11" fill="#A67C3D" font-family="Noto Sans SC">双塔（Ovi）</text>
+    <text x="346" y="134" font-size="9.5" fill="#95A5A6" font-family="Noto Sans SC">表达强、逐层融合</text>
+    <!-- MS-MoE -->
+    <circle cx="560" cy="92" r="12" fill="#5A8F7B"/>
+    <text x="578" y="88" font-size="11.5" fill="#5A8F7B" font-family="Noto Sans SC" font-weight="700">MS-MoE（JavisDiT++）</text>
+    <text x="578" y="106" font-size="9.5" fill="#95A5A6" font-family="Noto Sans SC">兼顾表达与效率</text>
+    <!-- pareto -->
+    <path d="M 200 80 Q 380 96 560 92" fill="none" stroke="#95A5A6" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="360" y="160" text-anchor="middle" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">帕累托前沿（示意）</text>
+  </svg><div class="figcap"><b>图 4</b> · 三种架构在「交互效率 × 表达力」空间的定位（示意）</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「简洁」的真正含义：用更少的机制覆盖同样的能力</h4>
+    <p>好的「简洁」不是功能少，而是<strong>机制少、覆盖广</strong>。MS-MoE 用一个路由机制同时处理「模态分工」与「跨模态交互」，比单塔的全注意力、双塔的逐层融合都更省机制。但「简洁」必须有证据——这正是批判 #1 指出的缺口：没有效率数字，简洁只是口号。这也提醒评价工作时：<em>看它省了什么、付了什么，而不是看它自夸什么</em>。</p>
+  </div>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

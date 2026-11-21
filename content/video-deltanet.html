@@ -1,0 +1,238 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂：直播要的是「越长越划算」的注意力</h2>
+  <p class="lead">直播视频生成与普通视频生成有一个结构性差别：<strong>时长是开放的</strong>。普通生成里，注意力代价随长度平方增长还能忍；直播里时间越长，差距被放大到不可接受。Video DeltaNet（VDN）的主张是：用 <strong>局部 Softmax 注意力 + 双向线性记忆</strong>的混合结构，让长上下文的效率优势随视频时长<em>增长</em>。</p>
+  <p>它的核心组件叫 <strong>Video Delta Attention（VDA）</strong>：每帧更新一次记忆，用「联合求解相关空间写入」的方式更新，并保持<strong>非扩张的继承状态转移</strong>（non-expansive inherited-state transition）——最后这几个字很关键，后面会解释它为什么重要。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「直播」改变了优化目标：不是画质第一，而是「时长×画质」第一</h4>
+    <p>短视频生成里可以把全部算力砸在每一帧上。直播里算力预算是<em>常数每秒</em>，所以目标函数变成「在固定每秒算力下最大化质量」。VDN 的所有设计（混合注意力、每帧一次记忆更新、few-step）都在服务这个目标。这与 LeapTalk 讲的「延迟–质量权衡」是同一个问题的两种表述。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 范式定位：为什么 Dense Attention 在直播里必然失败</h2>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="320" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">注意力代价随视频时长的增长（示意）</text>
+    <!-- axes -->
+    <line x1="80" y1="250" x2="740" y2="250" stroke="#5D6D7E" stroke-width="2"/>
+    <line x1="80" y1="250" x2="80" y2="60" stroke="#5D6D7E" stroke-width="2"/>
+    <text x="410" y="282" text-anchor="middle" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">视频时长（秒）</text>
+    <text x="52" y="155" text-anchor="middle" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC" transform="rotate(-90 52 155)">注意力延迟</text>
+    <!-- quadratic -->
+    <path d="M 80 246 Q 320 240 500 180 T 720 70" fill="none" stroke="#95A5A6" stroke-width="3"/>
+    <text x="640" y="70" font-size="11" fill="#95A5A6" font-family="Noto Sans SC">Dense（二次增长）</text>
+    <!-- linear -->
+    <path d="M 80 246 L 720 176" fill="none" stroke="#5A8F7B" stroke-width="3"/>
+    <text x="560" y="170" font-size="11" fill="#5A8F7B" font-family="Noto Sans SC">VDN 混合（近线性）</text>
+    <!-- markers from paper -->
+    <g fill="#E85D4E">
+      <circle cx="220" cy="238" r="5"/><circle cx="360" cy="222" r="5"/><circle cx="500" cy="196" r="5"/><circle cx="640" cy="152" r="5"/>
+    </g>
+    <text x="228" y="232" font-size="10" fill="#E85D4E" font-family="JetBrains Mono,monospace">1.77×</text>
+    <text x="368" y="216" font-size="10" fill="#E85D4E" font-family="JetBrains Mono,monospace">2.57×</text>
+    <text x="508" y="190" font-size="10" fill="#E85D4E" font-family="JetBrains Mono,monospace">3.38×</text>
+    <text x="20" y="310" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">原文实测：14.3s / 768p 下，VDN 相对 Dense H3 的加速比随视频时长从 1.77× 增到 3.38×（B200，50 NFE）。曲线为示意。</text>
+  </svg><div class="figcap"><b>图 1</b> · Dense 注意力的二次增长 vs VDN 的近线性增长；加速比随时长扩大</div></div>
+  <p>这个「加速比扩大」的性质比某个固定加速数字更有价值：它意味着<strong>模型的适用范围被改变了</strong>，而不只是「更快一点」。如果一个加速比是固定的 3×，那它只是工程优化；如果是 1.77× → 3.38×，说明它把「不可行的时长」变成了「可行」。</p>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> 混合注意力：局部 Softmax + 双向线性记忆</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">局部 Softmax 分支</div><div class="dd">负责<strong>短程、精确</strong>的时空对应（相邻帧的细节连续性）。<span class="alt">Softmax 注意力精确但贵，只用在局部窗内。</span></div></div>
+    <div class="def-item"><div class="dt">线性记忆分支</div><div class="dd">负责<strong>长程</strong>视频上下文（几十秒前的场景/角色状态）。<span class="alt">线性注意力代价近线性，但表达力受限——这正是 VDA 要优化的点。</span></div></div>
+    <div class="def-item"><div class="dt">Video Delta Attention（VDA）</div><div class="dd">记忆<strong>每帧更新一次</strong>，通过「联合求解相关空间写入」处理同一帧内多个相关写入。<span class="alt">朴素做法是逐 token 加性更新，但那会把同一帧的多个写入互相覆盖/冲突。</span></div></div>
+    <div class="def-item"><div class="dt">非扩张状态转移</div><div class="dd">继承状态的转移函数保持<strong>非扩张</strong>（不放大误差）。<span class="alt">这是长时稳定的关键：若转移是扩张的，长视频的记忆会指数发散（身份漂移的数学根源）。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="330" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">VDN 的混合注意力：双分支分工</text>
+    <!-- frame timeline -->
+    <g font-family="JetBrains Mono,monospace" font-size="10">
+      <rect x="60" y="60" width="44" height="30" rx="4" fill="#1B4B6F"/><text x="82" y="80" text-anchor="middle" fill="#fff">f0</text>
+      <rect x="112" y="60" width="44" height="30" rx="4" fill="#1B4B6F"/><text x="134" y="80" text-anchor="middle" fill="#fff">f1</text>
+      <rect x="164" y="60" width="44" height="30" rx="4" fill="#1B4B6F"/><text x="186" y="80" text-anchor="middle" fill="#fff">f2</text>
+      <rect x="216" y="60" width="44" height="30" rx="4" fill="#1B4B6F"/><text x="238" y="80" text-anchor="middle" fill="#fff">f3</text>
+      <rect x="268" y="60" width="44" height="30" rx="4" fill="#1B4B6F"/><text x="290" y="80" text-anchor="middle" fill="#fff">f4</text>
+      <rect x="320" y="60" width="44" height="30" rx="4" fill="#1B4B6F"/><text x="342" y="80" text-anchor="middle" fill="#fff">f5</text>
+    </g>
+    <text x="390" y="80" font-size="11" fill="#95A5A6" font-family="Noto Sans SC">→ 时长可无限延伸</text>
+    <!-- local branch -->
+    <text x="30" y="130" font-size="11.5" fill="#1B4B6F" font-family="Noto Sans SC" font-weight="700">局部 Softmax（短程精确）</text>
+    <g stroke="#1B4B6F" stroke-width="2" marker-end="url(#j1)">
+      <line x1="82" y1="148" x2="130" y2="148"/><line x1="134" y1="148" x2="182" y2="148"/>
+      <line x1="186" y1="148" x2="234" y2="148"/><line x1="238" y1="148" x2="286" y2="148"/>
+    </g>
+    <!-- linear memory branch -->
+    <text x="30" y="196" font-size="11.5" fill="#5A8F7B" font-family="Noto Sans SC" font-weight="700">线性记忆（长程上下文）</text>
+    <rect x="60" y="212" width="280" height="24" rx="5" fill="#5A8F7B" opacity="0.3" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="200" y="228" text-anchor="middle" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">持续更新的记忆状态</text>
+    <line x1="342" y1="120" x2="342" y2="212" stroke="#E85D4E" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <!-- VDA detail -->
+    <rect x="420" y="110" width="356" height="196" rx="10" fill="#C9A86C" opacity="0.12" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="438" y="138" font-size="12" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">VDA 的两个关键设计</text>
+    <text x="438" y="166" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">① 每帧一次记忆更新（而非每 token）</text>
+    <text x="438" y="192" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">   → 同一帧内的相关空间写入联合求解，</text>
+    <text x="438" y="212" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">     避免逐 token 更新的写入冲突</text>
+    <text x="438" y="244" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">② 非扩张的继承状态转移</text>
+    <text x="438" y="270" font-size="11" fill="#E85D4E" font-family="Noto Sans SC">   → 误差不随帧数放大，长时才稳</text>
+    <defs><marker id="j1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#1B4B6F"/></marker></defs>
+  </svg><div class="figcap"><b>图 2</b> · 双分支混合注意力与 VDA 的两个关键设计</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「非扩张」是长时生成的数学底线</h4>
+    <p>几乎所有长时生成方法的失败都可以归结为一件事：<strong>某个转移算子的谱半径 &gt; 1</strong>，导致误差/漂移随时间指数放大。自回归的暴露偏差（exposure bias）、滑窗拼接的接缝漂移、记忆写入的冲突累积，都是同一现象的不同表现。VDN 把「非扩张」作为显式设计约束，是从数学上封住了这个漏洞——这也是为什么它敢声称适合「开放时长」。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 关键工程细节与训练设定</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>项</th><th>取值 / 描述</th></tr></thead>
+    <tbody>
+      <tr><td class="route">数据规模</td><td>10,015 个视频片段，1344×768，345 帧 @24fps（约 14.375 秒/片）</td></tr>
+      <tr><td class="route">视频 latent 形状</td><td>(24, 102, 48, 84)</td></tr>
+      <tr><td class="route">音频 latent 形状</td><td>(2, 32, 575) —— 立体声</td></tr>
+      <tr><td class="route">文本编码</td><td>Qwen3-VL，形状 (L, 5120)</td></tr>
+      <tr><td class="route">评测</td><td>Q-Align、DOVER++ 等感知指标；注意力延迟实测</td></tr>
+      <tr><td class="route">消融对象</td><td>帧更新方式、边界锚点（boundary anchors）、长程线性分支</td></tr>
+      <tr><td class="route">对比基线</td><td>Dense H3（同 50 NFE 预算）</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="280" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">消融的三个设计点（原文 Table 3）</text>
+    <rect x="30" y="60" width="235" height="150" rx="10" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="147" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">① 帧更新方式</text>
+    <text x="48" y="116" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">对比「冻结状态 + 加性更新</text>
+    <text x="48" y="136" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">（带 1/√U 缩放）」与 VDA 的</text>
+    <text x="48" y="156" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">联合求解</text>
+    <text x="48" y="188" font-size="10" fill="#95A5A6" font-family="Noto Sans SC">→ 证明联合求解更好</text>
+
+    <rect x="282" y="60" width="235" height="150" rx="10" fill="#5A8F7B" opacity="0.1" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="399" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">② 边界锚点</text>
+    <text x="300" y="116" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">长序列分块时的边界处理：</text>
+    <text x="300" y="136" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">用锚点保持跨块一致性，</text>
+    <text x="300" y="156" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">避免块边界出现接缝</text>
+    <text x="300" y="188" font-size="10" fill="#95A5A6" font-family="Noto Sans SC">→ 直接关系到长时观感</text>
+
+    <rect x="534" y="60" width="235" height="150" rx="10" fill="#C9A86C" opacity="0.12" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="651" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">③ 长程线性分支</text>
+    <text x="552" y="116" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">单独移除该分支后测退化，</text>
+    <text x="552" y="136" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">验证长程记忆的必要性</text>
+    <text x="552" y="156" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">（而非「有总比没好」）</text>
+    <text x="552" y="188" font-size="10" fill="#95A5A6" font-family="Noto Sans SC">→ 证明混合设计的必要性</text>
+
+    <text x="30" y="248" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">这组消融的价值：三个点分别对应「每帧怎么更新 / 跨块怎么连 / 长程要不要」，是长时流式生成的三个必答题。</text>
+  </svg><div class="figcap"><b>图 3</b> · 三个消融设计点分别回答长时流式的三个必答题</div></div>
+  <div class="figure"><svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="260" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">同一 50 NFE 预算下的配置组合（示意）</text>
+    <g font-family="Noto Sans SC" font-size="11">
+      <text x="30" y="76" fill="#5D6D7E">Dense H3（基线）</text>
+      <rect x="220" y="60" width="420" height="22" rx="4" fill="#95A5A6"/>
+      <text x="652" y="77" fill="#5D6D7E" font-family="JetBrains Mono,monospace" font-size="10.5">1×</text>
+      <text x="30" y="116" fill="#5D6D7E">+ VDA</text>
+      <rect x="220" y="100" width="330" height="22" rx="4" fill="#5A8F7B"/>
+      <text x="562" y="117" fill="#5A8F7B" font-family="JetBrains Mono,monospace" font-size="10.5">1.77× 快</text>
+      <text x="30" y="156" fill="#5D6D7E">+ VDA（多卡扩展）</text>
+      <rect x="220" y="140" width="250" height="22" rx="4" fill="#C9A86C"/>
+      <text x="482" y="157" fill="#A67C3D" font-family="JetBrains Mono,monospace" font-size="10.5">2.57× 快</text>
+      <text x="30" y="196" fill="#5D6D7E">+ VDA + few-step</text>
+      <rect x="220" y="180" width="170" height="22" rx="4" fill="#E85D4E"/>
+      <text x="402" y="197" fill="#E85D4E" font-family="JetBrains Mono,monospace" font-size="10.5">3.38× 快</text>
+    </g>
+    <text x="30" y="238" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：条形长度按加速比示意；实际数值随视频时长变化（14.3s / 768p / B200 / 50 NFE）。</text>
+  </svg><div class="figcap"><b>图 4</b> · 同算力预算下的配置组合与累计加速</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> 优势与证据：加速比随时长扩大</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>结果（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">注意力延迟（14.3s / 768p）</td><td>5.9 → 8.0 → 10.1 → 12.3 → 14.4 秒（对比曲线）</td></tr>
+      <tr><td class="route">加速比 vs Dense H3</td><td><strong>1.77× → 2.57× → 3.38×</strong>（随视频时长递增）</td></tr>
+      <tr><td class="route">扩展到多卡</td><td>B200 上的加速比相对单卡 Dense H3 累积</td></tr>
+      <tr><td class="route">感知指标</td><td>Q-Align、DOVER++ 上与质量保持一致</td></tr>
+      <tr><td class="route">few-step 结合</td><td>VDN-H3 + VDA + few-step 在同 50 NFE 预算下比较</td></tr>
+    </tbody></table></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 效率对比的基线是「Dense H3」，但这是自家实现</h4>
+    <p>加速比 1.77×–3.38× 是相对 Dense H3 的。若 Dense H3 的实现没有调优（如未用 FlashAttention、未做 KV 优化），加速比会被高估。论文需给出基线实现的公平性说明，否则「3.38×」难以外推到其他 Dense 实现。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 10,015 个片段的数据规模，对「直播多样性」偏小</h4>
+    <p>直播场景涵盖新闻、游戏、演出、闲聊等差异极大的类型。10K 片段（每个约 14 秒，共约 40 小时）覆盖的多样性有限，尤其难以覆盖长尾的直播形式。结论的普适性应在此范围内解读。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 「非扩张」的理论保证 vs 实际长时表现</h4>
+    <p>非扩张转移是好约束，但它只保证<strong>误差不放大</strong>，不保证<strong>误差小</strong>。若单帧记忆写入本身有偏，非扩张只会让偏差稳定存在（而不是发散）——即「稳定的错」。论文需要报告超长时（数分钟）的身份/场景一致性，而不只是注意力延迟。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>局部窗大小与线性记忆容量该如何配比？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>混合设计有两个自由度：局部窗多大、记忆多大。二者配比决定了「短程精确」与「长程广度」的平衡点，但论文未给出系统扫描。</p>
+      <p><strong>理论分析：</strong>可把视频内容分解为短程高频（动作细节）与长程低频（场景、身份）。局部窗应覆盖高频时间尺度，记忆容量应覆盖低频尺度；配比可由频谱分析推导，而非凭经验调。</p>
+      <p><strong>连接：</strong>与自回归模型的 KV cache 大小、与滑窗方法的窗口大小是同一类问题的不同表述（FlowLong 的滑窗+重叠也涉及）。</p>
+      <p><strong>探究方向：</strong>固定总算力，扫描（窗长, 记忆维度）网格，测长短程任务各自的退化曲线。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>每帧一次记忆更新，是否丢了帧内时间细粒度？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>VDA 每帧更新一次记忆，但一帧内的多个 token 可能对应不同事件（尤其音频侧，一帧对应多个声音事件）。「每帧一次」的更新粒度是否足够？</p>
+      <p><strong>理论分析：</strong>帧内事件数期望 λ 决定粒度需求。若 λ &gt; 1，每帧一次的更新相当于把 λ 个事件压成一个表示，信息损失约 log λ 比特/帧。音频侧 λ 通常更大（40ms 一个音素 vs 帧率 24fps）。</p>
+      <p><strong>连接：</strong>MOVA 的 Aligned RoPE 正是处理「音视频粒度不匹配」；VDN 的粒度选择是否也需要类似对齐，值得追问。</p>
+      <p><strong>探究方向：</strong>对比「每帧一次」与「每 token 一次」的记忆更新，在瞬态事件（起音、爆破）上的对齐误差。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>非扩张转移能否与「创造性变化」共存？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>非扩张约束抑制误差，但也可能抑制<strong>合理的场景变化</strong>（如镜头切换、场景过渡）。如何区分「该保持的一致性」与「该允许的变化」？</p>
+      <p><strong>理论分析：</strong>把状态转移写成 T = T_keep + T_vary，约束只应作用于 T_keep 的谱，而让 T_vary 自由。这需要一个检测「何时该变化」的触发机制（如场景突变检测）。</p>
+      <p><strong>连接：</strong>FlowLong 的随机早相位采样也是一种「允许变化」的机制；两者可结合。</p>
+      <p><strong>探究方向：</strong>在含镜头切换的长视频上测「非扩张」约束是否导致切换处的滞后或粘连。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">08</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Video Delta Attention：每帧一次、联合求解、非扩张转移（示意，非官方）</span>
+<span class="kw">class</span> <span class="fn">VideoDeltaAttention</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">forward</span>(self, frames):
+        <span class="cm"># frames: [T, N, D]，每帧 N 个 token</span>
+        state = torch.zeros(self.mem_dim, self.mem_dim, device=frames.device)
+        outs = []
+        <span class="kw">for</span> f <span class="kw">in</span> frames:                       <span class="cm"># 每帧更新一次</span>
+            K, V = self.proj_kv(f)             <span class="cm"># [N, d], [N, d]</span>
+            <span class="cm"># 联合求解相关空间写入（而非逐 token 加）</span>
+            update = solve_joint_writes(K, V)   <span class="cm"># 处理同帧内相关写入的冲突</span>
+            state = self.transition(state, update)   <span class="cm"># 非扩张转移</span>
+            outs.append(self.read(state, f))
+        <span class="kw">return</span> torch.stack(outs)
+
+<span class="kw">def</span> <span class="fn">transition</span>(self, state, update):
+    <span class="cm"># 非扩张：转移算子谱半径 ≤ 1，保证误差不随帧数放大</span>
+    new_state = state @ self.A + update      <span class="cm"># A 为收缩矩阵</span>
+    <span class="kw">assert</span> spectral_radius(self.A) &lt;= <span class="st">1.0</span>
+    <span class="kw">return</span> new_state</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 混合注意力：局部 Softmax + 线性记忆（示意）</span>
+<span class="kw">def</span> <span class="fn">hybrid_attention</span>(x, local_win, mem_state):
+    <span class="cm"># ① 局部分支：窗口内 Softmax（精确、短程）</span>
+    local = sliding_window_softmax(x, window=local_win)
+    <span class="cm"># ② 线性分支：对记忆状态做线性读（近线性、长程）</span>
+    long_range = linear_read(x, mem_state)
+    <span class="kw">return</span> local + self.gate * long_range    <span class="cm"># 门控融合</span>
+
+<span class="cm"># 实测口径（原文）：B200，50 NFE，14.3s/768p，视频 latent (24,102,48,84)</span>
+SPEEDUP = {<span class="st">"5.9s"</span>: <span class="st">1.77</span>, <span class="st">"8.0s"</span>: <span class="st">2.57</span>, <span class="st">"10.1s"</span>: <span class="st">2.57</span>, <span class="st">"12.3s"</span>: <span class="st">3.38</span>}  <span class="cm"># 相对 Dense H3</span></pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>VDN 真正贡献的是「时长可扩展性」这个能力维度</h4>
+    <p>本领域习惯用「画质更好、更快」来评价一篇工作。VDN 的价值不在这两个维度上碾压谁，而是它把评价轴换成了<strong>「时长 × 算力效率」</strong>——在直播这种开放时长场景里，这才是决定可用性的轴。这种「换评价轴」的工作方式，往往比在旧轴上多挤 2 个点更有长期价值。</p>
+  </div>
+</section>

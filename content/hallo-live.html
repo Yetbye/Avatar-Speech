@@ -1,0 +1,337 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂与问题动机</h2>
+  <p class="lead">Hallo-Live 回答的问题是：<strong>联合音视频生成能不能一边生成一边播出？</strong>它给出的配方是「异步双流 + 人类中心偏好蒸馏」：在因果流式约束下，让视频块偷看一小段未来音素（Future-Expanding Attention），再用 Human-Centric Preference-Guided DMD（HP-DMD）把少步蒸馏造成的质量损失从「人」的角度修回来。结果是<strong>两块 NVIDIA H200 上 20.38 FPS、0.94 秒延迟</strong>，相对教师模型 Ovi 吞吐提升约 16.0×、延迟降低约 99.3×（论文表述）。</p>
+  <p>问题的起点是两个具体失败模式。其一，因果流式推理中，标准块因果掩码让视频分支只能看到<strong>当前与过去</strong>的音频；但真实发音存在显著的协同发音（co-articulation）——口型常常先于声学起始，表情与身体动作还依赖对更大范围后续事件的理解。听不到「即将发出的音」，口型就必然滞后。其二，激进的少步蒸馏会带来均值搜寻（mean-seeking）伪影：面部纹理变糊、语音韵律变机器人、音视频对齐随时间漂移。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>把语音学的 co-articulation 先验翻译成一张掩码</h4>
+    <p>这篇论文最有味道的设计不是某个新模块，而是把一句语言学常识——「嘴唇会为还没发出的音提前摆位」——精确翻译成工程量：视频 query 可以多看 <strong>r(t+W)</strong> 个音频 token（r=5 是每视频帧对应的音频 token 数，W 是以视频帧计的前瞻窗口）。先验不是加进损失函数的正则项，而是<strong>注意力可见性模式</strong>本身。这延续了 UniTalking 用 TV2A 单向掩码塑造因果表征的思路：掩码正在成为跨模态生成里最便宜的「先验注入器」。</p></div>
+  <div class="pipeline"><span class="pipe-step">Text Prompt</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">T5 Encoder</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step alt">异步双流 DiT（因果融合块）</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">HP-DMD 蒸馏</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">流式 Video + Audio</span></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 范式定位：从离线联合生成到实时流式</h2>
+  <p>Hallo-Live 的坐标系由三类工作界定：传统音频驱动肖像动画（Wav2Lip、SadTalker、EMO、VASA-1、Hallo 系列等，本质是 A2V，假设驱动音频已存在）、离线联合生成（MM-Diffusion、JavisDiT、Ovi、Universe-1、MOVA、LTX-2）、以及流式化尝试（OmniForcing 用 Self-forcing 把双向联合模型改造成因果模型）。论文把自己定位为「第一个把流式双流扩散与偏好引导蒸馏统一起来」的框架（论文表述），其直接教师是 <strong>Ovi</strong>——双骨干 + 双向跨模态融合的离线联合生成模型。</p>
+  <div class="figure"><svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+    <!-- 效率-延迟对比条形 -->
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">离线 vs 流式：吞吐（FPS）与首包延迟的量级差</text>
+    <line x1="120" y1="310" x2="760" y2="310" stroke="#2C3E50" stroke-width="2"/>
+    <g font-family="Noto Sans SC,sans-serif" font-size="11">
+      <rect x="140" y="297" width="46" height="13" fill="#2C3E50"/><text x="163" y="330" text-anchor="middle" fill="#2C3E50">JavisDiT</text><text x="163" y="290" text-anchor="middle" fill="#2C3E50">2.15</text>
+      <rect x="230" y="296" width="46" height="14" fill="#2C3E50"/><text x="253" y="330" text-anchor="middle" fill="#2C3E50">UniVerse-1</text><text x="253" y="288" text-anchor="middle" fill="#2C3E50">0.64</text>
+      <rect x="320" y="298" width="46" height="12" fill="#2C3E50"/><text x="343" y="330" text-anchor="middle" fill="#2C3E50">LTX-2</text><text x="343" y="292" text-anchor="middle" fill="#2C3E50">1.05</text>
+      <rect x="410" y="295" width="46" height="15" fill="#1B4B6F"/><text x="433" y="330" text-anchor="middle" fill="#1B4B6F">Ovi（教师）</text><text x="433" y="286" text-anchor="middle" fill="#1B4B6F">1.27</text>
+      <rect x="500" y="299" width="46" height="11" fill="#2C3E50"/><text x="523" y="330" text-anchor="middle" fill="#2C3E50">MOVA</text><text x="523" y="293" text-anchor="middle" fill="#2C3E50">0.21</text>
+      <rect x="590" y="60" width="46" height="250" fill="#E85D4E"/><text x="613" y="330" text-anchor="middle" fill="#E85D4E" font-weight="bold">Hallo-Live</text><text x="613" y="50" text-anchor="middle" fill="#E85D4E" font-weight="bold">20.38</text>
+    </g>
+    <text x="400" y="352" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">柱高 = FPS（论文表 1，2×H200）；红色量级差 ≈ 16×（对 Ovi）</text>
+
+    <rect x="660" y="80" width="120" height="200" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="720" y="105" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F" font-weight="bold">延迟（s）</text>
+    <text x="720" y="135" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">Ovi：93.37</text>
+    <text x="720" y="160" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">LTX-2：116.24</text>
+    <text x="720" y="185" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">UniVerse-1：187.76</text>
+    <text x="720" y="215" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E" font-weight="bold">Ours：0.94</text>
+    <text x="720" y="245" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#5A8F7B">≈ 99.3× 低于 Ovi</text>
+    <text x="720" y="268" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#5A8F7B">（论文表述）</text>
+  </svg><div class="figcap"><b>图 1</b> · 效率量级差：把「快一点」具象化为跨数量级的部署范式改变——离线生成适合渲染成片，流式生成才够格做实时交互。</div></div>
+  <p>与 OmniForcing 的对比是论文的关键叙事：OmniForcing 同样用 Self-forcing 把双向模型改造成因果模型，但论文指出它有两大问题——因果双流推理难以保住自然口型所需的<strong>短程未来音频</strong>，激进蒸馏带来<strong>均值搜寻退化</strong>。Hallo-Live 的两个组件恰好一一回应这两个问题。需要注意：论文<strong>未把 OmniForcing 纳入定量对比</strong>，理由是其检查点未公开（论文表述）。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>离线联合生成（Ovi 等）</th><th>流式化（OmniForcing）</th><th>Hallo-Live</th></tr></thead>
+    <tbody>
+      <tr><td class="route">注意力</td><td>全双向</td><td>严格块因果 + Self-forcing</td><td>块因果 + Future-Expanding 跨模态掩码</td></tr>
+      <tr><td class="route">未来音素</td><td>完整可见</td><td>不可见（口型滞后）</td><td>短程前瞻（可调窗口 W）</td></tr>
+      <tr><td class="route">加速手段</td><td>无</td><td>DMD 蒸馏</td><td>DMD + 奖励重加权（HP-DMD）</td></tr>
+      <tr><td class="route">质量风险</td><td>—</td><td>mean-seeking 退化</td><td>β 过大时仍会 reward hacking（见消融）</td></tr>
+    </tbody></table></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> 异步双流之一：Future-Expanding Attention</h2>
+  <p>先把「严格块因果」的瓶颈说透：视频流 f_v 与音频流 f_a 被切成时长 Δ（例如 1 秒）的时间块，第 t 个块对记作 B_t = {V_t, A_t}。在这种对称窗口下，视频块只能看到当前与过去的音频，「发音预备」无从谈起。Future-Expanding Attention 的做法是<strong>不对称地扩展音频侧的时间支撑</strong>：视频分支聚焦当前块，音频分支提供「历史 + 同步 + 前瞻」的更宽支撑。</p>
+  <div class="formula-card"><div class="f-label">Eq.1 · 操作窗口（原文式 1）</div>
+    <div>$$ W^v_t = \{V_t\}, \qquad W^a_t = \{ \hat{A}_{t-1},\, A_t,\, \tilde{A}_{t+1} \} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>Â_{t−1} 是上一步已提交（committed）的音频，A_t 是当前音频块，Ã_{t+1} 是从「扩展的音频噪声输入」去噪出的<strong>临时前瞻块</strong>。视频永远只管一个块，音频却同时管「已定稿的过去 + 正在生成的现在 + 暂定的未来」——这就是「异步」的字面含义。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.2 · 视频侧扩展交叉注意力（原文式 2）</div>
+    <div>$$ H^v_t = \mathrm{CrossAttn}\big( Q^v_t,\; \mathrm{KV}( \hat{A}_{t-1} \oplus A_t \oplus \tilde{A}_{t+1} ) \big) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>视频 query 的 key 范围被扩成三段音频的拼接。注意 Ã_{t+1} 只作为<strong>上下文（context）</strong>参与注意力，它本身不是视频流要同步的输出对象——「看见未来」与「生成未来」被刻意解耦。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.3 · 扩展的音频噪声输入（原文式 3）</div>
+    <div>$$ z^{a,+}_t = z^{a}_t \oplus z^{a}_{t+1} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>因果推理时，把「额外的未来音频噪声帧」直接拼到当前音频噪声后面，让音频流在第 t 步<strong>顺手多去噪一小段未来</strong>。论文注明：实践中前瞻可以含多个块，这里为简化只写一个。联合去噪输出 (V_t, A_t, Ã_{t+1})，其中 A_t 提交、Ã_{t+1} 仅作前瞻保留。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <!-- 掩码对比 -->
+    <text x="200" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" font-weight="bold">(a) 严格块因果掩码</text>
+    <text x="600" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#E85D4E" font-weight="bold">(b) Future-Expanding 掩码</text>
+    <!-- left grid -->
+    <g font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">
+      <text x="60" y="70" text-anchor="middle">t-1</text><text x="120" y="70" text-anchor="middle">t</text><text x="180" y="70" text-anchor="middle">t+1</text><text x="240" y="70" text-anchor="middle">t+2</text><text x="300" y="70" text-anchor="middle">t+3</text>
+      <text x="20" y="110" text-anchor="middle">V</text><text x="20" y="150" text-anchor="middle">A</text>
+    </g>
+    <g>
+      <rect x="95" y="90" width="50" height="30" fill="#1B4B6F"/>
+      <rect x="35" y="130" width="50" height="30" fill="#5A8F7B"/><rect x="95" y="130" width="50" height="30" fill="#5A8F7B"/>
+      <rect x="155" y="130" width="50" height="30" fill="#D8DEE3"/><rect x="215" y="130" width="50" height="30" fill="#D8DEE3"/><rect x="275" y="130" width="50" height="30" fill="#D8DEE3"/>
+    </g>
+    <path d="M120 122 L120 128" stroke="#E85D4E" stroke-width="2"/>
+    <rect x="35" y="175" width="110" height="26" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="1"/>
+    <text x="90" y="192" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#1B4B6F">V_t 只见过去+当前音频</text>
+    <text x="200" y="230" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">未来音频不可见 → 口型滞后</text>
+
+    <!-- right grid -->
+    <g font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">
+      <text x="460" y="70" text-anchor="middle">t-1</text><text x="520" y="70" text-anchor="middle">t</text><text x="580" y="70" text-anchor="middle">t+1</text><text x="640" y="70" text-anchor="middle">t+2</text><text x="700" y="70" text-anchor="middle">t+3</text>
+      <text x="420" y="110" text-anchor="middle">V</text><text x="420" y="150" text-anchor="middle">A</text>
+    </g>
+    <g>
+      <rect x="495" y="90" width="50" height="30" fill="#1B4B6F"/>
+      <rect x="435" y="130" width="50" height="30" fill="#5A8F7B"/><rect x="495" y="130" width="50" height="30" fill="#5A8F7B"/>
+      <rect x="555" y="130" width="50" height="30" fill="#C9A86C"/><rect x="615" y="130" width="50" height="30" fill="#D8DEE3"/><rect x="675" y="130" width="50" height="30" fill="#D8DEE3"/>
+    </g>
+    <rect x="435" y="175" width="170" height="26" fill="#EAF1F5" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="520" y="192" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">V_t 可见 Â_{t−1} ⊕ A_t ⊕ Ã_{t+1}</text>
+    <text x="600" y="230" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F">金色 = 临时前瞻块（不提交、滑窗后刷新）</text>
+
+    <rect x="120" y="260" width="560" height="56" fill="#F4F6F8" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="400" y="283" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" font-weight="bold">跨模态掩码：M(W) = 1 当且仅当 s ≤ r(t + W)，r = 5 音频 token / 视频帧</text>
+    <text x="400" y="305" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">W = 0 退回严格块因果；W = 1 多看 5 个音频 token；更远的未来始终不可见</text>
+  </svg><div class="figcap"><b>图 2</b> · 两张跨模态掩码的差异：把「视频能不能听到即将到来的音」这一因果约束具象化为注意力矩阵里被点亮的区域。</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 异步双流之二：滑窗提交与前瞻掩码</h2>
+  <p>异步不只是「多看一眼」，还有一套严格的<strong>提交/刷新协议</strong>。第 t 步产出 (V_t, A_t, Ã_{t+1}) 后，V_t 与 A_t 提交为定稿，Ã_{t+1} 只是暂定上下文；窗口前移一步后，视频推进到 V_{t+1}，音频流把更宽的状态前移，重新去噪出 A_{t+1} 与刷新后的 Ã_{t+2}。<strong>旧的前瞻块在被提交前就被覆盖</strong>——因此推测性音频的错误不会累积。</p>
+  <div class="formula-card"><div class="f-label">Eq.4 · 滑窗后的窗口调度（原文式 4）</div>
+    <div>$$ W^v_{t+1} = \{V_{t+1}\}, \qquad W^a_{t+1} = \{ \hat{A}_{t},\, A_{t+1},\, \tilde{A}_{t+2} \} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>Ã_{t+1} 从未被直接提交：它在滑窗后被「重新去噪的新前瞻块」Ã_{t+2} 取代，真正提交的是 A_{t+1}。整套协议只引入<strong>一个块的前瞻延迟</strong>，换来口型的提前摆位（anticipatory phonetic cues）。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.5 · Future-Expanding Block-Causal Mask（原文式 5）</div>
+    <div>$$ M^{v\leftarrow a}_{t,s}(W) = \begin{cases} 1, & s \le r(t+W) \\ 0, & s &gt; r(t+W) \end{cases} \qquad (r = 5) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>t 为查询视频帧下标，s 为音频 key token 下标；一帧视频在时间上对齐 r = 5 个音频 token（<strong>论文表述</strong>）。W 以视频帧计：W = 0 恢复严格块因果（只能看到过去 + 5 个同步 token），W = 1 额外放开对齐 V_{t+1} 的 5 个 token，更远的未来仍不可见。训练（Stage I）与推理用同一可见性模式，避免「训练时偷看、推理时看不到」的错位。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <!-- 异步滑窗时间线 -->
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">异步双流的滑窗提交协议</text>
+    <g font-family="Noto Sans SC,sans-serif" font-size="11">
+      <text x="60" y="80" fill="#1B4B6F">视频流</text>
+      <rect x="130" y="60" width="120" height="36" fill="#1B4B6F"/><text x="190" y="83" text-anchor="middle" fill="#fff">V_t（提交）</text>
+      <rect x="270" y="60" width="120" height="36" fill="#D8DEE3" stroke="#1B4B6F" stroke-dasharray="4 3"/><text x="330" y="83" text-anchor="middle" fill="#2C3E50">V_{t+1}</text>
+      <text x="60" y="150" fill="#5A8F7B">音频流</text>
+      <rect x="130" y="128" width="120" height="36" fill="#5A8F7B"/><text x="190" y="151" text-anchor="middle" fill="#fff">A_t（提交）</text>
+      <rect x="270" y="128" width="120" height="36" fill="#C9A86C"/><text x="330" y="151" text-anchor="middle" fill="#2C3E50">Ã_{t+1}（暂定）</text>
+      <rect x="410" y="128" width="120" height="36" fill="#D8DEE3" stroke="#5A8F7B" stroke-dasharray="4 3"/><text x="470" y="151" text-anchor="middle" fill="#2C3E50">A_{t+2}（未来）</text>
+      <rect x="130" y="180" width="120" height="30" fill="#EAF1F5" stroke="#2C3E50"/><text x="190" y="200" text-anchor="middle" fill="#2C3E50">Â_{t−1}（已定稿）</text>
+    </g>
+    <path d="M190 100 L190 124" stroke="#E85D4E" stroke-width="2" marker-end="url(#a5)"/>
+    <path d="M330 100 L330 124" stroke="#E85D4E" stroke-width="2" marker-end="url(#a5)"/>
+    <text x="260" y="112" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">cross-attn（含前瞻）</text>
+    <path d="M470 168 L520 200" stroke="#2C3E50" stroke-width="2" marker-end="url(#a5)"/>
+    <text x="530" y="215" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">滑窗一步：Ã_{t+1} 被刷新为 Ã_{t+2} 的输入</text>
+    <text x="530" y="238" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">暂定块永不提交 → 推测误差不累积</text>
+    <rect x="130" y="250" width="560" height="46" fill="#F4F6F8" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="410" y="270" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">代价：一整块的前瞻延迟；收益：口型提前摆位 + 时间戳级同步改善</text>
+    <text x="410" y="289" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">KV Cache 滚动维护已提交历史（Stage II 与推理阶段）</text>
+    <defs><marker id="a5" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 3</b> · 滑窗提交协议：把「异步双流到底怎么推进」这一时序细节具象化——视频单块提交、音频带一个暂定前瞻块滚动。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「暂定块永不提交」是流式生成里处理推测信息的通用模式</h4>
+    <p>自回归系统想用未来信息，就绕不开「推测错了怎么办」。Hallo-Live 的答案：让未来块只当条件、不当输出，窗口一滑就重新生成。这与 LLM 推测解码（speculative decoding）里「草稿可弃」的逻辑同构，只是被放在了跨模态注意力的可见性层面。其代价是每个块要多去噪一段未来音频（计算量↑），且前瞻窗口带来的额外延迟必须被吞吐覆盖——论文用 20.38 FPS 的实测证明在两块 H200 上可行，但未报告前瞻块数量与延迟/质量的联合扫描。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>W 的饱和点（≈15 帧）是「音素上下文有效支撑」的一次实证测量</h4>
+    <p>消融显示 Sync-C 从严格因果的 3.87 升到 W=5/10/15/30 的 4.08 / 4.22 / 4.29 / 4.33，W=15 之后增益边际化（论文 Figure 7 还给出 W=20 为 4.32）。把这组数字倒过来读：<strong>对口型摆位有用的未来音素信息集中在约十几帧的窗口内</strong>，再远的未来几乎不再提供同步增益。这给「协同发音的预告窗有多长」这个语音学问题提供了一个从生成侧量出的上界——跨学科价值可能超过工程价值本身。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> HP-DMD：把「人觉得好」写进蒸馏权重</h2>
+  <p>少步蒸馏的标准做法（DMD）是让学生分布对齐教师流形，但均值搜寻会让输出往「平均好看」塌缩。HP-DMD 的思路是<strong>不平等地对待教师样本</strong>：用三个奖励模型给学生自己生成的样本打分，好样本在蒸馏梯度里占更大权重。三个奖励分别守护人的三种感知：视觉保真（R_v，VideoAlign：画质/运动/文本对齐）、语音自然度（R_a，AudioBox）、音视频同步（R_s，SyncNet 系分数）。</p>
+  <div class="formula-card"><div class="f-label">Eq.6–8 · 批内标准化（原文式 6–8）</div>
+    <div>$$ R_{i,k} = \mathrm{Metric}_k(x_i, y_i), \qquad z_{i,k} = \frac{R_{i,k} - \mu_k}{\sigma_k + \epsilon}, \qquad \mu_k = \frac{1}{B}\sum_{j=1}^{B} R_{j,k}, \quad \sigma_k = \sqrt{\frac{1}{B}\sum_{j=1}^{B}(R_{j,k}-\mu_k)^2} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>三个奖励量纲不同、且随 prompt 难度波动，批内 z-score 把它们拉到同一尺度。注意分母为 σ_k + ε（加小常数护除零），μ、σ 均在 batch 内计算——这意味着<strong>权重是相对的</strong>：同一样本在难 prompt 批里可能拿高权重，在简单批里反而拿低权重。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.9–10 · 奖励倾斜权重与加权 DMD（原文式 9–10）</div>
+    <div>$$ w_i = \exp\Big( \sum_{k=1}^{K} \beta_k z_{i,k} \Big), \qquad \mathcal{L}_{\mathrm{final}}(\theta, x_i) = w_i \cdot \mathcal{L}_{\mathrm{dmd}}(x_i) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>指数聚合使权重恒正且对好样本呈指数偏好；β_k 控制各模态贡献（最终默认 β = 2）。论文给出一个漂亮的分布语言解释：这相当于拟合<strong>奖励倾斜的目标分布 p* ∝ p_T · exp(R)</strong>，而不是教师分布 p_T——学生被推向教师流形中「视觉更好、语音更自然、同步更强」的区域，因此理论上可以超过教师的<strong>平均</strong>表现上限。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <!-- reward tilting -->
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">HP-DMD：奖励倾斜的分布视角</text>
+    <path d="M120 250 C 220 250, 240 120, 340 120 C 440 120, 460 250, 560 250" fill="none" stroke="#1B4B6F" stroke-width="2.5"/>
+    <text x="340" y="105" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F">教师分布 p_T（DMD 原目标）</text>
+    <path d="M160 250 C 250 250, 280 165, 380 165 C 480 165, 510 250, 600 250" fill="none" stroke="#E85D4E" stroke-width="2.5" stroke-dasharray="7 5"/>
+    <text x="420" y="150" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">奖励倾斜 p* ∝ p_T · exp(R)</text>
+    <line x1="100" y1="250" x2="640" y2="250" stroke="#2C3E50" stroke-width="2"/>
+    <text x="370" y="278" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">样本空间（音视频对）</text>
+    <rect x="640" y="70" width="150" height="180" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="715" y="95" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F" font-weight="bold">三个奖励</text>
+    <text x="715" y="125" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">R_v：VideoAlign</text>
+    <text x="715" y="150" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">R_a：AudioBox</text>
+    <text x="715" y="175" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">R_s：SyncNet 系</text>
+    <text x="715" y="205" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">z-score 批内标准化</text>
+    <text x="715" y="228" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">w = exp(Σ β_k z_k)</text>
+  </svg><div class="figcap"><b>图 4</b> · 奖励倾斜：把「让学生的分布朝高奖励区歪一点」这一抽象操作具象化为一条被推向右肩的分布曲线。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「学生可超教师平均上限」是蒸馏理论里一个值得严肃对待的命题</h4>
+    <p>普通蒸馏把学生锚定在教师分布上，学生的期望质量上限≈教师期望。HP-DMD 的 p* ∝ p_T·exp(R) 实质上做的是<strong>分布的指数倾斜（exponential tilting）</strong>——与 RLHF 里 KL 约束下的最优解 p* ∝ p_ref·exp(R/β) 同形。区别在于这里的「KL 半径」由 β 与 DMD 损失共同隐式决定。这为「用奖励微调少步学生」提供了理论接口：只要奖励模型不过度失真，学生确实可以比教师的平均样本更好——但也因此把奖励模型的偏差（如 SyncNet 的夸张口型偏好，见 unitalking 一文的讨论）直接搬进了优化目标。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 训练管线：两阶段渐进</h2>
+  <p>整个系统从预训练 Ovi 教师出发，经两个阶段变成流式学生。因果融合块是架构层面的改造：每个双流 DiT block 内部依次做「单模态块因果自注意力 → 文本交叉注意力 → 双流间跨模态注意力」，Stage II 与推理阶段用滚动的音视频 KV Cache 支撑高效因果生成。</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">Stage I · 双流 ODE 初始化</div>
+      <div class="dd">在新掩码模式下（单模态块因果 + 跨模态 Future-Expanding）把学生向量场回归到冻结教师轨迹，<strong>不做长程自回归展开</strong>——先继承教师的联合去噪能力，再暴露给自回归误差。<span class="alt">替代方案：直接 self-rollout 训练（Self-forcing 路线）——风险是初期学生太弱，rollout 全是垃圾轨迹。</span></div></div>
+    <div class="def-item"><div class="dt">Stage II · 自回归 Self-Rollout + 双流 DMD</div>
+      <div class="dd">学生在推理同款因果融合机制下自回归生成块序列，在线更新 KV Cache；对展开轨迹做<strong>分模态</strong>的 DMD（视频、音频各自算 fake/real score 差），用解码后的 rollout 算奖励尺度 r^v、r^a。</div></div>
+    <div class="def-item"><div class="dt">优化配置（论文表述）</div>
+      <div class="dd">16 GPU + FSDP，全局 batch 16，学习率 2×10⁻⁶；Stage I 3,000 步，Stage II 2,000 步。总训练量相对动辄 10 万步的预训练非常轻——因为大部分能力来自 Ovi 教师。</div></div>
+    <div class="def-item"><div class="dt">数据管线</div>
+      <div class="dd">人工写 100 条种子 prompt → Qwen3.5-Plus 改写扩增 → 用 Ovi 生成音视频样本 → 按 Sync Confidence 与 WER 做 prompt 级过滤，保留同步稳定、语音内容可靠的 prompt。</div></div>
+    <div class="def-item"><div class="dt">奖励尺度的分配（论文表述）</div>
+      <div class="dd">VideoAlign 与 SyncNet 调制视频 DMD 项；AudioBox 与 SyncNet 调制音频 DMD 项——同步奖励<strong>同时进入两条流</strong>，因为同步本质上是跨模态属性。</div></div>
+  </div>
+  <div class="formula-card"><div class="f-label">Eq.11 · Stage I 初始化损失（原文式 11）</div>
+    <div>$$ \mathcal{L}_{\mathrm{init}} = \mathbb{E}_{t, x_t}\Big[ \lambda_v \big\| v^v_\theta(x_t,y) - v^v_\phi(x_t,y) \big\|_2^2 + \lambda_a \big\| v^a_\theta(x_t,y) - v^a_\phi(x_t,y) \big\|_2^2 \Big] $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>φ 为冻结 Ovi 教师、θ 为带新掩码的学生；在流时间 t 的联合隐变量 x_t = [V_t, A_t] 上把两模态的向量场预测分别拉向教师。λ_v、λ_a 平衡两模态（论文未给出取值，标注「论文表述」）。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.12–14 · 双流 DMD 与总目标（原文式 12–14）</div>
+    <div>$$ g^v = \frac{s^v_{\mathrm{fake}} - s^v_{\mathrm{real}}}{N^v}, \quad g^a = \frac{s^a_{\mathrm{fake}} - s^a_{\mathrm{real}}}{N^a}; \qquad \mathcal{L}^v_{\mathrm{dmd}} = \frac{r^v}{2}\big\| \hat{V} - \mathrm{sg}(\hat{V} - g^v) \big\|_2^2, \quad \mathcal{L}^a_{\mathrm{dmd}} = \frac{r^a}{2}\big\| \hat{A} - \mathrm{sg}(\hat{A} - g^a) \big\|_2^2 $$</div>
+    <div>$$ \mathcal{L}_{\mathrm{rollout}} = \gamma_v \mathcal{L}^v_{\mathrm{dmd}} + \gamma_a \mathcal{L}^a_{\mathrm{dmd}} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>fake/real score 之差是 DMD 的分布匹配梯度，N^v/N^a 做模态内归一；r^v、r^a 是<strong>从解码 rollout 算出的奖励尺度</strong>（VideoAlign+SyncNet → 视频项，AudioBox+SyncNet → 音频项），把 HP-DMD 的偏好注入进每条流的步长；γ_v、γ_a 再平衡两模态。注意 1/2 系数与 sg(·)（stop-gradient）目标的构造是 DMD 代理损失的标准写法，系数按原文核对无误。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <!-- 训练管线 -->
+    <text x="400" y="28" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">两阶段训练管线</text>
+    <rect x="30" y="60" width="160" height="70" fill="#2C3E50"/><text x="110" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff">冻结 Ovi 教师</text><text x="110" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#C9A86C">v_φ（双向）</text>
+    <path d="M195 95 L235 95" stroke="#2C3E50" stroke-width="2" marker-end="url(#a6)"/>
+    <rect x="240" y="60" width="190" height="70" fill="#1B4B6F"/><text x="335" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff">Stage I · ODE 初始化</text><text x="335" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#C9A86C">L_init：λ_v‖Δv_v‖²+λ_a‖Δv_a‖²</text>
+    <path d="M435 95 L475 95" stroke="#2C3E50" stroke-width="2" marker-end="url(#a6)"/>
+    <rect x="480" y="60" width="290" height="70" fill="#E85D4E"/><text x="625" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff">Stage II · Self-Rollout + 双流 DMD</text><text x="625" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#F4F6F8">L_rollout = γ_v L^v_dmd + γ_a L^a_dmd（奖励加权）</text>
+
+    <rect x="240" y="170" width="530" height="100" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="505" y="195" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F" font-weight="bold">因果融合块（每个 DiT block 内）</text>
+    <text x="320" y="222" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">① 单模态块因果自注意力</text>
+    <text x="505" y="222" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">② 文本交叉注意力（T5）</text>
+    <text x="690" y="222" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">③ 双流跨模态注意力（FEA 掩码）</text>
+    <text x="505" y="252" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">Stage II / 推理：滚动音视频 KV Cache</text>
+    <defs><marker id="a6" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 5</b> · 训练管线：把「先继承再纠错」的渐进逻辑与因果融合块的三段注意力具象化在一张图里。</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 实验证据：效率—质量交换的真实形状</h2>
+  <p>主表（T2AV 任务，2×H200）里最硬的数字是效率：20.38 FPS / 0.94 s，而全部基线 ≤ 2.15 FPS、首包延迟 ≥ 24.40 s。质量维度上，Hallo-Live 的 VideoAlign Overall 为 2.32（Ovi 2.40，LTX-2 2.45），人像保真 0.90/0.98/0.92（解剖/服饰/身份，Ovi 为 0.91/1.00/0.95）；<strong>Sync 4.72 低于 Ovi 5.50 与 LTX-2 5.82</strong>，WER 0.09 劣于 Ovi 0.04 与 LTX-2 0.05，CLAP 0.21 与同类相当。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>方法</th><th>FPS ↑</th><th>延迟 (s) ↓</th><th>VideoAlign 总分 ↑</th><th>Sync ↑</th><th>WER ↓</th><th>身份一致性 ↑</th></tr></thead>
+    <tbody>
+      <tr><td class="route">JavisDiT</td><td>2.15</td><td>24.40</td><td>1.03</td><td>1.12</td><td>0.88</td><td>0.93</td></tr>
+      <tr><td class="route">UniVerse-1</td><td>0.64</td><td>187.76</td><td>1.20</td><td>1.46</td><td>0.07</td><td>0.82</td></tr>
+      <tr><td class="route">LTX-2</td><td>1.05</td><td>116.24</td><td>2.45</td><td>5.82</td><td>0.05</td><td>0.89</td></tr>
+      <tr><td class="route">MOVA</td><td>0.21</td><td>86.09</td><td>1.56</td><td>4.36</td><td>0.08</td><td>0.71</td></tr>
+      <tr><td class="route">Ovi（教师）</td><td>1.27</td><td>93.37</td><td>2.40</td><td>5.50</td><td>0.04</td><td>0.95</td></tr>
+      <tr><td class="route">Hallo-Live</td><td><strong>20.38</strong></td><td><strong>0.94</strong></td><td>2.32</td><td>4.72</td><td>0.09</td><td>0.92</td></tr>
+    </tbody></table></div>
+  <p>消融一（注意力）：把严格块因果换成 Future-Expanding 后，Sync 从 3.87 升到 4.08（W=5）、4.22（W=10）、4.29（W=15）、4.33（W=30）；但 AudioBox 均分从 5.11 微降到 4.95（W=30），VideoAlign 总分在 1.97–2.16 间波动——<strong>同步收益不是无代价的</strong>。消融二（奖励）：单奖励各管一摊——VideoAlign 奖励把总分从 2.03 提到 2.34，Sync 奖励把同步从 4.33 提到 5.37，AudioBox 奖励给出单奖励里最好的语音分（CE/CU/PQ = 4.75/5.27/5.88）；三者合用（+All）取平衡：2.32 总分 + 4.72 同步。</p>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <!-- window saturation curve -->
+    <text x="400" y="28" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">Sync 分数 vs 前瞻窗口 W（论文表 2 / 图 7）</text>
+    <line x1="100" y1="240" x2="740" y2="240" stroke="#2C3E50" stroke-width="2"/>
+    <line x1="100" y1="240" x2="100" y2="60" stroke="#2C3E50" stroke-width="2"/>
+    <text x="420" y="270" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">前瞻窗口 W（视频帧）</text>
+    <text x="80" y="55" text-anchor="end" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">Sync</text>
+    <g font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">
+      <text x="130" y="258" text-anchor="middle">0</text><text x="255" y="258" text-anchor="middle">5</text><text x="380" y="258" text-anchor="middle">10</text><text x="505" y="258" text-anchor="middle">15</text><text x="630" y="258" text-anchor="middle">20</text><text x="735" y="258" text-anchor="middle">30</text>
+    </g>
+    <polyline points="130,152 255,112 380,85 505,72 630,68 735,64" fill="none" stroke="#E85D4E" stroke-width="3"/>
+    <g fill="#E85D4E">
+      <circle cx="130" cy="152" r="5"/><circle cx="255" cy="112" r="5"/><circle cx="380" cy="85" r="5"/><circle cx="505" cy="72" r="5"/><circle cx="630" cy="68" r="5"/><circle cx="735" cy="64" r="5"/>
+    </g>
+    <g font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">
+      <text x="130" y="140" text-anchor="middle">3.87</text><text x="255" y="100" text-anchor="middle">4.08</text><text x="380" y="73" text-anchor="middle">4.22</text><text x="505" y="60" text-anchor="middle">4.29</text><text x="630" y="56" text-anchor="middle">4.32</text><text x="735" y="52" text-anchor="middle">4.33</text>
+    </g>
+    <line x1="505" y1="240" x2="505" y2="72" stroke="#5A8F7B" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="520" y="120" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">W≈15 后饱和：音素上下文的有限支撑</text>
+  </svg><div class="figcap"><b>图 6</b> · 窗口饱和曲线：把「多看未来到底值多少」具象化为一条先陡后平的曲线，工程上取 W≈15 即可拿到大部分收益。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>单奖励「各管一摊」+ 联合奖励「取平衡」——一个可迁移的多目标蒸馏配方</h4>
+    <p>消融表 3 揭示的结构很干净：每个奖励主要改善它显式监督的维度，跨模态迁移很弱（Sync-only 大幅提升同步却几乎不动画质）。这说明三类质量缺陷（画质糊、韵律僵、对齐漂）在少步蒸馏中<strong>是不同的退化通道</strong>，不能指望一个标量奖励全修。对实践者的启示：想保哪一维就加哪一路奖励，然后用 β 扫描找甜点——而不是先验地相信「综合奖励天然平衡」。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">08</span> 深度洞察与批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>「接近教师质量」的成立范围比摘要听起来窄</h4>
+    <p>摘要说「保持 comparable 的 VideoAlign 与 Sync」，但细看主表：Sync 4.72 vs 教师 5.50（差 14%），WER 0.09 vs 0.04（错误率翻倍），CLAP 0.21 vs 0.23。真正接近的是 VideoAlign 总分（2.32 vs 2.40）与人像保真。换言之：<strong>视觉侧确实保住了，语音侧与同步侧是为实时性付了明确代价的</strong>。摘要的「comparable」一词应按「VideoAlign 维度 comparable」收窄理解。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>β 扫描暴露的 reward hacking 崩塌，本身就说明奖励信号有多脆</h4>
+    <p>论文自己的消融：Sync-only 下 β 从 2 增到 3、4，Sync 从 5.37 崩到 3.30 / 3.11；VideoAlign-only 下 β=4 时总分塌到 1.25（低于不加奖励的 2.03）。论文归因为「过度放大奖励把模型推进病态隐空间」。这说明 exp(Σβz) 权重对 β 极度敏感、且<strong>没有内在的过优化防护</strong>；β=2 是在 3 个单奖励设置里经验找出来的甜点，不是被理论保证的稳健区间。部署到新奖励模型（比如换成有偏的 Sync-C）时，这套敏感性会原样继承。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>评估设置的三个边界</h4>
+    <p><strong>（1）硬件口径：</strong>20.38 FPS / 0.94 s 是 2×H200 上的成绩，未报告单卡或消费级 GPU 表现，而论文展望里恰恰提「部署到更低成本硬件」。<strong>（2）prompt 分布：</strong>测试 prompt 池由 100 条人工种子经 Qwen3.5-Plus 扩增并按 Ovi 生成质量反向过滤——这会偏向「教师擅长的分布」，对教师的蒸馏评估天然友好。<strong>（3）对手缺席：</strong>OmniForcing 因检查点未公开被排除，而它正是最直接的流式对手；「唯一达到实时的框架」这一表述在对手缺席下只能算条件成立。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>与 UniTalking / OmniMate 放在一起看：三种「未来信息」的管理哲学</h4>
+    <p>UniTalking 是离线双向生成，未来信息全可见，靠多任务约束保证对齐；Hallo-Live 只给一扇小窗（可调 W），靠「暂定块不提交」控制风险；OmniMate 则把「未来」问题转成「何时结束」问题，用 GPC 进度信号外生地控制生成地平线（见 omnimate 一文）。三者共同揭示：<strong>流式音视频生成的核心矛盾不是算力，而是因果性与发音预备之间的信息谈判</strong>——谁来决定模型能看到多少未来、以什么代价。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">09</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>前瞻窗口的最优长度能否自适应（按音素内容逐块决定）而非全局固定？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>消融显示 W≈15 后饱和，但不同语音内容（元音过渡 vs 塞音爆发）的协同发音窗口长度不同；固定 W 对所有块一视同仁，可能在简单段浪费计算、在难段不够用。</p>
+      <p><strong>理论分析：</strong>可把 W 视为逐块的随机变量，由一个轻量控制器根据当前音素类别（或音频 token 的熵）决定；总延迟约束下最大化同步增益，是一个带约束的序贯决策问题。</p>
+      <p><strong>连接：</strong>OmniMate 的 GPC 证明「给模型一个显式的进度/调度信号」可以显著改变生成行为；把类似的显式控制信号引入 W 的选择，是两篇论文机制的自然杂交。</p>
+      <p><strong>探究方向：</strong>训练一个 W 预测头（以音素后验为输入），在同等平均前瞻预算下对比固定 W=15 基线的 Sync 与延迟。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>奖励倾斜蒸馏 p* ∝ p_T·exp(R) 的稳健半径：β、奖励噪声与过优化的定量关系是什么？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>β&gt;2 的崩塌已被观测到（Sync-only：5.37→3.30→3.11），但没有理论刻画「安全的 β」取决于什么。</p>
+      <p><strong>理论分析：</strong>指数倾斜对奖励误差的放大系数与 exp(R) 的方差相关；奖励噪声越大、批次越小，安全 β 越小。可从「倾斜分布与教师流形的 KL 距离」推导过优化阈值的上界。</p>
+      <p><strong>连接：</strong>UniTalking 对 Sync-C 夸张口型偏好的质疑提示：若奖励本身有系统性偏差，倾斜会把偏差指数化；Hallo-Live 用 SyncNet 既做奖励又做评估，风险同源。</p>
+      <p><strong>探究方向：</strong>注入可控奖励噪声（高斯扰动/对抗样本）测量崩塌阈值随 β 的移动；对比批内标准化与全局标准化两种 z-score 的稳健性差异。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>「暂定块不提交」能否升级为带确认机制的推测生成，进一步压缩前瞻延迟？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>当前协议里前瞻块每次滑窗都被重算，浪费了上一步已去噪的信息；若能对高置信前瞻块做部分复用，可降低每块计算量。</p>
+      <p><strong>理论分析：</strong>这是推测解码的接受-拒绝问题：需要一个跨模态一致性准则（如前瞻音频与视频口型的 SyncNet 分数）判断草稿块可否保留；接受率与质量风险构成帕累托前沿。</p>
+      <p><strong>连接：</strong>OmniMate 用 RollingSink 维持长程稳定、用 KV Cache + 流水线并行加速，说明流式生成的系统层优化空间仍然很大；两者结合可在同硬件上继续推 FPS。</p>
+      <p><strong>探究方向：</strong>实现「复用率可调」的滑窗协议，测量接受率—Sync 分—FPS 三元关系。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>异步双流掩码学到的「发音预备」是否具有语音学可解释性？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>W≈15 帧的饱和点暗示了协同发音预告窗的量级，但模型是否真的学出了「唇位先于声学起始」的规律，尚无直接证据。</p>
+      <p><strong>理论分析：</strong>可将生成的口型轨迹与真实语音的音素边界对齐做时差统计：若模型学到了 co-articulation，口型到位时刻应系统性早于音素起始，且早于量随音素类别变化。</p>
+      <p><strong>连接：</strong>UniTalking 的注意力图显示视频→音频的高权重集中在唇区，为「唇部是同步信息枢纽」提供了另一条证据线；两文合看可构造「生成模型侧的发音预备测量学」。</p>
+      <p><strong>探究方向：</strong>用强制对齐（forced alignment）标注音素边界，统计不同 W 下模型口型的提前量分布，并与真人视频基线比较。</p></div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">10</span> 代码附录</h2>
+  <p>以下代码按论文公式结构还原关键流程，均为<strong>示意性实现</strong>（非官方开源代码），帮助把掩码与蒸馏公式落成张量操作。</p>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Future-Expanding Block-Causal Mask：M=1 当且仅当 s <= r*(t+W)，r=5 音频 token / 视频帧</span>
+<span class="kw">def</span> <span class="fn">future_expanding_mask</span>(n_video_frames, n_audio_tokens, lookahead_W, r=5):
+    <span class="cm"># t: 视频帧下标 (行), s: 音频 token 下标 (列)</span>
+    t = torch.<span class="fn">arange</span>(n_video_frames)[:, None]      <span class="cm"># [T_v, 1]</span>
+    s = torch.<span class="fn">arange</span>(n_audio_tokens)[None, :]       <span class="cm"># [1, T_a]</span>
+    mask = (s <= r * (t + lookahead_W))              <span class="cm"># bool [T_v, T_a]</span>
+    <span class="kw">return</span> mask.<span class="fn">float</span>() * -1e9 + (1 - mask.<span class="fn">float</span>()) * 0.0  <span class="cm"># 加性掩码</span>
+
+<span class="cm"># 异步滑窗：视频只提交当前块；音频多去噪一个暂定前瞻块（不提交、滑窗后刷新）</span>
+<span class="kw">def</span> <span class="fn">async_step</span>(model, z_v_t, z_a_t, z_a_next, kv_cache):
+    z_a_plus = torch.<span class="fn">cat</span>([z_a_t, z_a_next], dim=1)   <span class="cm"># z^{a,+}_t = z^a_t ⊕ z^a_{t+1}</span>
+    V_t, A_t, A_tilde_next = <span class="fn">model</span>(z_v_t, z_a_plus, kv_cache,
+                                  cross_mask=<span class="str">"future-expanding"</span>)
+    kv_cache.<span class="fn">commit</span>(V_t, A_t)                       <span class="cm"># 仅提交定稿块</span>
+    <span class="kw">return</span> V_t, A_t, A_tilde_next                   <span class="cm"># 前瞻块下一轮被重算刷新</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># HP-DMD：奖励标准化 → 指数权重 → 加权双流 DMD（系数按原文式 7-14）</span>
+<span class="kw">def</span> <span class="fn">hp_dmd_update</span>(student, fake_score, real_score, prompts, beta=2.0):
+    x = student.<span class="fn">rollout</span>(prompts)                     <span class="cm"># 自回归 self-rollout（KV cache 在线更新）</span>
+    R = torch.<span class="fn">stack</span>([videobox(x, prompts),           <span class="cm"># R_v: VideoAlign</span>
+                     audiobox(x, prompts),           <span class="cm"># R_a: AudioBox</span>
+                     syncnet(x)], dim=1)             <span class="cm"># R_s: 同步分</span>
+    z = (R - R.<span class="fn">mean</span>(0)) / (R.<span class="fn">std</span>(0) + 1e-8)         <span class="cm"># 批内 z-score（式 7-8）</span>
+    w = torch.<span class="fn">exp</span>(beta * z.<span class="fn">sum</span>(1))                  <span class="cm"># w_i = exp(Σ β_k z_{i,k})（式 9）</span>
+
+    g_v, g_a = <span class="fn">dmd_grad</span>(fake_score, real_score, x)   <span class="cm"># (s_fake - s_real)/N，分模态（式 12）</span>
+    L_v = (r_v / 2) * ((x.V - <span class="fn">sg</span>(x.V - g_v)) ** 2).<span class="fn">mean</span>(dim=...)
+    L_a = (r_a / 2) * ((x.A - <span class="fn">sg</span>(x.A - g_a)) ** 2).<span class="fn">mean</span>(dim=...)
+    loss = (w * (gamma_v * L_v + gamma_a * L_a)).<span class="fn">mean</span>()  <span class="cm"># 式 10/14：奖励加权</span>
+    loss.<span class="fn">backward</span>()</pre>
+</section>

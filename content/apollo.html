@@ -1,0 +1,246 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂：不做级联、不做双塔，只做一个塔</h2>
+  <p class="lead">音视频联合生成有三条工程路线：<strong>级联</strong>（先生成视频再配音）、<strong>双塔</strong>（视频塔 + 音频塔互相看）、<strong>单塔</strong>（一个 Transformer 同时吃两种模态）。Apollo 的主张很硬：选第三条，并把它推到「一个模型覆盖全部任务」的程度——T2AV、TI2AV、TI2V、T2V、T2A 都由同一个单塔 DiT 承担。</p>
+  <p>论文把工作拆成三条轴，这个拆法本身值得学习：<strong>模型架构</strong>（单塔 unified DiT + Omni-Full Attention）、<strong>训练策略</strong>（渐进多任务：随机模态掩码 + 多阶段课程）、<strong>数据构造</strong>（首个带密集描述的大规模音视频数据集）。</p>
+  <div class="pipeline">
+    <span class="pipe-step">T2AV</span><span class="pipe-arrow">·</span>
+    <span class="pipe-step alt">TI2AV</span><span class="pipe-arrow">·</span>
+    <span class="pipe-step">TI2V</span><span class="pipe-arrow">·</span>
+    <span class="pipe-step alt">T2V</span><span class="pipe-arrow">·</span>
+    <span class="pipe-step">T2A</span>
+    <span class="pipe-arrow">→ 同一个单塔</span>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 三种框架的取舍：为什么单塔更难但更对</h2>
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="330" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">Apollo 原文 Figure 1 的三种框架</text>
+    <!-- (a) cascade -->
+    <text x="30" y="66" font-size="12" font-weight="700" fill="#95A5A6" font-family="Noto Sans SC">(a) Cascade</text>
+    <rect x="30" y="78" width="120" height="36" rx="7" fill="#95A5A6"/><text x="90" y="101" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">视频生成</text>
+    <text x="158" y="101" font-size="14" fill="#95A5A6">→</text>
+    <rect x="178" y="78" width="120" height="36" rx="7" fill="#95A5A6"/><text x="238" y="101" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">音频生成</text>
+    <text x="30" y="134" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">误差累积；音频看不到画面细节</text>
+    <!-- (b) dual tower -->
+    <text x="30" y="176" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">(b) Dual Tower</text>
+    <rect x="30" y="188" width="110" height="34" rx="7" fill="#1B4B6F"/><text x="85" y="210" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Video Tower</text>
+    <rect x="188" y="188" width="110" height="34" rx="7" fill="#5A8F7B"/><text x="243" y="210" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Audio Tower</text>
+    <line x1="142" y1="200" x2="186" y2="200" stroke="#E85D4E" stroke-width="2" marker-end="url(#e1)"/>
+    <line x1="186" y1="212" x2="142" y2="212" stroke="#E85D4E" stroke-width="2" marker-end="url(#e1)"/>
+    <text x="30" y="244" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">交互充分，但参数冗余、难以统一任务</text>
+    <!-- (c) single tower -->
+    <text x="30" y="286" font-size="12" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">(c) Unified Single Tower（Apollo）</text>
+    <rect x="30" y="296" width="268" height="26" rx="6" fill="#1B4B6F"/>
+    <text x="164" y="314" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">Video + Audio token 混排进同一序列</text>
+    <!-- right side explanation -->
+    <rect x="330" y="60" width="440" height="252" rx="10" fill="#1B4B6F" opacity="0.06" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="348" y="86" font-size="12.5" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">单塔的三个直接后果</text>
+    <text x="348" y="116" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">1. 对齐发生在同一注意力矩阵里 —— 不存在「两塔语义粒度不一致」问题</text>
+    <text x="348" y="146" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">2. 任务统一：T2AV/TI2AV/TI2V/T2V/T2A 只是「序列里放哪些 token」的差别</text>
+    <text x="348" y="176" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">3. 可扩展性：加模态 = 加 token 类型，不必加一整个塔</text>
+    <text x="348" y="212" font-size="11.5" fill="#E85D4E" font-family="Noto Sans SC">代价：</text>
+    <text x="348" y="236" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">· 模态间梯度冲突更直接（需掩码/课程缓解）</text>
+    <text x="348" y="260" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">· 序列更长 → 注意力二次代价上升</text>
+    <text x="348" y="284" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">· 单一 loss 权重难以兼顾音质与画质</text>
+    <defs><marker id="e1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#E85D4E"/></marker></defs>
+  </svg><div class="figcap"><b>图 1</b> · 级联 / 双塔 / 单塔：Apollo 选第三种，并把它用于多任务统一</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「单塔」的真正优势是多任务，而不是参数效率</h4>
+    <p>很多人把单塔理解为「省参数」。Apollo 的论证重点其实在<strong>任务统一</strong>：当所有任务都变成「同一序列里放哪些 token」时，任务之间的知识可以互相迁移（视频生成学到的事件先验能帮到音频生成）。这正是它敢用随机模态掩码训练的原因——掩码在序列层面天然可定义，而在双塔结构里，掩掉一个塔的损失函数就不好写了。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> Omni-Full Attention：让音视频 token 在同一张注意力图里互相看见</h2>
+  <p>单塔的关键是实现「全注意力」：视频 token 与音频 token 拼成一条序列，一次注意力同时完成<strong>模态内</strong>与<strong>跨模态</strong>建模。论文称之为 Omni-Full Attention，并强调它带来「紧致的音画对齐」与「强可扩展性」。</p>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">序列构造：视频块与音频块拼接后做全注意力</text>
+    <!-- token row -->
+    <g>
+      <rect x="60" y="70" width="46" height="30" rx="4" fill="#1B4B6F"/><text x="83" y="90" text-anchor="middle" font-size="10" fill="#fff" font-family="JetBrains Mono">V1</text>
+      <rect x="110" y="70" width="46" height="30" rx="4" fill="#1B4B6F"/><text x="133" y="90" text-anchor="middle" font-size="10" fill="#fff" font-family="JetBrains Mono">V2</text>
+      <rect x="160" y="70" width="46" height="30" rx="4" fill="#1B4B6F"/><text x="183" y="90" text-anchor="middle" font-size="10" fill="#fff" font-family="JetBrains Mono">V3</text>
+      <rect x="210" y="70" width="46" height="30" rx="4" fill="#5A8F7B"/><text x="233" y="90" text-anchor="middle" font-size="10" fill="#fff" font-family="JetBrains Mono">A1</text>
+      <rect x="260" y="70" width="46" height="30" rx="4" fill="#5A8F7B"/><text x="283" y="90" text-anchor="middle" font-size="10" fill="#fff" font-family="JetBrains Mono">A2</text>
+      <rect x="310" y="70" width="46" height="30" rx="4" fill="#1B4B6F"/><text x="333" y="90" text-anchor="middle" font-size="10" fill="#fff" font-family="JetBrains Mono">V4</text>
+      <rect x="360" y="70" width="46" height="30" rx="4" fill="#5A8F7B"/><text x="383" y="90" text-anchor="middle" font-size="10" fill="#fff" font-family="JetBrains Mono">A3</text>
+      <rect x="410" y="70" width="46" height="30" rx="4" fill="#C9A86C"/><text x="433" y="90" text-anchor="middle" font-size="10" fill="#fff" font-family="JetBrains Mono">T</text>
+    </g>
+    <text x="470" y="90" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">← 一条序列</text>
+    <!-- attention matrix -->
+    <text x="60" y="140" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">注意力矩阵：块内 + 块间全部可见（无掩码隔离）</text>
+    <g>
+      <rect x="60" y="152" width="130" height="110" fill="#1B4B6F" opacity="0.35"/>
+      <rect x="192" y="152" width="130" height="110" fill="#E85D4E" opacity="0.22"/>
+      <rect x="324" y="152" width="130" height="110" fill="#C9A86C" opacity="0.22"/>
+    </g>
+    <text x="125" y="212" text-anchor="middle" font-size="10.5" fill="#1B4B6F" font-family="Noto Sans SC">V-V</text>
+    <text x="257" y="212" text-anchor="middle" font-size="10.5" fill="#E85D4E" font-family="Noto Sans SC">V-A 跨模态</text>
+    <text x="389" y="212" text-anchor="middle" font-size="10.5" fill="#C9A86C" font-family="Noto Sans SC">文本条件</text>
+    <text x="470" y="180" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">对比双塔：跨模态只在专门的</text>
+    <text x="470" y="204" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">AV-Cross 子层发生，其余层各算各的。</text>
+    <text x="470" y="236" font-size="11.5" fill="#E85D4E" font-family="Noto Sans SC">单塔：每一层都是「全可见」。</text>
+    <text x="60" y="288" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">代价：注意力代价随模态 token 总数平方增长；长时长/高分辨率下更显著。</text>
+  </svg><div class="figcap"><b>图 2</b> · Omni-Full Attention 的序列布局与注意力可见性</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 训练策略：随机模态掩码 + 多阶段课程</h2>
+  <p>单塔最大的坑是<strong>模态坍塌</strong>：当某一模态更易学时，共享参数会全部向它倾斜，另一模态退化为附属。Apollo 用两招对冲：</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">随机模态掩码</div>
+      <div class="dd">训练时随机丢弃某些模态的 token，迫使模型在不同输入组合下都能工作（T2V / T2A / T2AV 等）。<span class="alt">与 BERT 的 mask 精神相似，但这里遮蔽的是<em>整模态</em>而非单个 token。</span></div></div>
+    <div class="def-item"><div class="dt">多阶段课程</div>
+      <div class="dd">从较弱/较短的任务起步，逐步加入更难、更长的联合任务，避免一开始就被跨模态对齐的难度压垮。<span class="alt">替代方案：直接混合训练（更简单，但容易早期失衡）。</span></div></div>
+    <div class="def-item"><div class="dt">目标</div>
+      <div class="dd">论文明确列出三点：稳健表示、强化 A-V 对齐的世界知识、防止单模态坍塌。<span class="alt">这三条正是单塔路线必须自证的地方。</span></div></div>
+    <div class="def-item"><div class="dt">数据侧配套</div>
+      <div class="dd">首个带密集描述的大规模音视频数据集 + 自动化构造管线（标注 + 过滤出数百万严格对齐的 AV-caption 三元组）。<span class="alt">没有密集描述，联合训练的「说什么」就无从监督。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="280" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">随机模态掩码：同一模型在不同可见子集上被训练</text>
+    <g font-family="JetBrains Mono,monospace" font-size="10">
+      <text x="30" y="70" fill="#5D6D7E">样本 1</text>
+      <rect x="100" y="54" width="52" height="24" rx="4" fill="#1B4B6F"/><text x="126" y="70" text-anchor="middle" fill="#fff">V</text>
+      <rect x="158" y="54" width="52" height="24" rx="4" fill="#5A8F7B"/><text x="184" y="70" text-anchor="middle" fill="#fff">A</text>
+      <rect x="216" y="54" width="52" height="24" rx="4" fill="#C9A86C"/><text x="242" y="70" text-anchor="middle" fill="#fff">T</text>
+      <text x="290" y="70" fill="#95A5A6">→ 全模态（T2AV）</text>
+
+      <text x="30" y="112" fill="#5D6D7E">样本 2</text>
+      <rect x="100" y="96" width="52" height="24" rx="4" fill="#E8E8E4"/><text x="126" y="112" text-anchor="middle" fill="#95A5A6">V</text>
+      <rect x="158" y="96" width="52" height="24" rx="4" fill="#E8E8E4"/><text x="184" y="112" text-anchor="middle" fill="#95A5A6">A</text>
+      <rect x="216" y="96" width="52" height="24" rx="4" fill="#C9A86C"/><text x="242" y="112" text-anchor="middle" fill="#fff">T</text>
+      <text x="290" y="112" fill="#95A5A6">→ 生成两模态（T2AV 的极端情形）</text>
+
+      <text x="30" y="154" fill="#5D6D7E">样本 3</text>
+      <rect x="100" y="138" width="52" height="24" rx="4" fill="#1B4B6F"/><text x="126" y="154" text-anchor="middle" fill="#fff">V</text>
+      <rect x="158" y="138" width="52" height="24" rx="4" fill="#E8E8E4"/><text x="184" y="154" text-anchor="middle" fill="#95A5A6">A</text>
+      <rect x="216" y="138" width="52" height="24" rx="4" fill="#E8E8E4"/><text x="242" y="154" text-anchor="middle" fill="#95A5A6">T</text>
+      <text x="290" y="154" fill="#95A5A6">→ 单模态任务（T2V）</text>
+    </g>
+    <rect x="30" y="182" width="740" height="76" rx="8" fill="#1B4B6F" opacity="0.06"/>
+    <text x="46" y="206" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">效果：同一套权重在「全模态 / 缺模态 / 单模态」三种输入下都被要求给出合理输出，</text>
+    <text x="46" y="230" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">因此不能把能力全部押在某一模态上 —— 这是对抗模态坍塌的<em>结构性</em>手段，而非损失项修补。</text>
+  </svg><div class="figcap"><b>图 3</b> · 随机模态掩码：让单塔在缺失模态时仍可推理</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>掩码本质是在训练分布上「制造缺失」，从而获得鲁棒性</h4>
+    <p>这与多模态大模型里的 modality dropout 同源：推理时用户可能只给文本、只给音频或只给视频，模型必须对<em>任意子集</em>都定义良好。差别在于 Apollo 把它与「多任务统一」绑定——掩码决定了当前样本属于哪个任务，因此<strong>任务定义与训练正则合二为一</strong>。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> 优势与证据：多任务 SOTA 与「对标 Veo 3」</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>证据</th><th>结论（原文表述）</th><th>需注意</th></tr></thead>
+    <tbody>
+      <tr><td class="route">Table 1 主对比</td><td>在音视频联合生成上大幅超越两类先前方法（级联、双塔）</td><td>指标含 MS↑ / AS↑ / ID↑ / FD↓ / KL↓ / CLAP↑ / WER↓ / AV-A↓ / SNC↑ / IB-Score↑</td></tr>
+      <tr><td class="route">多任务</td><td>一个模型覆盖 T2AV / TI2AV / TI2V / T2V / T2A</td><td>任务即 token 子集，无需换头</td></tr>
+      <tr><td class="route">与闭源比较</td><td>性能可与 Veo 3 相比</td><td>「comparable」是作者口径，缺第三方复现</td></tr>
+      <tr><td class="route">数据</td><td>首个大规模密集描述 AV 数据集 + 自动化管线（数百万三元组）</td><td>数据集是否公开未在抽取文本中确认</td></tr>
+    </tbody></table></div>
+  <p>在方法层面，Apollo 的价值不只是「又一个联合模型」，而是<strong>把「任务统一」作为一等目标</strong>：级联与双塔都难以在不改结构的前提下覆盖 5 个任务，单塔天然可以。这也是它与 Ovi（双塔、单任务联合生成）、LTX-2（非对称双流、偏基座）最本质的差别。</p>
+  <div class="figure"><svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="250" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">数据构造管线：从原始音视频到「可用来训联合生成」的三元组</text>
+    <g font-family="Noto Sans SC" font-size="10.5" fill="#fff">
+      <rect x="24" y="58" width="130" height="46" rx="8" fill="#5D6D7E"/>
+      <text x="89" y="78" text-anchor="middle">原始音视频</text><text x="89" y="94" text-anchor="middle" font-size="9.5" fill="#cdd6df">海量、弱标注</text>
+      <rect x="184" y="58" width="130" height="46" rx="8" fill="#1B4B6F"/>
+      <text x="249" y="78" text-anchor="middle">密集描述标注</text><text x="249" y="94" text-anchor="middle" font-size="9.5" fill="#cdd6df">台词/声景/环境</text>
+      <rect x="344" y="58" width="130" height="46" rx="8" fill="#5A8F7B"/>
+      <text x="409" y="78" text-anchor="middle">对齐过滤</text><text x="409" y="94" text-anchor="middle" font-size="9.5" fill="#eaf3ee">同步/口型/静音</text>
+      <rect x="504" y="58" width="130" height="46" rx="8" fill="#C9A86C"/>
+      <text x="569" y="78" text-anchor="middle">三元组合成</text><text x="569" y="94" text-anchor="middle" font-size="9.5" fill="#fff">(A,V,caption)</text>
+      <rect x="664" y="58" width="112" height="46" rx="8" fill="#E85D4E"/>
+      <text x="720" y="78" text-anchor="middle">训练集</text><text x="720" y="94" text-anchor="middle" font-size="9.5" fill="#ffe6e2">百万级</text>
+    </g>
+    <g stroke="#95A5A6" stroke-width="2" marker-end="url(#g1)">
+      <line x1="156" y1="81" x2="180" y2="81"/><line x1="316" y1="81" x2="340" y2="81"/>
+      <line x1="476" y1="81" x2="500" y2="81"/><line x1="636" y1="81" x2="660" y2="81"/>
+    </g>
+    <text x="24" y="140" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">为什么「密集描述」是单塔多任务的前提：</text>
+    <text x="24" y="164" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">只有 caption 里同时写清「画面事件 + 声音事件 + 时间关系」，T2AV 才能学到事件级对应；</text>
+    <text x="24" y="188" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">若 caption 只写画面，音频支路就失去监督信号，退化为「随便配个声」。</text>
+    <text x="24" y="220" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：此处为对论文「自动化数据构造管线」的流程化概括，具体过滤阈值与模型未在抽取段落中给出。</text>
+    <defs><marker id="g1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#95A5A6"/></marker></defs>
+  </svg><div class="figcap"><b>图 4</b> · 数据构造管线：标注 → 对齐过滤 → 三元组</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「单塔 + 掩码」让任务定义变成数据问题，而不是模型问题</h4>
+    <p>在双塔结构里，加一个新任务往往意味着改损失、改头、改数据流；在单塔 + 随机掩码下，新任务只是「序列里放哪些 token 的一个新组合」。这把工程重心从<strong>模型改动</strong>转移到了<strong>数据配比</strong>——这是 Apollo 论文里最容易被低估的架构性收益。</p>
+  </div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 「对标 Veo 3」缺乏受控条件</h4>
+    <p>摘要给出「comparable to Veo 3」，但闭源模型的评测通常只能在作者自建提示集与自建人评上进行。没有公开的提示集、评分细则与样本量，这个结论的<strong>可复现性接近于零</strong>。合理的读法是「在作者设定下不落下风」。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 单塔的注意力代价被低估</h4>
+    <p>Omni-Full Attention 让序列变长（视频 + 音频 + 文本），注意力是平方代价。论文强调可扩展性，但没有给出「音视频 token 数增长时的算力曲线」。在长时长/高分辨率场景，这可能成为硬瓶颈——这也是 VDN 一类「混合注意力」工作存在的理由。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 数据管线是核心贡献却最难验证</h4>
+    <p>「密集描述 + 严格对齐」的数据是单塔多任务成立的前提，但数据构造细节（如何自动标注台词、如何过滤不同步样本）在公开文本中较为概括。这类贡献的可验证性天然弱于模型结构。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>单塔与双塔在「等算力」下的质量–扩展曲线谁更陡？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>Apollo 主张单塔更可扩展，Ovi 主张双塔更好对齐。二者都未给出等算力、等数据的 scaling 对照。</p>
+      <p><strong>理论分析：</strong>单塔把两模态放在同一注意力矩阵，等效于全连接跨模态图，表达力上界更高但样本复杂度也更高；双塔相当于对跨模态交互做了低秩约束（只在 AV-Cross 子层），是归纳偏置换样本效率。可用「跨模态交互的秩」来统一刻画两者。</p>
+      <p><strong>连接：</strong>与 MOVA 的 Bridge（介于两者之间）、LTX-2 的非对称双流共同构成「交互密度」光谱。</p>
+      <p><strong>探究方向：</strong>在相同 GPU·小时下比较 Apollo 单塔与 Ovi 双塔的 Sync/FD 曲线，并测数据量减半时的退化幅度。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>模态掩码的概率分布是否应随训练进程变化？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>固定掩码率是一种简化。若早期应多掩码（学单模态基础）、后期少掩码（学对齐），课程化掩码可能显著提升效率。</p>
+      <p><strong>理论分析：</strong>可把掩码率 p(t) 视为对任务分布的非平稳采样。用多任务学习的梯度冲突理论，p(t) 应使各任务梯度余弦相似度在训练后期趋于一致——这给出可计算的调度准则。</p>
+      <p><strong>连接：</strong>Apollo 已用「多阶段课程」，但课程作用于任务难度，未必作用于掩码率；这是可拆分的两个维度。</p>
+      <p><strong>探究方向：</strong>对比固定 p 与线性/余弦 p(t) 调度，在相同步数下比较 T2AV 的 FVD 与 T2V 的保真度。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>「无模态掩码」的注意力是否需要物理时间约束？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>Omni-Full Attention 让音频 token 与视频 token 全可见，但两者时间分辨率不同。若不注入统一时间坐标，模型可能学到「伪相关」而非真实的时间对齐。</p>
+      <p><strong>理论分析：</strong>设视频每帧对应 Δt_v、音频每 token 对应 Δt_a。若 Δt_a ≪ Δt_v，一个视频 token 会对上多个音频 token；全注意力在此处等价于对「一个视觉事件 ↔ 一段音频事件」做多对多匹配，缺乏单调性约束时容易塌缩成平均。</p>
+      <p><strong>连接：</strong>Ovi 用 scaled-RoPE 把两路映射到统一时间尺度，MOVA 用 Aligned RoPE 做同样的事——说明「统一时间坐标」几乎是所有联合模型的必要组件。Apollo 的抽取文本未强调这一项，值得追问。</p>
+      <p><strong>探究方向：</strong>在 Apollo 上对比「纯全注意力」与「全注意力 + 统一时间 RoPE」，用事件级 onset 偏差作为判据。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 单塔序列构造 + Omni-Full Attention（依据论文 3.x 重建，非官方实现）</span>
+<span class="kw">def</span> <span class="fn">build_sequence</span>(video_tok, audio_tok, text_tok, mask):
+    <span class="cm"># mask: dict(video=bool, audio=bool, text=bool) —— 随机模态掩码</span>
+    parts, types = [], []
+    <span class="kw">if</span> mask[<span class="st">"text"</span>]:  parts.append(text_tok);  types += [<span class="st">0</span>] * text_tok.shape[<span class="st">1</span>]
+    <span class="kw">if</span> mask[<span class="st">"video"</span>]: parts.append(video_tok); types += [<span class="st">1</span>] * video_tok.shape[<span class="st">1</span>]
+    <span class="kw">if</span> mask[<span class="st">"audio"</span>]: parts.append(audio_tok); types += [<span class="st">2</span>] * audio_tok.shape[<span class="st">1</span>]
+    x = torch.cat(parts, dim=<span class="st">1</span>)
+    <span class="kw">return</span> x, torch.tensor(types)
+
+<span class="kw">class</span> <span class="fn">OmniFullAttention</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x):
+        <span class="cm"># 无模态级 mask：所有权重对所有 token 可见（full attention）</span>
+        <span class="kw">return</span> F.scaled_dot_product_attention(x, x, x, is_causal=<span class="kw">False</span>)</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 随机模态掩码 + 多阶段课程（示意）</span>
+STAGES = [<span class="st">"unimodal"</span>, <span class="st">"bimodal"</span>, <span class="st">"joint"</span>]
+<span class="kw">def</span> <span class="fn">sample_mask</span>(stage, p_drop=<span class="st">0.25</span>):
+    <span class="kw">if</span> stage == <span class="st">"joint"</span>:
+        m = dict(text=<span class="kw">True</span>, video=<span class="kw">True</span>, audio=<span class="kw">True</span>)
+        <span class="kw">for</span> k <span class="kw">in</span> (<span class="st">"video"</span>, <span class="st">"audio"</span>):
+            <span class="kw">if</span> random.random() &lt; p_drop: m[k] = <span class="kw">False</span>   <span class="cm"># 随机丢弃整模态</span>
+        <span class="kw">return</span> m
+    <span class="cm"># 早阶段：强制单/双模态任务，先学基础生成</span>
+    <span class="kw">return</span> random.choice([dict(text=<span class="kw">True</span>,video=<span class="kw">True</span>,audio=<span class="kw">False</span>),
+                          dict(text=<span class="kw">True</span>,video=<span class="kw">False</span>,audio=<span class="kw">True</span>)])</pre>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 任务统一也有代价：单一损失难兼顾异质目标</h4>
+    <p>音频的感知损失与视频的感知损失性质不同（一个对相位/瞬态敏感，一个对运动/结构敏感）。用一个共享塔 + 一套损失权重服务 5 个任务，意味着必须做折中；论文未给出按任务调权的消融，因此「统一不损性能」这一隐含主张仍需证据。</p></div>
+</section>

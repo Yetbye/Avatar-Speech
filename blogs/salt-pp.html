@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Salt++ · 论文解读</title>
+<meta name="description" content="以 context-aligned 后训练把多模态生成压到少步流式，同时维持生成质量。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2026 · Preprint</div>
+    <h1>Salt++</h1>
+    <p class="hero-tagline">上下文对齐的后训练：少步 + 流式如何不掉质量</p>
+    <p class="hero-desc">以 context-aligned 后训练把多模态生成压到少步流式，同时维持生成质量。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Salt++"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="70" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="105" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="140" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="175" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="210" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="245" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="280" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="315" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="350" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="385" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="420" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="455" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="490" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="525" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="560" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="595" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="630" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="665" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="700" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="735" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="72" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="130" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="188" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="246" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="304" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="362" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="420" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="478" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="536" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="594" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="652" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="710" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><line x1="70" y1="120" x2="750" y2="120" stroke="#E85D4E" stroke-width="2" marker-end="url(#ah)"/><text x="410" y="105" text-anchor="middle" font-family="Noto Sans SC" font-size="16" font-weight="700" fill="#E85D4E">异步双流 · 流式时间轴</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：上下文对齐后训练（少步流式）</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#av-foundation">av-foundation</a><span class="sep">/</span>Salt++</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂：少步流式生成的两个「上下文错配」，逐一拆掉</a></li><li><a href="#s2">02 两个上下文错配</a></li><li><a href="#s3">03 阶段一：Causal Self-Flow（CSF）</a></li><li><a href="#s4">04 阶段二：context-aligned 自回归 DMD</a></li><li><a href="#s5">05 关键公式（示意性形式化）</a></li><li><a href="#s6">06 优势与证据</a></li><li><a href="#s7">07 批判评估</a></li><li><a href="#s8">08 自主科研问题</a></li><li><a href="#s9">09 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂：少步流式生成的两个「上下文错配」，逐一拆掉</h2>
+  <p class="lead">少步流式音视频生成同时要求<strong>因果建模</strong>与<strong>步数蒸馏</strong>，但标准训练配方撞上两个<strong>上下文相关</strong>的坑：其一，teacher forcing 把「干净历史」配「噪声目标」，只通过速度预测<em>间接</em>监督预测性的上下文表示；其二，在因果 DMD（分布匹配蒸馏）里用<strong>双向</strong> score 模型，导致<em>生成上下文</em>与<em>评分上下文</em>不匹配。Salt++ 用两阶段后训练逐一拆掉它们：<strong>Causal Self-Flow（CSF）</strong> + <strong>context-aligned 自回归 DMD</strong>。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「上下文错配」是少步流式生成被低估的敌人</h4>
+    <p>大家习惯把少步生成的失败归咎于「步数不够」。Salt++ 指出真正的病灶在<strong>上下文不一致</strong>：训练时的上下文分布 ≠ 推理时的上下文分布，于是学生在「没见过的上下文」里乱猜。这与 LeapTalk 讲的暴露偏差同源，但 Salt++ 把它拆成了<em>两处具体错配</em>并分别修复——这种「先定位错配在哪，再对症修」的路径，比一味加参数更有效。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 两个上下文错配</h2>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="320" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">少步流式生成的两个上下文错配</text>
+    <!-- mismatch 1 -->
+    <rect x="30" y="58" width="355" height="140" rx="11" fill="#E85D4E" opacity="0.1" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="207" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">① Teacher forcing 的错配</text>
+    <text x="48" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">干净历史 + 噪声目标</text>
+    <text x="48" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">→ 上下文表示只被间接监督</text>
+    <text x="48" y="162" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">（经 velocity prediction）</text>
+    <text x="48" y="186" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 学不到「预测性上下文」</text>
+
+    <!-- mismatch 2 -->
+    <rect x="415" y="58" width="355" height="140" rx="11" fill="#C9A86C" opacity="0.12" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="592" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">② 因果 DMD 的错配</text>
+    <text x="433" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">用双向 score 模型</text>
+    <text x="433" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">→ 生成上下文 ≠ 评分上下文</text>
+    <text x="433" y="162" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">学生是因果的，判别器是双向的</text>
+    <text x="433" y="186" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 蒸馏目标本身错位</text>
+
+    <!-- solutions -->
+    <text x="30" y="234" font-size="11.5" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">对应的两阶段后训练：</text>
+    <rect x="30" y="248" width="355" height="46" rx="9" fill="#5A8F7B"/><text x="207" y="276" text-anchor="middle" font-size="11.5" fill="#fff" font-family="Noto Sans SC">Causal Self-Flow（CSF）</text>
+    <rect x="415" y="248" width="355" height="46" rx="9" fill="#1B4B6F"/><text x="592" y="276" text-anchor="middle" font-size="11.5" fill="#fff" font-family="Noto Sans SC">Context-aligned autoregressive DMD</text>
+  </svg><div class="figcap"><b>图 1</b> · 两个上下文错配与对应的两阶段修复</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 阶段一：Causal Self-Flow（CSF）</h2>
+  <p>CSF 的巧妙在于利用<strong>上下文信息不对称</strong>：保持噪声目标固定，<strong>改变历史</strong>，让学生用一个「噪声混合历史」去对齐中间表示。这样，上下文表示不再被间接监督，而是被<em>直接</em>拉向正确。</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">核心操作</div><div class="dd">固定噪声目标、变化历史 → 迫使模型显式建模「历史如何影响预测」。<span class="alt">相对 teacher forcing 的「只看真值历史」，CSF 让学生见过<em>被扰动的历史</em>。</span></div></div>
+    <div class="def-item"><div class="dt">noise-mixed-history</div><div class="dd">把历史与噪声混合后作为条件，学生对齐中间表示。<span class="alt">这直接对抗「干净历史/噪声目标」的错配。</span></div></div>
+    <div class="def-item"><div class="dt">目标</div><div class="dd">让<strong>预测性上下文表示</strong>被直接监督，而非经由 velocity 间接学。<span class="alt">上下文表示质量是少步生成的关键瓶颈。</span></div></div>
+    <div class="def-item"><div class="dt">性质</div><div class="dd">属于<strong>后训练</strong>（post-training），在已有模型上做。<span class="alt">成本低，且与「从头训」解耦——可叠加在任何教师上。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">CSF：固定目标、变化历史（示意）</text>
+    <!-- teacher forcing row -->
+    <text x="30" y="72" font-size="11.5" fill="#95A5A6" font-family="Noto Sans SC" font-weight="700">Teacher forcing（对照）</text>
+    <rect x="230" y="56" width="110" height="32" rx="6" fill="#5A8F7B"/><text x="285" y="77" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">干净历史</text>
+    <rect x="352" y="56" width="110" height="32" rx="6" fill="#95A5A6"/><text x="407" y="77" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">噪声目标</text>
+    <text x="478" y="77" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 间接监督上下文</text>
+
+    <!-- CSF row -->
+    <text x="30" y="146" font-size="11.5" fill="#5A8F7B" font-family="Noto Sans SC" font-weight="700">CSF（Salt++）</text>
+    <rect x="230" y="118" width="110" height="32" rx="6" fill="#C9A86C"/><text x="285" y="139" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">噪声混合历史</text>
+    <rect x="352" y="118" width="110" height="32" rx="6" fill="#1B4B6F"/><text x="407" y="139" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">固定噪声目标</text>
+    <text x="478" y="139" font-size="10.5" fill="#5A8F7B" font-family="Noto Sans SC">→ 直接对齐中间表示</text>
+
+    <!-- variation -->
+    <text x="30" y="200" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">关键：历史变、目标不变 → 上下文表示被迫「显式」</text>
+    <rect x="30" y="216" width="740" height="60" rx="9" fill="#5A8F7B" opacity="0.1"/>
+    <text x="46" y="242" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">类比：老师给同一道题、换不同的「提示措辞」，学生必须学会「题意」而非背下某一种提示。</text>
+    <text x="46" y="266" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">这样学到的上下文表示，在推理时遇到任意历史都能正确响应。</text>
+  </svg><div class="figcap"><b>图 2</b> · CSF 固定噪声目标、变化历史，直接监督上下文表示</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「固定一个、扰动一个」是逼出因果依赖的经典手段</h4>
+    <p>要让模型显式依赖某个因素，最直接的办法就是<strong>固定其他、只动这一个</strong>，看输出变化。CSF 对「历史」做的正是这件事。这与因果推断里的「干预」思想一致——不是被动观察历史与目标的配对，而是主动干预历史、观测反应。把因果思想引入蒸馏，是 Salt++ 的方法论亮点。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 阶段二：context-aligned 自回归 DMD</h2>
+  <p>DMD（分布匹配蒸馏）用一个 score 模型来评判生成质量。问题在于：<strong>学生是因果的，而 score 模型通常是双向的</strong>——两者看「上下文」的方式不同，于是蒸馏目标本身错位。Salt++ 的第二阶段把 score 模型改成<strong>上下文对齐的自回归</strong>形式，让评分时的上下文与生成时一致。</p>
+  <div class="figure"><svg viewBox="0 0 800 290" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="290" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">DMD 的上下文对齐：让「评分」与「生成」看同样的上下文</text>
+    <!-- before -->
+    <rect x="30" y="58" width="355" height="110" rx="11" fill="#E85D4E" opacity="0.1" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="207" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">标准因果 DMD（错配）</text>
+    <text x="48" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">学生：因果上下文</text>
+    <text x="48" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">score 模型：双向上下文</text>
+    <text x="48" y="162" font-size="10.5" fill="#E85D4E" font-family="Noto Sans SC">→ 评分基准与生成分布不符</text>
+
+    <!-- after -->
+    <rect x="415" y="58" width="355" height="110" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="592" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">Context-aligned AR-DMD</text>
+    <text x="433" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">学生：因果上下文</text>
+    <text x="433" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">score 模型：自回归上下文</text>
+    <text x="433" y="162" font-size="10.5" fill="#5A8F7B" font-family="Noto Sans SC">→ 评分与生成同分布</text>
+
+    <!-- route -->
+    <rect x="30" y="206" width="740" height="58" rx="10" fill="#1B4B6F" opacity="0.08"/>
+    <text x="46" y="232" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC" font-weight="700">AR–AR DMD route（原文表述）：</text>
+    <text x="46" y="254" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">两阶段 = Causal Self-Flow + context-aligned autoregressive DMD；4 步下报告 55.43 / 69.98 / 97.01 / 96.24（Table 2 口径）。</text>
+  </svg><div class="figcap"><b>图 3</b> · Context-aligned DMD：对齐评分与生成的上下文</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 关键公式（示意性形式化）</h2>
+  <div class="formula-card"><div class="f-label">Eq.1 · CSF 的不对称扰动目标（示意）</div>
+    <div>$$ \mathcal{L}_{\text{CSF}}=\mathbb{E}\Big\| \phi\big(x_{\text{target}}^{\text{noisy}},\, h^{\text{mix}}\big)-\phi\big(x_{\text{target}}^{\text{noisy}},\, h^{\text{clean}}\big)\Big\|^2 $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>固定噪声目标 x_target，对「噪声混合历史」h_mix 与「干净历史」h_clean 两种条件下的中间表示 φ 做对齐。这样，<strong>历史变化引起表示变化</strong>这一因果依赖被显式约束。<br>
+    <strong>注意：</strong>此式为按 CSF 思路的<em>示意性形式化</em>，原文的精确损失与中间表示定义需查原文式。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.2 · Context-aligned DMD（示意）</div>
+    <div>$$ \nabla_\theta \mathcal{L}_{\text{DMD}} \propto \mathbb{E}\big[\,s_{\text{AR}}(x) - s_{\text{AR}}(x_{\text{student}})\,\big]\cdot \nabla_\theta x_{\text{student}} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>score 模型 s 改为<strong>自回归（AR）</strong>形式，使其评分时看到的上下文与因果学生一致；于是「生成分布」与「评分分布」对齐，梯度方向才正确。<br>
+    <strong>来源：</strong>「context-aligned autoregressive DMD」的思路；具体形式需查原文。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 优势与证据</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>项</th><th>结果（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">主结果</td><td>Table 1：JavisBench-mini（480p/960p）+ VBench（480p）</td></tr>
+      <tr><td class="route">扩展评测</td><td>Table 2：1000 条 LTX-2 增强的 JavisBench 提示 @480p</td></tr>
+      <tr><td class="route">指标</td><td>VQ / MQ / AQ / IB-AV / AVH / Javis / DeSync</td></tr>
+      <tr><td class="route">AR–AR DMD route</td><td>4 步：55.43 / 69.98 / 97.01 / 96.24</td></tr>
+      <tr><td class="route">性质</td><td>两阶段后训练，可叠加在既有教师模型上</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">两阶段后训练的作用面</text>
+    <rect x="30" y="60" width="355" height="120" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="207" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">阶段 1 · Causal Self-Flow</text>
+    <text x="48" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">修「上下文表示」错配</text>
+    <text x="48" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">→ 让学生学会预测性上下文</text>
+    <rect x="415" y="60" width="355" height="120" rx="11" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="592" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">阶段 2 · Context-aligned AR-DMD</text>
+    <text x="433" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">修「评分上下文」错配</text>
+    <text x="433" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">→ 让评分与生成同分布</text>
+    <text x="30" y="212" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">两阶段分别针对两个错配 —— 「对症」比「加大模型」更有效。</text>
+  </svg><div class="figcap"><b>图 4</b> · 两阶段各修一处上下文错配</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 「两阶段」的顺序与必要性未充分消融</h4>
+    <p>为何必须 CSF 在前、AR-DMD 在后？能否只做其一？若缺少「单独 CSF / 单独 AR-DMD」的消融，就无法判断两阶段是必需还是冗余。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 指标多但缺人评同步维度</h4>
+    <p>Table 2 列了 VQ/MQ/AQ/IB-AV/AVH/Javis/DeSync，其中 DeSync 是同步指标。但联合生成的「同步感」最终靠人评；若缺人评，「context-aligned 提升同步」这一主张证据不足。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 后训练依赖教师质量</h4>
+    <p>Salt++ 是后训练，能力上限受教师（如 LTX-2）限制。若教师在长尾场景弱，Salt++ 无法弥补。这决定了它的适用范围：适合「已有强教师」的场景。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 与 OmniForcing、LeapTalk 的对比需更直接</h4>
+    <p>三者都做「实时/少步联合生成」，但路线不同（蒸馏 / bridge / 后训练）。若只与非实时基线比较，会掩盖真正的技术路线竞争。这是本领域普遍的对比口径问题。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>「上下文错配」能否被统一成一个可度量的量？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>Salt++ 修了两处错配，但没有给出「错配程度」的度量。若能量化，就能预判训练是否收敛。</p>
+      <p><strong>理论分析：</strong>可把错配建模为两个条件分布的散度：D(P_train(history) || P_infer(history))。用 MMD 或 KL 估计它，即可作为训练监控指标。</p>
+      <p><strong>连接：</strong>LeapTalk 的暴露偏差是同一散度的不同表现；两者可统一到「上下文分布匹配」框架下。</p>
+      <p><strong>探究方向：</strong>在训练过程中监控上下文散度，测它与最终生成质量的相关性。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>CSF 的扰动强度该如何调度？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>历史被扰动多少（噪声混合比例）是关键：太小则学不到鲁棒性，太大则历史信息丢失。</p>
+      <p><strong>理论分析：</strong>扰动强度应逐步增大（类似课程学习），早期轻扰动学基本依赖，后期重扰动学鲁棒性。可用噪声调度的形式化给出准则。</p>
+      <p><strong>连接：</strong>OmniForcing 的 forcing schedule 是同一类「逐步过渡」；Apollo 的多阶段课程也是。</p>
+      <p><strong>探究方向：</strong>对比固定扰动与递增扰动调度，测长时生成的稳定性。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>AR score 模型的评分偏差是否也被对齐了？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>把 score 模型改成自回归后，其评分偏好是否变了？若 AR 化引入新偏差，可能让蒸馏偏向某些易评模式。</p>
+      <p><strong>理论分析：</strong>score 模型的梯度方向决定蒸馏目标。AR 化改变其感受野，理论上会改变梯度分布。可比较双向 score 与 AR score 的梯度一致性。</p>
+      <p><strong>连接：</strong>AVC-Reward 从「事件级」重新设计评分，是同一问题（评分是否可靠）的另一条路。</p>
+      <p><strong>探究方向：</strong>在同一批样本上比较双向 score 与 AR score 的打分相关性，量化评分偏移。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s9" ><span class="num">09</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Causal Self-Flow：固定目标、扰动历史（示意，非官方）</span>
+<span class="kw">def</span> <span class="fn">causal_self_flow</span>(student, x_target, h_clean, noise_scale):
+    h_mix = (1 - noise_scale) * h_clean + noise_scale * torch.randn_like(h_clean)
+    rep_mix   = student.encode(x_target, h_mix)     <span class="cm"># 噪声混合历史条件</span>
+    rep_clean = student.encode(x_target, h_clean)   <span class="cm"># 干净历史条件（对齐目标）</span>
+    <span class="kw">return</span> F.mse_loss(rep_mix, rep_clean)          <span class="cm"># 直接监督上下文表示</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Context-aligned autoregressive DMD（示意）</span>
+<span class="kw">def</span> <span class="fn">ar_dmd_step</span>(student, ar_score, x):
+    x_student = student(x)                   <span class="cm"># 因果学生生成</span>
+    s_fake    = ar_score(x_student, causal=<span class="kw">True</span>)  <span class="cm"># AR 评分：上下文对齐</span>
+    s_real    = ar_score(x, causal=<span class="kw">True</span>)
+    grad = (s_fake - s_real)                 <span class="cm"># 分布匹配梯度</span>
+    <span class="kw">return</span> grad
+
+<span class="cm"># 两阶段后训练（原文 AR–AR DMD route，4 步）</span>
+RESULT_4STEP = dict(VQ=<span class="st">55.43</span>, MQ=<span class="st">69.98</span>, AQ=<span class="st">97.01</span>, IBAV=<span class="st">96.24</span>)</pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>Salt++ 的方法论价值：把「调参」变成「修错配」</h4>
+    <p>少步生成难调，通常被当成超参问题（学习率、步数、损失权重）。Salt++ 的做法是先<strong>诊断出两个具体的错配</strong>，再针对性设计两阶段。这种「先诊断、再开方」的路径，让改进变得可解释、可迁移——而不是又一组调出来的魔法数字。对所有做少步/流式生成的人，「先找上下文错配」应当成为标准动作。</p>
+  </div>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

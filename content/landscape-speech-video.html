@@ -1,0 +1,419 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂：说话人视频为什么需要「音画同生」</h2>
+  <p class="lead">Speech-Video joint generation 是 Audio-Video 谱系在<strong>说话人场景</strong>上的收窄与加压：画面上的人必须<strong>说出台词</strong>、口型必须对上音节、声音必须像参考音色、情绪必须与表情一致。级联方案（TTS 先出语音、视频模型再对口型）在「能说话」层面可行，但误差逐级传播、情绪与语义逐级稀释；本页梳理的谱系——UniTalking、JoVA、Unison、OmniVAE、AVTok、NAVA、MOVA、Ovi、LTX-2、UniAVGen、Soundwich——把语音与说话人视频放进<strong>同一个生成过程</strong>，并一路推进到「人声/音效分轨」的细粒度控制。</p>
+
+  <p>先用两条流水线锚定范式差异。串行范式把 Speech 当作 VidGen 的条件；联合范式让 Vid 与 Speech 在同一个生成器里共同去噪：</p>
+
+  <p><strong>串行级联（sequential）：</strong></p>
+  <div class="pipeline"><span class="pipe-step">Text</span><span class="pipe-arrow">→</span><span class="pipe-step alt">TTS</span><span class="pipe-arrow">→</span><span class="pipe-step">Speech</span><span class="pipe-arrow">→</span><span class="pipe-step alt">VidGen</span><span class="pipe-arrow">→</span><span class="pipe-step">Video</span></div>
+  <p><strong>联合生成（joint）：</strong></p>
+  <div class="pipeline"><span class="pipe-step">Vid + Speech</span><span class="pipe-arrow">→</span><span class="pipe-step alt">Joint 联合生成</span><span class="pipe-arrow">→</span><span class="pipe-step">说话人视频 ⊕ 语音</span></div>
+
+  <div class="figure"><svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+    <text x="40" y="34" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#2C3E50">两种范式下的「台词 → 说话人视频」</text>
+    <rect x="45" y="60" width="110" height="46" rx="8" fill="#2C3E50"/><text x="100" y="89" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#FFFFFF">Text</text>
+    <rect x="195" y="60" width="110" height="46" rx="8" fill="#C9A86C"/><text x="250" y="89" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50">TTS</text>
+    <rect x="345" y="60" width="110" height="46" rx="8" fill="#2C3E50"/><text x="400" y="89" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#FFFFFF">Speech</text>
+    <rect x="495" y="60" width="110" height="46" rx="8" fill="#C9A86C"/><text x="550" y="89" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50">VidGen</text>
+    <rect x="645" y="60" width="110" height="46" rx="8" fill="#2C3E50"/><text x="700" y="89" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#FFFFFF">Video</text>
+    <path d="M155 83 L195 83" stroke="#E85D4E" stroke-width="3"/><path d="M187 77 L195 83 L187 89" fill="#E85D4E"/>
+    <path d="M305 83 L345 83" stroke="#E85D4E" stroke-width="3"/><path d="M337 77 L345 83 L337 89" fill="#E85D4E"/>
+    <path d="M455 83 L495 83" stroke="#E85D4E" stroke-width="3"/><path d="M487 77 L495 83 L487 89" fill="#E85D4E"/>
+    <path d="M605 83 L645 83" stroke="#E85D4E" stroke-width="3"/><path d="M637 77 L645 83 L637 89" fill="#E85D4E"/>
+    <text x="40" y="138" font-family="Noto Sans SC,sans-serif" font-size="13.5" fill="#E85D4E">口型同步是「事后约束」；情绪/韵律信息在 TTS→VidGen 之间丢失</text>
+    <line x1="40" y1="166" x2="760" y2="166" stroke="#C9A86C" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <text x="40" y="204" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#1B4B6F">联合生成：语音与说话人视频共同去噪</text>
+    <rect x="45" y="226" width="165" height="46" rx="8" fill="#1B4B6F"/><text x="127" y="255" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13.5" fill="#FFFFFF">文本 · 指定台词</text>
+    <rect x="45" y="286" width="165" height="46" rx="8" fill="#1B4B6F"/><text x="127" y="315" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13.5" fill="#FFFFFF">身份图 · 参考音色</text>
+    <path d="M210 249 L268 249" stroke="#5A8F7B" stroke-width="3"/><path d="M260 243 L268 249 L260 255" fill="#5A8F7B"/>
+    <path d="M210 309 L268 309" stroke="#5A8F7B" stroke-width="3"/><path d="M260 303 L268 309 L260 315" fill="#5A8F7B"/>
+    <rect x="268" y="246" width="200" height="90" rx="10" fill="#5A8F7B"/>
+    <text x="368" y="283" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" font-weight="700" fill="#FFFFFF">联合生成器</text>
+    <text x="368" y="306" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#EAF2EE">Joint Attention / Bridge</text>
+    <path d="M468 273 L528 243" stroke="#5A8F7B" stroke-width="3"/><path d="M518 240 L529 243 L521 251" fill="#5A8F7B"/>
+    <path d="M468 293 L528 323" stroke="#5A8F7B" stroke-width="3"/><path d="M517 317 L529 323 L526 311" fill="#5A8F7B"/>
+    <rect x="528" y="220" width="115" height="46" rx="8" fill="#2C3E50"/><text x="585" y="249" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">说话人视频</text>
+    <rect x="528" y="300" width="115" height="46" rx="8" fill="#2C3E50"/><text x="585" y="329" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">语音</text>
+    <rect x="665" y="250" width="105" height="60" rx="10" fill="#C9A86C"/>
+    <text x="717" y="276" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" font-weight="700" fill="#2C3E50">口型同步</text>
+    <text x="717" y="296" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">内生约束</text>
+  </svg><div class="figcap"><b>图 1</b> · 说话人视频的两种范式。上排：口型同步靠 VidGen 阶段的事后约束；下排：语音与画面在同一生成过程中共同演化，口型同步成为内生约束——这正是本谱系所有工作的出发点。</div></div>
+
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>说话人场景把「同步」从指标升格为产品约束</h4>
+    <p>通用音视频生成里，音画不同步是「观感问题」；说话人视频里，口型对不上音节是「可用性问题」。这解释了为什么本谱系的语音-视频分支（UniTalking、JoVA、Unison、UniAVGen）比通用分支更执着于<strong>局部监督</strong>：JoVA 加嘴部区域 Flow Matching 损失、UniAVGen 加 Face-Aware Modulation、Unison 做帧级双向注意力。评测侧同样如此：Sync-D、LSE-C、口型分、WER 成为标配——这些指标测的都是「台词是否真的被说出来」，而不只是「音画是否大致像一起的」。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 联合生成主线 I：双流 MM-DiT × Joint Attention（UniTalking · JoVA）</h2>
+  <p>最直接的联合方式是把音视频 token <strong>拼在一起做联合注意力</strong>：同一组注意力权重同时看两路 token，同步在注意力层「免费」涌现。两个代表工作共享这个骨架，但在监督粒度与条件注入上各走一步。</p>
+
+  <h3>UniTalking：同构双流 + Joint Attention + Flow Matching</h3>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法</div>
+      <div class="dd">面向 speech＋说话人视频联合生成：视频流<strong>复用 Wan2.2-5B</strong>，音频流采用<strong>同构设计</strong>；拼接音视频 token 做 <strong>Joint Attention</strong>，以 Flow Matching 共同生成。支持<strong>文本、身份图像与参考音色</strong>条件。</div></div>
+    <div class="def-item"><div class="dt">Latent 与解码</div>
+      <div class="dd">保留 <strong>Wan2.2 视频 VAE 和 MMAudio 音频 VAE</strong> 的各自 latent，通过<strong>时间 RoPE</strong> 对齐；分别解码画面与 Mel 频谱，再经 <strong>BigVGAN</strong> 输出 44.1kHz 波形。<span class="alt">替代方案：把两路压成同一 latent（AVTok 的 Vanilla 试过，效果不好）；同构双流 + 拼接注意力是「共享注意力、不共享 latent」的折中。</span></div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">先以 <strong>TTS 任务预训练音频分支</strong>，再交替训练 T2AV、视频到音频、图像条件联合生成及参考音色任务；<strong>编码器冻结</strong>。前置包括准确台词、<strong>口型同步过滤</strong>及参考声音数据。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">作者在 <strong>20 人、50 条提示的盲评</strong>中报告音质与同步优于 Ovi；<strong>Sync-D 为 8.05，Ovi 为 8.60</strong>。消融显示<strong>音频预训练对最终音质关键</strong>。</div></div>
+  </div>
+
+  <h3>JoVA：Joint Self-Attention（含文本）+ 嘴部区域 Flow Matching</h3>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法</div>
+      <div class="dd">基于 <strong>Waver-12B</strong>，通过音频、视频、文本 token 的 <strong>Joint Self-Attention</strong> 统一生成与编辑；<strong>音频分支复制视频骨干参数初始化</strong>。对说话样本加入<strong>嘴部区域 Flow Matching 损失</strong>，强化口型细节。</div></div>
+    <div class="def-item"><div class="dt">Latent 与解码</div>
+      <div class="dd">采用 <strong>Wan2.1 视频 VAE 与 MMAudio 音频 VAE</strong>，联合去噪后各自解码；图像/视频条件<strong>按通道拼接并附二值 mask</strong>，参考音频按 token 拼接，时间 RoPE 负责对齐。<span class="alt">条件注入对比：UniTalking 的身份图走条件通道，JoVA 走通道拼接 + mask——后者对「图生/视频生」两态更统一。</span></div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">先训练音频分支 <strong>80K 步</strong>，再联合训练生成与编辑 <strong>100K 步</strong>；约 <strong>300 万训练样本包含约 100 万说话场景</strong>。需要<strong>同步过滤、ASR 台词及嘴部关键点定位</strong>。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">在作者的 <strong>JoVABench-Gen</strong> 上，JoVA／Ovi 的 <strong>LSE-C 为 6.70／6.41，WER 为 0.19／0.23</strong>。<span class="alt">笔记提示：JoVABench-Gen 可以活用——它是现成的说话人联合生成评测资产。</span></div></div>
+  </div>
+
+  <div class="figure"><svg viewBox="0 0 800 350" xmlns="http://www.w3.org/2000/svg">
+    <text x="40" y="34" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#2C3E50">双流 Joint Attention 架构流（UniTalking / JoVA 公共骨架）</text>
+    <rect x="40" y="58" width="120" height="44" rx="8" fill="#1B4B6F"/><text x="100" y="86" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13.5" fill="#FFFFFF">视频 token</text>
+    <rect x="180" y="58" width="120" height="44" rx="8" fill="#5A8F7B"/><text x="240" y="86" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13.5" fill="#FFFFFF">音频 token</text>
+    <text x="330" y="86" font-family="Noto Sans SC,sans-serif" font-size="16" fill="#2C3E50">拼接 ⇄</text>
+    <rect x="410" y="52" width="350" height="56" rx="10" fill="#C9A86C"/>
+    <text x="585" y="80" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" font-weight="700" fill="#2C3E50">Joint Attention / Joint Self-Attention</text>
+    <text x="585" y="100" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">Flow Matching 共同去噪 · 时间 RoPE 对齐</text>
+    <rect x="40" y="132" width="720" height="44" rx="8" fill="#FFFFFF" stroke="#E85D4E" stroke-width="2"/>
+    <text x="400" y="159" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#E85D4E">条件注入：文本/台词 · 身份图像（通道拼接 + 二值 mask，JoVA）· 参考音色/参考音频 token</text>
+    <path d="M200 132 L200 112" stroke="#E85D4E" stroke-width="2" stroke-dasharray="5 4"/>
+    <path d="M585 132 L585 112" stroke="#E85D4E" stroke-width="2" stroke-dasharray="5 4"/>
+    <rect x="40" y="200" width="340" height="52" rx="8" fill="#2C3E50"/><text x="210" y="231" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13.5" fill="#FFFFFF">Wan2.2 视频 VAE 解码 → 画面</text>
+    <rect x="420" y="200" width="340" height="52" rx="8" fill="#2C3E50"/><text x="590" y="231" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13.5" fill="#FFFFFF">MMAudio 音频 VAE → Mel → BigVGAN 44.1kHz</text>
+    <path d="M210 176 L210 200" stroke="#2C3E50" stroke-width="2"/><path d="M590 176 L590 200" stroke="#2C3E50" stroke-width="2"/>
+    <rect x="40" y="276" width="720" height="52" rx="8" fill="#FFFFFF" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="400" y="298" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" font-weight="700" fill="#5A8F7B">局部监督（JoVA）：嘴部区域 Flow Matching 损失</text>
+    <text x="400" y="318" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">前置：嘴部关键点定位 · ASR 台词 · 同步过滤</text>
+    <path d="M400 276 L400 252" stroke="#5A8F7B" stroke-width="2" stroke-dasharray="5 4"/>
+  </svg><div class="figcap"><b>图 2</b> · 双流 Joint Attention 架构流。它把「联合注意力如何同时承载生成与同步」具象化：token 拼接后共享注意力权重，同步不再需要额外对齐模块，而局部嘴部监督把约束进一步压到口型细节。</div></div>
+
+  <div class="formula-card"><div class="f-label">Eq.1 · 拼接式联合注意力下的 Flow Matching 目标（示意性形式化，非论文原式）</div>
+    <div>$$ \mathcal{L} = \mathbb{E}_{t}\big\| v_\theta\big([z^{V}_{t}; z^{A}_{t}],\, t,\, c \big) - \big([z^{V}_{1}; z^{A}_{1}] - [z^{V}_{0}; z^{A}_{0}]\big) \big\|^{2} \;+\; \lambda \,\mathcal{L}_{\text{mouth}} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>两路 latent 拼成一个序列 $[z^V; z^A]$，一个速度场一次性回归两路目标——「联合」体现在共享的 $v_\theta$ 与注意力内部的跨模态交互；$\mathcal{L}_{\text{mouth}}$ 是 JoVA 式的嘴部区域附加监督，把口型细节的权重抬高（$\lambda$ 为示意系数）。UniTalking 无第二项、JoVA 有第二项，二者的差距就是「局部监督值多少」的天然对照。此式为对笔记描述的示意性归纳，不对应论文原式。</div></div>
+
+  <p><strong>跨论文连接：</strong>UniTalking 与 JoVA 都选择「音频分支先训、再联合」——UniTalking 用 TTS 任务预训练并以消融证明其关键性，JoVA 用 80K→100K 的两阶段步数表。这与 MOVA/Ovi/UniAVGen（见 05–06 节）的训练次序完全一致，构成全谱系的隐藏共识（详见 09 节深度洞察）。</p>
+
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>Sync-D 8.05 vs 8.60：优势真实，但对照口径值得追问</h4>
+    <p>UniTalking 的盲评（20 人、50 条提示）报告音质与同步优于 Ovi，Sync-D 8.05 vs 8.60。但 Ovi 是<strong>通用音视频联合模型</strong>（其对比对象是 JavisDiT、UniVerse-1），并非说话人特化模型——用它作说话人场景的对照，测出的可能是「特化 vs 通用」而非「架构 A vs 架构 B」。另外 20 人×50 提示的规模对 5 分制量表的置信区间并不宽裕。JoVA 的 JoVABench-Gen（LSE-C/WER 口径）是更适合说话人场景的对照资产，笔记也提示它可以活用。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> 联合生成主线 II：人声＋音效的分轨联合（Unison）</h2>
+  <p>前一节的「一条音轨」假设在真实视频里站不住：<strong>说话人视频同时含人声与背景音效</strong>。Unison 直接研究视频＋speech＋背景音效的三方联合，并给出本谱系中唯一在<strong>训练期显式分轨</strong>的音频表示设计。</p>
+
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法</div>
+      <div class="dd"><strong>Wan2.2-5B 视频分支</strong>与 <strong>MMAudio／Zipformer 音频分支</strong>通过<strong>帧级双向注意力</strong>交互；音频内部用 <strong>Bi-ACA＋语义条件门控</strong>协调人声和音效。</div></div>
+    <div class="def-item"><div class="dt">Latent 与解码</div>
+      <div class="dd">音频显式保留 <strong>speech／SFX 两路 latent</strong>，共享时间索引、在层内交互并分别预测；视频保留自身 latent，生成结果通过对应解码路径还原画面与声音。<span class="alt">替代方案：单条混合音轨 + 推理期分离——Unison 把分离前置到表示层，代价是需要分离监督。</span></div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">用 <strong>Mel-Roformer 分离人声／音效</strong>并分别施加 Flow Matching 监督；先训练音频，再<strong>冻结视频骨干</strong>、训练音频与融合模块。<strong>Cross-Modal Forcing</strong> 从同步噪声逐步过渡到独立噪声，让较清晰模态指导另一模态。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">作者消融中，完整模型相对移除音频协调策略，<strong>PQ 从 6.12 提升至 6.34</strong>；相对移除 Cross-Modal Forcing，<strong>失同步指标 DS 从 0.19 降至 0.08</strong>。</div></div>
+  </div>
+
+  <div class="figure"><svg viewBox="0 0 800 350" xmlns="http://www.w3.org/2000/svg">
+    <text x="40" y="34" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#2C3E50">Unison：speech / SFX 显式分轨 + 帧级双向交互</text>
+    <rect x="40" y="60" width="300" height="60" rx="10" fill="#1B4B6F"/>
+    <text x="190" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" font-weight="700" fill="#FFFFFF">视频分支（Wan2.2-5B）</text>
+    <text x="190" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#D8E3EC">训练期冻结视频骨干</text>
+    <rect x="460" y="60" width="300" height="60" rx="10" fill="#5A8F7B"/>
+    <text x="610" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" font-weight="700" fill="#FFFFFF">音频分支（MMAudio／Zipformer）</text>
+    <text x="610" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#EAF2EE">Bi-ACA · 语义条件门控</text>
+    <path d="M340 82 L460 82" stroke="#E85D4E" stroke-width="3"/><path d="M452 76 L460 82 L452 88" fill="#E85D4E"/>
+    <path d="M460 106 L340 106" stroke="#E85D4E" stroke-width="3"/><path d="M348 100 L340 106 L348 112" fill="#E85D4E"/>
+    <text x="400" y="72" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">帧级双向注意力</text>
+    <rect x="460" y="150" width="140" height="50" rx="8" fill="#2C3E50"/><text x="530" y="181" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13.5" fill="#FFFFFF">speech latent</text>
+    <rect x="620" y="150" width="140" height="50" rx="8" fill="#C9A86C"/><text x="690" y="181" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13.5" fill="#2C3E50">SFX latent</text>
+    <text x="590" y="222" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">共享时间索引 · 层内交互 · 分别预测</text>
+    <path d="M530 150 L530 120" stroke="#2C3E50" stroke-width="2"/><path d="M690 150 L690 120" stroke="#2C3E50" stroke-width="2"/>
+    <rect x="40" y="150" width="300" height="50" rx="8" fill="#FFFFFF" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="190" y="172" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" font-weight="700" fill="#5A8F7B">监督来源：Mel-Roformer 分离</text>
+    <text x="190" y="191" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">人声／音效分别施加 Flow Matching 监督</text>
+    <path d="M340 175 L460 175" stroke="#5A8F7B" stroke-width="2" stroke-dasharray="5 4"/>
+    <rect x="40" y="240" width="720" height="46" rx="8" fill="#FFFFFF" stroke="#E85D4E" stroke-width="2"/>
+    <text x="400" y="269" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#E85D4E">Cross-Modal Forcing：同步噪声 → 独立噪声（较清晰模态指导另一模态）</text>
+    <rect x="40" y="300" width="720" height="40" rx="8" fill="#C9A86C"/>
+    <text x="400" y="325" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">消融证据：音频协调策略 PQ 6.12 → 6.34 · Cross-Modal Forcing DS 0.19 → 0.08</text>
+  </svg><div class="figcap"><b>图 3</b> · Unison 的分轨联合示意。它把「一条音轨里混着人声和音效」的纠缠问题，拆成两路显式 latent + 帧级交互 + 分离监督三个机制——训练期分轨的代价与收益都写在这张图里。</div></div>
+
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>Cross-Modal Forcing 是「噪声调度」级别的同步机制</h4>
+    <p>多数工作用位置编码（RoPE 族）或注意力结构解决同步，Unison 却把同步做进了<strong>扩散噪声过程本身</strong>：从同步噪声逐步过渡到独立噪声，让较清晰的模态指导另一模态。其消融（DS 0.19 → 0.08）显示这是它同步能力的最大贡献者。理论上这相当于给两路去噪轨迹加了一个「逐渐放开的手」：早期耦合强、防止漂移，后期独立、允许细节分化。把这一机制与 MOVA 的 Aligned RoPE、JoVA 的嘴部损失叠加，是否还有增益，是 Q3 的直接实验。</p></div>
+
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>Unison 与 Soundwich：同一问题的两种哲学</h4>
+    <p>面对「speech + 音效 + 背景声」，Unison 选择<strong>训练期分轨</strong>（显式双 latent + 分离监督），Soundwich（07 节）选择<strong>推理期分轨</strong>（training-free 多轨迹 + 实体路由）。前者上限更高、前置更重（Mel-Roformer 分离数据）；后者零训练、但受限于基座可分解性与「可见声源」假设。两者的胜负手在画外声源与声源数量动态变化的场景——目前无对照数据，见 Q4。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 表示层路线：统一/对齐表示（OmniVAE · AVTok）</h2>
+  <p>如果 latent 本身就对齐、可重建、语义一致，下游的说话人生成器就只需学「口型与语音的联合分布」。这条路线对「共享到什么程度」给出了两个方向相反的答案。</p>
+
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">OmniVAE · 方法</div>
+      <div class="dd">在表示层学习音视频对齐：保留音频和视频各自的 VAE，在 latent 上加入<strong>片段级双向对比学习</strong>，并从预训练语义编码器<strong>蒸馏模态知识</strong>，让下游生成器获得更容易学习的表示。</div></div>
+    <div class="def-item"><div class="dt">OmniVAE · Latent 与解码</div>
+      <div class="dd">两路保留各自可重建的 latent，通过<strong>共享语义坐标</strong>建立细粒度对应；下游 DiT 生成音视频 latent，再由各自 decoder 还原。<span class="alt">替代方案：共享联合隐变量——AVTok 的 Vanilla 实验表明效果不好。</span></div></div>
+    <div class="def-item"><div class="dt">OmniVAE · 训练与证据</div>
+      <div class="dd">需要同步配对片段、重建目标和<strong>冻结语义教师</strong>；先训练/适配 VAE 再验证下游。证据：<strong>latent 同步探测 + 下游 T2AV</strong>，报告语义蒸馏与片段级对齐的互补收益。</div></div>
+    <div class="def-item"><div class="dt">AVTok · 方法</div>
+      <div class="dd">统一音视频 tokenizer：视频与音频频谱分别切块，经<strong>可学习查询</strong>压缩为一维离散 token；两路<strong>共享编解码器主干和码本</strong>，保留各自的查询、归一化层和 token 序列；生成阶段用<strong>自回归模型</strong>预测 token。</div></div>
+    <div class="def-item"><div class="dt">AVTok · Latent 与解码</div>
+      <div class="dd">模态各自的 token 序列，共享主干与码本；视频 token 还原画面，音频 token 还原频谱并经声码器输出波形。<span class="alt">笔记旁注：Vanilla 尝试过共享 latent、共享参数，效果不好；双流版本重建更好。</span></div></div>
+    <div class="def-item"><div class="dt">AVTok · 训练与证据</div>
+      <div class="dd">需要成对音视频重建数据；<strong>VFAL 分阶段训练</strong>：先视频、再音频、最后微调解码器，加特征对齐与自回归预测目标。证据：双流重建更好，验证音到视频、视频到音频和类别条件联合生成；指定台词与复杂声景为后续验证项。</div></div>
+  </div>
+
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <text x="40" y="36" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#2C3E50">统一表示 vs 双流表示：共享到什么程度？</text>
+    <rect x="40" y="60" width="220" height="210" rx="10" fill="#FFFFFF" stroke="#E85D4E" stroke-width="2"/>
+    <text x="150" y="92" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" font-weight="700" fill="#E85D4E">共享联合隐变量</text>
+    <text x="150" y="116" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#2C3E50">AVTok Vanilla 尝试</text>
+    <rect x="70" y="136" width="160" height="38" rx="6" fill="#E85D4E"/><text x="150" y="161" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#FFFFFF">共享 latent</text>
+    <rect x="70" y="184" width="160" height="38" rx="6" fill="#E85D4E"/><text x="150" y="209" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#FFFFFF">共享参数</text>
+    <text x="150" y="248" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#E85D4E">效果不好 · 重建更差</text>
+    <rect x="290" y="60" width="220" height="210" rx="10" fill="#FFFFFF" stroke="#C9A86C" stroke-width="2"/>
+    <text x="400" y="92" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" font-weight="700" fill="#C9A86C">共享主干 + 码本</text>
+    <text x="400" y="116" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#2C3E50">AVTok 双流版</text>
+    <rect x="320" y="136" width="160" height="38" rx="6" fill="#C9A86C"/><text x="400" y="161" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#2C3E50">共享编解码器/码本</text>
+    <rect x="320" y="184" width="160" height="38" rx="6" fill="#1B4B6F"/><text x="400" y="209" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#FFFFFF">专属查询 + 专属 token</text>
+    <text x="400" y="248" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#2C3E50">VFAL 渐进训练 · 重建更好</text>
+    <rect x="540" y="60" width="220" height="210" rx="10" fill="#FFFFFF" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="650" y="92" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" font-weight="700" fill="#5A8F7B">各自 latent + 对齐目标</text>
+    <text x="650" y="116" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#2C3E50">OmniVAE</text>
+    <rect x="570" y="136" width="160" height="38" rx="6" fill="#5A8F7B"/><text x="650" y="161" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#FFFFFF">片段级双向对比</text>
+    <rect x="570" y="184" width="160" height="38" rx="6" fill="#5A8F7B"/><text x="650" y="209" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#FFFFFF">语义教师蒸馏</text>
+    <text x="650" y="248" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#2C3E50">下游 T2AV 更易学 · 同步更好</text>
+    <path d="M260 165 L290 165" stroke="#2C3E50" stroke-width="2.5"/><path d="M282 159 L290 165 L282 171" fill="#2C3E50"/>
+    <path d="M510 165 L540 165" stroke="#2C3E50" stroke-width="2.5"/><path d="M532 159 L540 165 L532 171" fill="#2C3E50"/>
+    <text x="400" y="302" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F">← 共享程度递减 · 显式对齐目标递增 →</text>
+  </svg><div class="figcap"><b>图 4</b> · 统一表示 vs 双流表示的范式对比。它把「tokenizer、codebook 或 VAE latent 应共享和对齐到什么程度」这一研究问题具象化为三档设计，AVTok 的 Vanilla 失败钉住最左端。</div></div>
+
+  <p><strong>批判视角：</strong>表示层路线目前的证据都止步于「重建更好 / 下游更易学」，尚无指定台词（scripted speech）与复杂声景下的说话人生成结果——而这两项恰是说话人场景的核心需求。对说话人视频而言，OmniVAE 的「共享语义坐标」若能对齐到<strong>音节/口型级别</strong>而非片段级，才真正接得上 JoVA 的嘴部监督逻辑。</p>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> 对齐-融合与双塔路线（NAVA · MOVA · Ovi）</h2>
+  <p>不动 latent、只改网络内部分工的三个代表：NAVA 把对齐与融合拆成前后两段；MOVA 用 Bridge + Aligned RoPE 连接双塔；Ovi 用逐层双向交互的对称双 DiT。</p>
+
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">NAVA · 方法</div>
+      <div class="dd">Align-then-Fuse MMDiT：前部层建立音视频对应，后部层共享参数联合去噪；文本与参考音色作外部上下文，<strong>Timbre-in-Context Conditioning 把音色绑定到具体台词片段</strong>。</div></div>
+    <div class="def-item"><div class="dt">NAVA · Latent / 训练 / 证据</div>
+      <div class="dd">输入音视频 latent 经模态感知对齐进入共享融合层，输出走各自 VAE 解码。复用 <strong>Wan 视频骨干与视频 VAE、LTX 音频 VAE</strong>；渐进混合音频单模态与配对音视频训练 + 音色条件 dropout。证据：<strong>Verse-Bench、Seed-TTS 与人评</strong>报告同步、视觉质量与音色控制收益。</div></div>
+    <div class="def-item"><div class="dt">MOVA · 方法与 Latent</div>
+      <div class="dd">双塔：<strong>Wan2.2 视频 DiT + 1.3B 音频 DiT</strong> 文本条件下联合去噪，<strong>双向 Bridge Cross-Attention</strong> 交换特征；<strong>Aligned RoPE</strong> 把两路位置映射到统一时间尺度。各自 latent、各自 VAE 解码，输出视频及语音、音效和音乐。<span class="alt">笔记旁注：audio 的 latent 要远远稠密 video 的 latent。</span></div></div>
+    <div class="def-item"><div class="dt">MOVA · 训练与证据</div>
+      <div class="dd">先建立音频塔生成能力，再联合训练双塔与 Bridge；<strong>Bridge 与骨干差异学习率、音视频可分别调节的噪声调度</strong>。证据：语音、音画对齐与人评 + 推理控制消融；<strong>冻结双塔暖启动较早达到平台，最终采用联合更新（第 4.4 节）</strong>。</div></div>
+    <div class="def-item"><div class="dt">Ovi · 方法与 Latent</div>
+      <div class="dd">对称双 DiT：视频分支 <strong>Wan2.2-5B</strong> 初始化、音频分支匹配架构，<strong>每层双向 Cross-Attention</strong> 交换信息，<strong>缩放 RoPE</strong> 对齐时间。分别编码、联合去噪；音频用 <strong>MMAudio VAE</strong> → 频谱 → <strong>BigVGAN</strong>。</div></div>
+    <div class="def-item"><div class="dt">Ovi · 训练与证据</div>
+      <div class="dd">先预训练音频塔并补音效数据，再训融合；<strong>融合阶段冻结 FFN</strong>，更新单模态与跨模态注意力。证据：<strong>Verse-Bench 人评</strong>相对 JavisDiT、UniVerse-1 的质量与同步偏好优势（联合模型间比较）。</div></div>
+  </div>
+
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <text x="40" y="34" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#2C3E50">S-A 时间对齐示意：视频按帧、音频按片段，落到同一条物理时间轴</text>
+    <text x="40" y="78" font-family="Noto Sans SC,sans-serif" font-size="13" font-weight="700" fill="#1B4B6F">视频（帧）</text>
+    <rect x="150" y="58" width="88" height="32" rx="4" fill="#1B4B6F"/><rect x="244" y="58" width="88" height="32" rx="4" fill="#1B4B6F"/><rect x="338" y="58" width="88" height="32" rx="4" fill="#1B4B6F"/><rect x="432" y="58" width="88" height="32" rx="4" fill="#1B4B6F"/><rect x="526" y="58" width="88" height="32" rx="4" fill="#1B4B6F"/>
+    <text x="40" y="136" font-family="Noto Sans SC,sans-serif" font-size="13" font-weight="700" fill="#5A8F7B">音频（片段）</text>
+    <rect x="150" y="116" width="182" height="32" rx="4" fill="#5A8F7B"/><rect x="338" y="116" width="182" height="32" rx="4" fill="#5A8F7B"/><rect x="526" y="116" width="88" height="32" rx="4" fill="#5A8F7B"/>
+    <text x="640" y="80" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">时间 RoPE（UniTalking/JoVA）</text>
+    <text x="640" y="138" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">缩放 RoPE（Ovi）</text>
+    <line x1="150" y1="172" x2="614" y2="172" stroke="#E85D4E" stroke-width="2.5"/>
+    <text x="382" y="196" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#E85D4E">Aligned RoPE（MOVA）：两路位置 → 统一物理时间尺度</text>
+    <rect x="40" y="222" width="230" height="80" rx="8" fill="#FFFFFF" stroke="#C9A86C" stroke-width="2"/>
+    <text x="155" y="248" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13.5" font-weight="700" fill="#C9A86C">表示层对齐</text>
+    <text x="155" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">OmniVAE 片段级对比</text>
+    <text x="155" y="291" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">AVTok 共享码本 + 对齐目标</text>
+    <rect x="285" y="222" width="230" height="80" rx="8" fill="#FFFFFF" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="400" y="248" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13.5" font-weight="700" fill="#1B4B6F">结构层对齐</text>
+    <text x="400" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">RoPE 族（MOVA/Ovi/UniTalking/JoVA）</text>
+    <text x="400" y="291" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">帧级双向注意力（Unison）</text>
+    <rect x="530" y="222" width="230" height="80" rx="8" fill="#FFFFFF" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="645" y="248" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13.5" font-weight="700" fill="#5A8F7B">内容层对齐</text>
+    <text x="645" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">嘴部区域损失（JoVA）</text>
+    <text x="645" y="291" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">Face-Aware Modulation（UniAVGen）</text>
+  </svg><div class="figcap"><b>图 5</b> · S-A 对齐示意：把「同步」具象化为三个层次——表示层（latent 对应）、结构层（时间位置编码）、内容层（口型/面部局部约束）。各工作分别占一到两层，从无统一消融。</div></div>
+
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>三种交互密度对应三种成本曲线</h4>
+    <p>MOVA 的 Bridge（模块级交互）、Ovi 的逐层 Cross-Attention（每层交互）、NAVA 的前后分工（阶段级交互）构成一条交互密度谱系。密度越高，同步与细节协调的上限越高，但每步去噪的算力开销与训练耦合风险也越大。MOVA 的「冻结暖启动很快到平台、最终联合更新」提示：<strong>交互模块与骨干是协同塑形的</strong>，低密度交互更需要联合更新来打通接口。选择哪种密度，本质是在「训练稳定性预算」与「同步上限」之间定价。</p></div>
+
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>「联合模型之间比较」的证据闭环缺一角</h4>
+    <p>Ovi 的优势证据是相对 JavisDiT、UniVerse-1 的人评偏好——笔记特别注明「这是联合模型间的比较」。对说话人场景的落地决策而言，真正需要的对照是<strong>级联强基线</strong>（TTS + 专用口型模型），而本节三个工作都没有报告这一对照。旁证是 06 节 UniAVGen 的表 1：联合模型在情绪一致性上大胜级联基线，却在音频 PQ（7.00 vs 8.15）和口型分（5.95 vs 6.34）上落后。在补齐级联对照之前，「联合优于级联」在说话人场景仍是未证实命题。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 非对称双流与人脸/情感控制（LTX-2 · UniAVGen）</h2>
+  <p>两个工作把双流路线推向「非对称」与「局部控制」：<strong>LTX-2</strong> 用 14B/5B 的非对称容量 + 模态感知 CFG；<strong>UniAVGen</strong> 用非对称时间对齐交互 + Face-Aware Modulation 聚焦人脸，并给出本谱系唯一一组「联合 vs 级联」的分项数字。</p>
+
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">LTX-2 · 方法</div>
+      <div class="dd">非对称双流 Transformer，原始报告中<strong>视频流 14B、音频流 5B</strong>；双向音视频注意力、时间位置编码与共享噪声条件联合生成；<strong>模态感知 CFG</strong> 分别控制文本遵循与声画关联。</div></div>
+    <div class="def-item"><div class="dt">LTX-2 · Latent / 训练 / 证据</div>
+      <div class="dd">各自 VAE latent，双流交互共同演化，分别解码输出画面和含 speech、环境声及<strong>拟音（Foley）</strong>的音轨。训练数据需同步视频、音轨和<strong>完整 caption</strong>（台词、说话人、语言、口音、环境声音）。证据：音视频人评 + 跨模态 guidance 分析——<strong>增强跨模态 guidance 可改善同步与语义一致性</strong>。</div></div>
+    <div class="def-item"><div class="dt">UniAVGen · 方法</div>
+      <div class="dd">音视频双分支 + <strong>非对称时间对齐交互</strong>：音频线索指导口型和动作，视觉线索帮助声音匹配表情与身份；<strong>Face-Aware Modulation</strong> 聚焦人脸；模态感知 CFG 控制跨模态关联。支持参考图像、指定台词和可选参考声音。</div></div>
+    <div class="def-item"><div class="dt">UniAVGen · Latent / 训练 / 证据</div>
+      <div class="dd">视频用 Wan VAE latent；音频用 <strong>Mel 频谱 + 声码器</strong>。先训音频分支，再在真实配对音视频上联合更新，随后<strong>多任务训练</strong>：联合生成、续写、配音、音频驱动视频。证据（表 1，vs F5-TTS＋OmniAvatar）：情绪一致性 <strong>0.573／0.349</strong>，音频 PQ <strong>7.00／8.15</strong>，口型分 <strong>5.95／6.34</strong>；情绪评分由多模态模型给出，笔记认为值得补充人类盲评。</div></div>
+  </div>
+
+  <p><strong>深度解读：</strong>UniAVGen 的三个数字构成一张「联合生成能力剖面图」：情绪一致性 0.573 vs 0.349 的大幅领先说明联合生成真正赚到的是<strong>跨模态语义/情感协调</strong>；而 PQ 7.00 vs 8.15、口型 5.95 vs 6.34 的落后说明<strong>逐项保真</strong>（纯音质、纯口型精度）仍是级联方案的领地。换言之，联合生成目前买到的是「一致性」，付出的是「单项保真」。多任务训练（续写、配音、音频驱动视频）则暗示另一条产品化路径：与其在单指标上追平级联，不如占住级联做不到的<strong>双向可驱动</strong>能力。</p>
+
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>非对称容量（14B/5B）是对「音频 latent 稠密」的正确回应吗？</h4>
+    <p>MOVA 的笔记旁注说「audio 的 latent 要远远稠密 video 的 latent」，而 LTX-2 却给视频侧更大参数量（14B vs 5B）。两者并不矛盾但值得追问：稠密的是<strong>信息量</strong>，参数分配还取决于<strong>先验难度</strong>——视频先验（Wan 系骨干）已经很强，音频先验弱，按「补弱者」逻辑反而应给音频侧更多容量。LTX-2 的分配逻辑与 MOVA 的差异学习率、Ovi 的「匹配架构」共同暴露一个未被显式研究的问题：<strong>双流的容量/学习率/噪声调度该如何按模态不对称性联合定价？</strong>（见 Q2）。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 多声源分轨控制（Soundwich）</h2>
+  <p>说话人视频的真实声景是「人声 + 音效 + 背景声」三轨并存，而前述所有工作都把它们压成一条音轨。Soundwich 的答案：<strong>在冻结的原生音视频模型上扩展多条音频生成轨迹，training-free，各轨独立可编辑</strong>。</p>
+
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">方法</div>
+      <div class="dd">冻结原生音视频模型，扩展<strong>多条音频生成轨迹</strong>、保留同一视频轨迹；通过<strong>共享场景信息、逐声源 guidance、时间控制与实体注意力路由</strong>，输出分别可编辑的人声、音效和背景声。</div></div>
+    <div class="def-item"><div class="dt">Latent 与解码</div>
+      <div class="dd">多个声源各有音频 latent，视觉端共享视频 latent；音轨<strong>分别解码后混音</strong>，支持静音、替换、重排和单独调节。<span class="alt">对照：Unison 在训练期显式建模 speech/SFX 双 latent（03 节）——训练期分轨 vs 推理期分轨。</span></div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd"><strong>training-free 推理改造</strong>，复用已有联合生成器；前置包括源级声音条件、可选时间窗口，以及<strong>可见声源的分割/实体对应</strong>。</div></div>
+    <div class="def-item"><div class="dt">优势与证据</div>
+      <div class="dd">论文实验与人评报告<strong>时间控制、音源分离和自然度</strong>的改善，并通过组件消融分析<strong>场景广播与实体路由</strong>。</div></div>
+  </div>
+
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <text x="40" y="34" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#2C3E50">多声源分轨示意：共享视频轨迹 + 三条可编辑音频轨迹</text>
+    <rect x="40" y="56" width="720" height="38" rx="8" fill="#5A8F7B"/><text x="400" y="81" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13.5" fill="#FFFFFF">视频轨迹（共享 · 唯一）· 实体注意力路由把可见声源锚到画面实体</text>
+    <rect x="40" y="108" width="720" height="34" rx="8" fill="#1B4B6F"/><text x="60" y="130" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">人声轨 · 绑定指定台词 · 逐声源 guidance</text>
+    <rect x="40" y="150" width="720" height="34" rx="8" fill="#2C3E50"/><text x="60" y="172" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">音效轨 · 时间窗口控制（何时响、响多久）</text>
+    <rect x="40" y="192" width="720" height="34" rx="8" fill="#C9A86C"/><text x="60" y="214" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">背景声轨 · 共享场景信息广播</text>
+    <rect x="40" y="246" width="720" height="42" rx="8" fill="#FFFFFF" stroke="#E85D4E" stroke-width="2"/>
+    <text x="400" y="273" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#E85D4E">独立编辑：静音 · 替换 · 重排 · 单独调节 → 按需混音输出</text>
+    <text x="40" y="318" font-family="Noto Sans SC,sans-serif" font-size="12.5" fill="#2C3E50">前置负担：源级声音条件 · 可选时间窗口 · 可见声源的分割/实体对应（画外声源是薄弱点）</text>
+    <path d="M150 108 L150 94" stroke="#E85D4E" stroke-width="2"/><path d="M400 150 L400 94" stroke="#E85D4E" stroke-width="2"/><path d="M650 192 L650 94" stroke="#E85D4E" stroke-width="2"/>
+  </svg><div class="figcap"><b>图 6</b> · 多声源分轨示意。它把「speech、背景声与音效如何同步生成并独立编辑」具象化为轨迹结构：一条共享视频轨迹 + 按声源分轨的音频轨迹，编辑自由度从「整条音轨」细化到「单个声源」。</div></div>
+
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>training-free 分轨改写了「联合」的验收标准</h4>
+    <p>Soundwich 证明：只要基座联合生成器的多声源信息是<strong>可路由的</strong>，分轨编辑可以在推理期近乎免费获得。这把评价重心从「模型有没有分轨能力」转向「基座的声源纠缠度」——一个纠缠严重的基座，实体路由再精巧也分不干净。反过来看，Unison 式训练期分轨的价值被重新聚焦为两点：<strong>提升生成质量上限</strong>（显式监督让各轨各自更好）与<strong>覆盖不可见声源</strong>（不依赖实体锚点）。这层重估是本页把 Soundwich 与 Unison 并置的原因。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">08</span> 路线对照：每条路线回答一个研究问题</h2>
+  <p>下表前四行来自两份笔记末尾的路线对照表，后四行为本页结合说话人场景补充的<strong>补充分析</strong>（标注「补充」）。</p>
+
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>路线</th><th>代表工作</th><th>对应要研究的问题</th></tr></thead>
+    <tbody>
+      <tr><td class="route">双流／双塔联合生成</td><td>MOVA、Ovi、LTX-2、UniAVGen（说话人特化：UniTalking、JoVA）</td><td>如何在生成过程中交互、对齐时间，并平衡语音与视频质量</td></tr>
+      <tr><td class="route">统一／对齐表示</td><td>AVTok、OmniVAE</td><td>tokenizer、codebook 或 VAE latent 应共享和对齐到什么程度</td></tr>
+      <tr><td class="route">先对齐后共享融合</td><td>NAVA</td><td>模态专属对齐与共享生成如何衔接，如何注入台词与音色</td></tr>
+      <tr><td class="route">多声源分轨控制</td><td>Soundwich（训练期分轨：Unison）</td><td>speech、背景声与音效如何同步生成并独立编辑</td></tr>
+      <tr><td class="route">补充 · 联合注意力式联合</td><td>UniTalking、JoVA</td><td>音视频 token 拼接的 Joint Attention 能否同时承担生成与口型同步</td></tr>
+      <tr><td class="route">补充 · 局部口型/面部监督</td><td>JoVA（嘴部 Flow Matching）、UniAVGen（Face-Aware Modulation）</td><td>口型级同步需要多强的局部先验，标注成本与收益如何权衡</td></tr>
+      <tr><td class="route">补充 · 台词与音色条件绑定</td><td>NAVA（Timbre-in-Context）、UniTalking（参考音色）、UniAVGen（指定台词 + 可选参考声音）</td><td>音色如何绑定到具体台词片段，条件 dropout 如何兼顾可控与质量</td></tr>
+      <tr><td class="route">补充 · 训练次序与音频冷启动</td><td>UniTalking（TTS 预训练）、JoVA（80K→100K）、MOVA、Ovi、UniAVGen</td><td>音频塔/音频分支的冷启动到什么程度才够，联合更新何时必须解冻</td></tr>
+    </tbody>
+  </table></div>
+
+  <p><strong>读表要点：</strong>说话人场景的四条补充路线其实都挂在同一个母问题上——<strong>「台词如何变成可信的口型与声音」</strong>。联合注意力解决「一起生成」，局部监督解决「口型对上音节」，条件绑定解决「说指定的话、用指定的声音」，训练次序解决「语音质量不塌」。对照通用音视频页（landscape-av）可以看到：同一骨架（双流 + 时间对齐 + 各自解码）在说话人场景被持续加装局部约束与条件通路。</p>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">09</span> 深度洞察 &amp; 批判评估</h2>
+
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「先音频后联合」是全谱系的隐藏共识，其根源是预训练不对称</h4>
+    <p>UniTalking 用 TTS 预训练音频分支（消融证明对音质关键）、JoVA 80K 步音频分支再 100K 联合、MOVA「先建立音频塔」、Ovi「先预训练音频塔」、UniAVGen「先训练音频分支」——五个工作同一训练次序。根源是结构性的：视频侧可直接复用 Wan2.2/Wan2.1 等强骨干（UniTalking、JoVA、MOVA、Ovi、UniAVGen 全部如此），音频侧只有 MMAudio VAE 级别的复用，生成骨干基本要自己建。当前「联合生成」的实态是<strong>强视频塔 + 冷启动音频塔 + 中途焊接的交互层</strong>；谁做出音频侧的「Wan 级」预训练基座，谁就改写整条路线的成本结构。</p></div>
+
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>同步监督三级下沉：位置 → 结构 → 器官</h4>
+    <p>把本谱系的同步机制排成一条下沉链：<strong>位置级</strong>（时间 RoPE/缩放 RoPE/Aligned RoPE，解决时间戳映射）→ <strong>结构级</strong>（Joint Attention、帧级双向注意力、Bridge，解决跨模态信息流）→ <strong>器官级</strong>（JoVA 嘴部区域 Flow Matching、UniAVGen Face-Aware Modulation，解决「嘴型对音节」）。越往下越贴近说话人场景的真实验收标准，但标注成本越高（嘴部关键点、人脸分割）。JoVA 的组合（共享注意力 + 局部嘴部监督）代表当前最激进的下沉方案，其 LSE-C 6.70 与 WER 0.19 可视为这条设计路线的强证据。</p></div>
+
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>三处证据裂缝：对照口径、指标来源、规模</h4>
+    <p><strong>对照口径：</strong>UniTalking 对比的 Ovi 是通用音视频模型，Ovi 对比的 JavisDiT/UniVerse-1 是联合模型——真正需要的「级联强基线」对照只在 UniAVGen 表 1 出现，且结果是互有胜负（情绪赢、PQ/口型输）。<strong>指标来源：</strong>UniAVGen 情绪一致性由多模态模型打分，笔记原话「值得补充人类盲评」。<strong>规模：</strong>UniTalking 盲评 20 人 × 50 提示；JoVA 的 300 万样本/100 万说话场景是训练规模而非评测规模。此外 benchmark 碎片化（JoVABench-Gen、Verse-Bench、Seed-TTS 各自为政）使跨工作排序只能靠人评口径间接推断。</p></div>
+
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>训练数据的前置成本被架构创新掩盖</h4>
+    <p>本谱系每个工作的「训练与前置」栏都列着一串昂贵准备：<strong>口型同步过滤</strong>（UniTalking）、<strong>ASR 台词 + 嘴部关键点</strong>（JoVA）、<strong>Mel-Roformer 分离</strong>（Unison）、<strong>同步过滤 + 含台词声景描述</strong>（Ovi）、<strong>完整 caption 含说话人/语言/口音</strong>（LTX-2）。架构上的联合注意力是「免费」的，但让联合训练真正有效的数据清洗才是成本大头。评估路线优劣时，应把「前置成本」与「模型效果」放在同一张表里——目前笔记中的证据只覆盖后者。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">10</span> 自主科研问题</h2>
+
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>局部口型监督的收益边界：需要多细的标注，收益何时饱和？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>JoVA 用嘴部区域 Flow Matching 损失强化口型，UniAVGen 用 Face-Aware Modulation 聚焦人脸，但两者都未报告「监督粒度-收益」曲线。若粗粒度（人脸框）已获大部分收益，昂贵的嘴部关键点标注可以省掉。</p>
+    <p><strong>理论分析：</strong>全局同步指标对「音节→口型」只有间接约束（见 09 节三级下沉链）；局部损失把梯度直接压到嘴部区域，等价于提高该区域在速度场回归中的权重。可预期收益随标注粒度递增但边际递减，饱和点对应口型可辨识度的上限。</p>
+    <p><strong>连接：</strong>JoVA 的 LSE-C 6.70／WER 0.19（vs Ovi 6.41／0.23）、UniAVGen 口型分 5.95 vs 6.34（输给级联）、UniTalking 的口型同步过滤前置。</p>
+    <p><strong>探究方向：</strong>同一双流基座上扫四档监督（无 / 人脸框 / 嘴部框 / 嘴部关键点），用音节级口型指标 + 人评分档评测，定位饱和点与标注成本的平衡。</p></div></div>
+
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>模态不对称性的联合定价：容量、学习率、噪声调度怎么配？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>笔记旁注「audio 的 latent 要远远稠密 video 的 latent」，而各工作的应对互相矛盾：LTX-2 给视频侧更大参数（14B/5B）、MOVA 用差异学习率与可分别调节的噪声调度、Ovi 用「匹配架构」+ 冻结 FFN。没有工作系统扫过这三个旋钮的联合配置。</p>
+    <p><strong>理论分析：</strong>模态不对称有两面——信息密度（音频稠密）与先验强度（视频骨干强）。参数应补「先验弱」的模态，调度应迁就「信息密」的模态，二者方向不同，这解释了各工作配置的分歧。可用梯度噪声尺度/收敛速率不对称性来形式化。</p>
+    <p><strong>连接：</strong>MOVA 的联合更新 vs 冻结暖启动消融（第 4.4 节）、LTX-2 的非对称双流、Ovi 的 FFN 冻结策略、UniTalking 的音频预训练消融。</p>
+    <p><strong>探究方向：</strong>在统一基座上做容量比 × 学习率比 × 噪声调度比的三因素实验，监控两塔的梯度范数与时序同步指标，找出「联合更新何时必须解冻」的相变点。</p></div></div>
+
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>同步机制的可叠加性：RoPE、Cross-Modal Forcing、局部损失是互补还是冗余？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>Unison 的 Cross-Modal Forcing（DS 0.19→0.08）与 MOVA 的 Aligned RoPE、JoVA 的嘴部损失各自被单独消融证明有效，但三者叠加是否仍有增益未知——若冗余，可以砍掉最贵的一个。</p>
+    <p><strong>理论分析：</strong>三者作用层面不同：RoPE 管时间戳映射（防漂移），Forcing 管噪声过程耦合（防分叉），局部损失管内容对应（防口型错配）。理论上互补，但都消耗模型容量去「纠同步」，可能互相挤占。</p>
+    <p><strong>连接：</strong>Unison 的 DS 消融、MOVA 的推理控制消融、JoVA 的嘴部监督组合、09 节三级下沉链。</p>
+    <p><strong>探究方向：</strong>2×2×2 因子消融，分层评测（秒级漂移/音节口型/语义一致），识别各机制的专属作用层与重叠区。</p></div></div>
+
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>多声源分轨：画外声源与动态声源数下，两条分轨路线谁更鲁棒？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>Soundwich 的实体注意力路由以「可见声源的分割/实体对应」为前置，Unison 的训练期分轨依赖 Mel-Roformer 分离监督。画外音、环境声、声源数量变化是两者的共同压力测试点，目前无对照数据。</p>
+    <p><strong>理论分析：</strong>推理期路由假设声源信息在基座中线性可分解且有视觉锚点；训练期分轨把分解写进表示，但受限于分离监督的质量。画外声源打破锚点假设，动态声源数打破「固定轨迹数」的结构假设。</p>
+    <p><strong>连接：</strong>Soundwich 的场景广播与实体路由消融、Unison 的 Bi-ACA＋语义条件门控、AVTok 的模态信息平衡检查。</p>
+    <p><strong>探究方向：</strong>构造含画外音/可变声源数的说话人测试集，对比两路线的分离质量、编辑一致性、同步指标与「路由失败时的降级行为」。</p></div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">11</span> 代码附录（示意性伪代码）</h2>
+  <p>以下两段<strong>不是任何论文的官方实现</strong>，仅把本页机制（拼接式联合注意力、训练期分轨 + Cross-Modal Forcing）写成可读的示意流程。</p>
+
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># UniTalking/JoVA 式拼接 Joint Attention 联合去噪（示意）</span>
+<span class="kw">def</span> <span class="fn">joint_attention_denoise</span>(z_v, z_a, conds, steps):
+    <span class="cm"># conds: 文本/台词 · 身份图像（通道拼接 + 二值 mask）· 参考音色</span>
+    <span class="kw">for</span> t <span class="kw">in</span> timesteps(steps):
+        x = concat_tokens(z_v, z_a)          <span class="cm"># 音视频 token 拼接为一个序列</span>
+        x = x + time_rope(t)                 <span class="cm"># 时间 RoPE 对齐两路位置</span>
+        v = joint_mm_dit(x, t, conds)        <span class="cm"># 共享注意力权重（Joint Attention）</span>
+        v_v, v_a = split(v)
+        z_v = euler_step(z_v, v_v, t)
+        z_a = euler_step(z_a, v_a, t)
+        <span class="cm"># JoVA 追加：嘴部区域 Flow Matching 损失（训练时）</span>
+        loss_mouth = flow_matching(z_a_pred, z_a_gt, mask=mouth_region(conds))
+    video = wan_vae.decode(z_v)              <span class="cm"># 画面</span>
+    mel   = mmaudio_vae.decode(z_a)          <span class="cm"># Mel 频谱</span>
+    <span class="kw">return</span> video, bigvgan(mel)               <span class="cm"># BigVGAN → 44.1kHz 波形</span></pre>
+
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Unison 式训练期分轨 + Cross-Modal Forcing（示意）</span>
+<span class="kw">def</span> <span class="fn">unison_train_step</span>(video, mix_audio, t):
+    speech_tgt, sfx_tgt = mel_roformer_separate(mix_audio)  <span class="cm"># 分离监督</span>
+    z_v = wan_vae.encode(video)
+    z_sp, z_sfx = encode(mix_audio)          <span class="cm"># speech / SFX 两路 latent，共享时间索引</span>
+    <span class="cm"># Cross-Modal Forcing：同步噪声 → 独立噪声（按训练进度插值）</span>
+    noise = lerp(synced_noise, independent_noise, progress(t))
+    <span class="cm"># 音频内部：Bi-ACA + 语义条件门控协调人声与音效</span>
+    z_sp, z_sfx = bi_aca(z_sp, z_sfx, gate=semantic_cond)
+    <span class="cm"># 帧级双向注意力：视频分支（冻结）与音频分支交互</span>
+    feats_v = frozen_video_branch(z_v, t, attend_to=[z_sp, z_sfx])
+    feats_a = audio_branch([z_sp, z_sfx], t, attend_to=feats_v)
+    <span class="kw">return</span> flow_matching(feats_v, z_v) \
+         + flow_matching(feats_a.speech, speech_tgt) \
+         + flow_matching(feats_a.sfx, sfx_tgt)             <span class="cm"># 分别施加 FM 监督</span></pre>
+</section>

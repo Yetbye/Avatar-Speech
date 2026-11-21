@@ -1,0 +1,369 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂 Beyond Monologue</h2>
+  <p class="lead">真实对话是全双工的：一个人在说话的同时还在听——点头、皱眉、等待插话的时机。现有音频驱动数字人却停留在「独白」范式：要么用状态机在说/听之间硬切换，要么把倾听音频像说话音频一样做逐帧对齐，结果是反应僵硬、节奏呆板。Beyond Monologue 的核心洞察是一个<strong>时间尺度错配</strong>：说话需要毫秒级音画硬对齐（口型），倾听需要秒级会话软理解（情绪、语义、话轮）。作者用一个<strong>多头高斯核（Multi-Head Gaussian Kernels, MHGK）</strong>把这条物理直觉写进注意力矩阵——窄感受野的头管口型，宽感受野的头管会话上下文——再配上双流音频注入、任意位置引导训练与全新构建的 1,206 小时干净解耦对话数据集 VoxHear。</p>
+  <p>论文来自中科大（USTC）与科大讯飞（iFLYTEK），基于 Wan2.2 5B 骨干构建全双工「说-听」双流模型，在 HDTF/MEAD、ResponseNet 等基准与用户研究中取得领先（论文表述）。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「时间尺度差异」是被架构遗忘的物理量</h4>
+    <p>音频驱动视频生成的主流做法默认「音频-视频处处逐帧对齐」。但语言学与会话分析早就指出：口型是锁相振荡器式的毫秒级映射，而倾听反应（笑、点头、插话）依赖的是韵律、语义、话轮转换等长程线索。Beyond Monologue 把这一 Dual-Resolution Property（论文命名）变成架构约束，等于承认：<strong>一个注意力头的「时间感受野」应当是一个物理量，而不是一个被均匀初始化的超参</strong>。这是把领域物理直觉注入归纳偏置的教科书案例，也解释了为什么「直接全局注意力会毁掉口型、严格逐帧对齐会毁掉反应」——两者各自只覆盖了一个时间尺度。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 范式定位：三代「说-听」方案的失败模式</h2>
+  <p>论文把既有路线归为三类，每类的失败模式都能对应到一个时间尺度的缺失。<strong>状态机方法</strong>（如 L2L、DIM 一类两阶段方法，论文表述）把说话与倾听建模为互斥状态、严格切换，处理不了自然的语音重叠；<strong>上下文无关方法</strong>（如 StreamAvatar）把倾听音频零填充后用与说话相同的逐帧局部 2D 注意力处理，长程会话动态被彻底切断，交互僵硬；且其训练时的音频掩码策略带来明显的训练-推理错位。第三类 <strong>INFP</strong> 用中间动作码本生成头姿、表情与口型，但只覆盖头部区域，缺乏上半身/全身表达力。</p>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="380" fill="#F7F4EE"/>
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" fill="#2C3E50" font-weight="bold">三代「说-听」范式对比（依论文 Fig.1 重绘）</text>
+    <!-- A state machine -->
+    <rect x="30" y="60" width="230" height="270" fill="#FFFFFF" stroke="#2C3E50" stroke-width="2" rx="8"/>
+    <text x="145" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">A. 状态机方法</text>
+    <rect x="60" y="110" width="80" height="40" fill="#1B4B6F" rx="4"/><text x="100" y="135" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">说话</text>
+    <rect x="155" y="110" width="80" height="40" fill="#5A8F7B" rx="4"/><text x="195" y="135" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">倾听</text>
+    <line x1="140" y1="122" x2="153" y2="122" stroke="#E85D4E" stroke-width="3" marker-end="url(#arrA)"/>
+    <line x1="155" y1="140" x2="142" y2="140" stroke="#E85D4E" stroke-width="3" marker-end="url(#arrA)"/>
+    <text x="145" y="185" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">手动硬切换，无法处理</text>
+    <text x="145" y="205" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">自然语音重叠（抢话/附和）</text>
+    <text x="145" y="245" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">失败模式：话轮断裂</text>
+    <!-- B context-free -->
+    <rect x="285" y="60" width="230" height="270" fill="#FFFFFF" stroke="#2C3E50" stroke-width="2" rx="8"/>
+    <text x="400" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">B. 上下文无关方法</text>
+    <rect x="315" y="110" width="170" height="26" fill="#C9A86C" opacity="0.5" rx="4"/><text x="400" y="128" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">倾听音频（零填充）</text>
+    <rect x="315" y="148" width="170" height="26" fill="#1B4B6F" opacity="0.5" rx="4"/><text x="400" y="166" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">说话音频</text>
+    <g stroke="#2C3E50" stroke-width="1.5"><line x1="330" y1="185" x2="330" y2="215"/><line x1="360" y1="185" x2="360" y2="215"/><line x1="390" y1="185" x2="390" y2="215"/><line x1="420" y1="185" x2="420" y2="215"/><line x1="450" y1="185" x2="450" y2="215"/></g>
+    <text x="400" y="235" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">逐帧局部注意力场</text>
+    <text x="400" y="265" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">长程会话上下文被切断</text>
+    <text x="400" y="295" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">失败模式：反应呆板</text>
+    <!-- C ours -->
+    <rect x="540" y="60" width="230" height="270" fill="#FFFFFF" stroke="#5A8F7B" stroke-width="3" rx="8"/>
+    <text x="655" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#5A8F7B" font-weight="bold">C. 本文统一模型</text>
+    <rect x="570" y="110" width="170" height="26" fill="#C9A86C" rx="4"/><text x="655" y="128" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">倾听音频（Q-Former）</text>
+    <rect x="570" y="148" width="170" height="26" fill="#1B4B6F" rx="4"/><text x="655" y="166" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">说话音频（Q-Former）</text>
+    <ellipse cx="620" cy="205" rx="30" ry="18" fill="none" stroke="#1B4B6F" stroke-width="2"/>
+    <ellipse cx="655" cy="205" rx="55" ry="26" fill="none" stroke="#5A8F7B" stroke-width="2"/>
+    <ellipse cx="690" cy="205" rx="80" ry="34" fill="none" stroke="#C9A86C" stroke-width="2"/>
+    <text x="655" y="265" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">多头高斯核：窄→宽感受野</text>
+    <text x="655" y="295" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">全双工，局部对齐 + 全局上下文</text>
+    <defs><marker id="arrA" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#E85D4E"/></marker></defs>
+  </svg><div class="figcap"><b>图 1</b> · 把三条路线的差异归结为「注意力感受野的时间尺度」：状态机没有连续注意力，上下文无关只有零宽度感受野，本文让感受野按头分布从窄到宽铺满整个会话尺度。</div></div>
+  <p>值得注意的反例是 <strong>OVIS</strong>（论文引文 [16]，文中以 OVIS/Ovi 指代）：它证明全局跨模态注意力对连贯生成不可或缺；但在单向音频驱动视频生成里，严格时序对齐又必须保住。论文由此提出正确的问题不是「局部还是全局」，而是<strong>如何在一个架构里同时给足局部强对齐与全局上下文</strong>。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>局部-全局不是二选一，而是一个连续谱上的资源分配问题</h4>
+    <p>2D 空间交叉注意力与 3D 时空交叉注意力之争，本质上是把「感受野」当成了离散开关。MHGK 的贡献在于把感受野变成<strong>连续、逐头、可分配</strong>的资源：$\sigma_h \to 0$ 退化为严格局部注意力（保口型），$\sigma_h \to \infty$ 退化为无损全局注意力（保上下文），中间的头覆盖中间尺度。这与视觉里的多尺度特征金字塔、NLP 里的 ALiBi 距离偏置属于同一族思想，但 Gaussian 形状让它在两端都能严格退化——线性偏置（ALiBi）做不到这一点，它对远处 token 一律线性惩罚，反而压制了长程语义（消融证实 ALiBi 各项均劣于 MHGK）。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> 系统分解：双流注入与因果 Q-Former</h2>
+  <p>模型本体是一个 <strong>Double A2V（Audio-to-Video）DiT</strong>：骨干为 Wan2.2 5B，3D VAE 以 <strong>4×16×16</strong> 压缩视频。说话与倾听各走一条音频支路——两套<strong>独立权重的 Audio Q-Former</strong>。音频经预训练 Wav2Vec2.0 编码后取<strong>全部层</strong>的表示拼接、投影到紧凑维度 $D_a$，再切成 $W$ 个与视频 latent 对齐的重叠时间窗，每窗用 $N$ 个可学习查询做交叉注意力聚合。</p>
+  <div class="figure"><svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="400" fill="#F7F4EE"/>
+    <text x="400" y="28" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" fill="#2C3E50" font-weight="bold">双流说-听驱动架构（依论文 Fig.2/3 重绘）</text>
+    <!-- left inputs -->
+    <rect x="20" y="60" width="160" height="40" fill="#2C3E50" rx="6"/><text x="100" y="85" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">参考人像 I_ref</text>
+    <rect x="20" y="120" width="160" height="40" fill="#1B4B6F" rx="6"/><text x="100" y="145" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">说话音频 A_talk</text>
+    <rect x="20" y="180" width="160" height="40" fill="#C9A86C" rx="6"/><text x="100" y="205" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">倾听音频 A_listen</text>
+    <!-- Q-formers -->
+    <rect x="215" y="112" width="150" height="56" fill="#1B4B6F" opacity="0.85" rx="6"/><text x="290" y="135" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">Talking Q-Former</text><text x="290" y="153" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#C9D6E2">Wav2Vec2 全层 → D_a，窗 W×查询 N</text>
+    <rect x="215" y="172" width="150" height="56" fill="#C9A86C" rx="6"/><text x="290" y="195" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">Listening Q-Former</text><text x="290" y="213" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">独立权重，自选音频层组合</text>
+    <!-- DiT -->
+    <rect x="410" y="55" width="200" height="290" fill="#FFFFFF" stroke="#1B4B6F" stroke-width="2" rx="8"/>
+    <text x="510" y="78" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" font-weight="bold">TL2V-DiT Block × N</text>
+    <rect x="425" y="92" width="170" height="30" fill="#2C3E50" rx="4"/><text x="510" y="112" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">Self-Attention</text>
+    <rect x="425" y="130" width="170" height="30" fill="#E85D4E" rx="4"/><text x="510" y="150" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">Talking Cross-Attn（MHGK）</text>
+    <rect x="425" y="168" width="170" height="30" fill="#E85D4E" rx="4"/><text x="510" y="188" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">Listening Cross-Attn（MHGK）</text>
+    <rect x="425" y="206" width="170" height="30" fill="#2C3E50" rx="4"/><text x="510" y="226" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">FFN</text>
+    <rect x="425" y="250" width="170" height="26" fill="#EDE6D6" stroke="#C9A86C" rx="4"/><text x="510" y="268" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">冻结 video-text Cross-Attn</text>
+    <rect x="425" y="284" width="170" height="26" fill="#EDE6D6" stroke="#C9A86C" rx="4"/><text x="510" y="302" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">音频 1D RoPE（同位同索引）</text>
+    <!-- output -->
+    <rect x="650" y="150" width="120" height="80" fill="#5A8F7B" rx="6"/><text x="710" y="182" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">3D VAE Dec.</text><text x="710" y="202" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E4EFE9">说+听 全双工视频</text>
+    <!-- arrows -->
+    <line x1="180" y1="80" x2="408" y2="140" stroke="#2C3E50" stroke-width="2" marker-end="url(#arrB)"/>
+    <line x1="180" y1="140" x2="213" y2="140" stroke="#1B4B6F" stroke-width="2" marker-end="url(#arrB)"/>
+    <line x1="180" y1="200" x2="213" y2="200" stroke="#C9A86C" stroke-width="2" marker-end="url(#arrB)"/>
+    <line x1="365" y1="140" x2="423" y2="150" stroke="#1B4B6F" stroke-width="2" marker-end="url(#arrB)"/>
+    <line x1="365" y1="200" x2="423" y2="188" stroke="#C9A86C" stroke-width="2" marker-end="url(#arrB)"/>
+    <line x1="610" y1="190" x2="648" y2="190" stroke="#2C3E50" stroke-width="2" marker-end="url(#arrB)"/>
+    <text x="400" y="378" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">IP-Adapter 式注入：两路音频共享视频 Query，各自带 1D RoPE 时间索引</text>
+    <defs><marker id="arrB" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 2</b> · 双流不是「复制两份注意力」那么简单：两套独立 Q-Former 让说话支路与倾听支路各自挑选不同层级的音频特征（音素细节 vs 语义韵律），再以同一套 MHGK 时间约束注入共享的视频 Query。</div></div>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">音频注入（Q-Former）</div>
+      <div class="dd">Wav2Vec2.0 全层拼接 → 投影到 $D_a$ → $W$ 个重叠时间窗 × $N$ 个可学习查询聚合。双支路独立权重，各自发现任务特定的跨层组合。<span class="alt">替代方案：固定抽取某一层（对说/听两种任务都次优，论文明确否定）。</span></div></div>
+    <div class="def-item"><div class="dt">CFG 的无条件嵌入</div>
+      <div class="dd">传统 CFG 用全零向量作无条件音频，属分布外信号、大引导尺度下易出伪影；此处由 Q-Former 在其学习空间内生成<strong>平滑的无条件嵌入</strong>，缩小与条件表示的差距，允许更高引导尺度而不出现色彩伪影。<span class="alt">替代方案：全零无条件输入。</span></div></div>
+    <div class="def-item"><div class="dt">位置编码</div>
+      <div class="dd">说话与倾听音频表示采用 1D RoPE，对应位置<strong>索引相同</strong>并共享同一视频 Query，维持时序信息与架构一致性；视频 latent 序列 $X\in\mathbb{R}^{B\times(L\times H\cdot W)\times D}$，音频 $C\in\mathbb{R}^{B\times(L_a\times S)\times D}$，经时间缩放 RoPE 对齐到同一时间单位索引 $t$。</div></div>
+    <div class="def-item"><div class="dt">两阶段增量训练</div>
+      <div class="dd">Stage 1「Talking Priority」只加 Talking Audio Adapter，先学会准确口型；Stage 2「Listening Fusion」再加 Listening Audio Adapter 联合训练，在不破坏已有说话能力的前提下融入倾听反应，稳定双流收敛。</div></div>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 关键公式 I：Flow Matching 与任务定义</h2>
+  <p>任务形式化：给定参考人像 $I_{\mathrm{ref}}$、说话音频 $A^{\mathrm{talk}}_{1:F_a}$ 与倾听音频 $A^{\mathrm{listen}}_{1:F_a}$，生成视频 $\hat{X}_{1:F}$，使目标人物<strong>一边准确说出说话音频、一边对倾听音频做出恰当反应</strong>。训练采用 Optimal Transport 形式的 Flow Matching。</p>
+  <div class="formula-card"><div class="f-label">Eq.1 · Flow Matching 目标（论文 Sec.3.1）</div>
+    <div>$$ x_t = (1-t)\,x_0 + t\,x_1, \qquad u_t(x_t) = x_1 - x_0, \qquad \mathcal{L}_{\mathrm{FM}} = \mathbb{E}_{t,x_0,x_1}\left[ \left\| v_\theta(x_t, t, c) - (x_1 - x_0) \right\|^2 \right] $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>$x_0\sim p_0$ 为噪声、$x_1\sim q(x_1)$ 为数据，插值路径是直线，目标速度恒为 $x_1-x_0$。条件 $c$ 包含参考图 $I_{\mathrm{ref}}$ 与双流音频。推理时从 $x_0\sim\mathcal{N}(0,I)$ 出发解 ODE $dx_t/dt = v_\theta(x_t,t,c)$，$t:0\to1$。与 DDPM 相比直线路径让速度场更平滑，收敛更快。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>条件 $c$ 从「单流」变「双流」带来的隐式要求</h4>
+    <p>FM 损失本身对音频流结构毫无约束——把 $c$ 换成双流后，模型完全可以学成「只看说话流、忽略倾听流」（因为说话流对重建损失的贡献更直接、梯度更强）。论文用两阶段增量训练（先说话后融合）与双 Q-Former 独立权重来对抗这种塌缩；但从目标函数看，<strong>倾听流的监督本质上是隐式的</strong>（靠反应行为与真实视频对齐），没有显式反应损失。这是后续科研问题的伏笔（见 Q2）。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> 关键公式 II：多头高斯核（MHGK）</h2>
+  <p>MHGK 是全文的技术核心。在 3D 时空交叉注意力基础上，对每个注意力头 $h$ 加一个随时间距离衰减的高斯偏置矩阵 $B^{(h)}$：</p>
+  <div class="formula-card"><div class="f-label">Eq.2 · 带高斯偏置的多头注意力（论文 Sec.3.2.2）</div>
+    <div>$$ \mathrm{Attention}^{(h)}(Q, K, V) = \mathrm{Softmax}\!\left( \frac{Q^{(h)} (K^{(h)})^\top}{\sqrt{d}} - B^{(h)} \right) V^{(h)} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>与标准注意力只差一个减去的偏置矩阵。$B^{(h)}$ 越大表示该时间距离的音画配对被越强地惩罚，注意力质量被迫集中在时间上邻近的音画 token 之间——这正是「口型需要逐帧对齐」的物理先验。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.3 · 高斯距离惩罚（论文原式，系数已核对）</div>
+    <div>$$ B^{(h)}(i, j) = \alpha_h \left( 1 - \exp\!\left( -\frac{(i-j)^2}{2\,\sigma_h^2} \right) \right) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>$i,j$ 为视频与音频对齐后的时间索引；$\sigma_h$（标准差）与 $\alpha_h$（缩放系数）<strong>逐头分配</strong>。$\sigma_h\to 0$ 时高斯极陡、$\alpha_h$ 最大化，机制退化为极窄感受野的局部注意力，强迫严格口型对齐；$\sigma_h\to\infty$ 时 $B^{(h)}\to 0$，无损保留 3D 全局注意力以捕捉上下文情绪与语义。$\sigma_h,\alpha_h$ 的具体初始化/取值论文未给出（论文表述）。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="340" fill="#F7F4EE"/>
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" fill="#2C3E50" font-weight="bold">逐头高斯感受野：从口型尺度铺到会话尺度</text>
+    <!-- gaussian curves -->
+    <line x1="60" y1="240" x2="740" y2="240" stroke="#2C3E50" stroke-width="2"/>
+    <line x1="60" y1="240" x2="60" y2="60" stroke="#2C3E50" stroke-width="2"/>
+    <text x="400" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">时间距离 |i − j|（视频帧与音频帧的对齐索引差）</text>
+    <path d="M380,240 Q395,70 400,68 Q405,70 420,240" fill="none" stroke="#E85D4E" stroke-width="3"/>
+    <text x="435" y="90" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">σ→0：局部头（口型/音素）</text>
+    <path d="M280,240 Q360,95 400,93 Q440,95 520,240" fill="none" stroke="#1B4B6F" stroke-width="3"/>
+    <text x="540" y="125" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F">中等 σ：韵律/手势节奏头</text>
+    <path d="M160,240 Q320,150 400,148 Q480,150 640,240" fill="none" stroke="#5A8F7B" stroke-width="3"/>
+    <text x="650" y="170" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#5A8F7B">σ→∞：全局头（情绪/语义）</text>
+    <!-- bias matrix -->
+    <rect x="120" y="290" width="240" height="28" fill="#E85D4E" opacity="0.25"/><rect x="200" y="290" width="80" height="28" fill="#E85D4E" opacity="0.8"/>
+    <rect x="420" y="290" width="240" height="28" fill="#5A8F7B" opacity="0.25"/><rect x="490" y="290" width="100" height="28" fill="#5A8F7B" opacity="0.8"/>
+    <text x="240" y="335" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">窄头：注意力集中在对角带</text>
+    <text x="540" y="335" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">宽头：注意力铺满全局</text>
+    <text x="400" y="322" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">↑ B^(h) 偏置越陡（α 越大），注意力越被迫贴近对角线</text>
+  </svg><div class="figcap"><b>图 3</b> · 高斯核把「感受野」变成逐头连续可调的量：所有头合起来覆盖从口型到会话的全部时间尺度，而不必在局部/全局之间二选一。</div></div>
+  <p>工程优势同样关键：高斯偏置直接作用于注意力分数矩阵，<strong>不引入任何额外模块</strong>（无需时序卷积、无需额外局部交叉注意力层），计算开销可忽略。消融中对比的四个变体——2D Spatial CA、3D CA + 1D RoPE、3D CA + 1D RoPE + ALiBi、以及本文的 3D CA + 1D RoPE + MHGK——证据见第 08 章；论文还提到<strong>不带 RoPE 的裸 3D CA 根本学不出有意义的音画对齐</strong>、结果极差，故未列入表格。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>为什么是高斯，而不是 ALiBi 的线性衰减？</h4>
+    <p>ALiBi 对注意力分数施加线性距离惩罚，是一种「一视同仁的远距压制」：它假设距离越远越不相关。但倾听反应恰恰需要远距信息（十分钟前的话轮、对方情绪基调）。高斯形惩罚 $1-\exp(-d^2/2\sigma^2)$ 的妙处在于它有<strong>饱和带</strong>：距离大到一定程度后惩罚趋平（$\to\alpha_h$），不再继续压制；而 ALiBi 线性项无界增长，会把长程语义全部压掉。消融结果与此一致：加 ALiBi 后口型回升（6.01→5.57 的对照见表 3），但 CSIM、FID、FVD 全面劣于 MHGK——线性惩罚换口型、丢上下文，高斯惩罚则两头都要。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 任意位置引导：把模型变成「时间轴上的扩展器」</h2>
+  <p>身份与场景控制传统上靠固定位置锚定：首帧锚定易引发 <strong>Attention Sink</strong>（后帧过度关注首帧，限制运动多样性、长程身份漂移），末帧锚定把生成推向时间终点——两者都是单一固定时序模式。本文改为<strong>任意位置条件引导</strong>：训练时从长 $T$ 的含噪片段中随机采一帧 $i$，取其干净 latent $z_i$ 作引导条件、赋予 RoPE 索引 $p_{\mathrm{ref}}=i$；再叠加 <strong>Diffusion Forcing</strong>——对不同时间 chunk 注入不同强度噪声——使模型成为「任意位置视频扩展模型」：可从时间轴任意绝对位置向前、向后或双向做时序合理的扩展，而不是记住「从头到尾发散」之类的固定捷径。</p>
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="330" fill="#F7F4EE"/>
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" fill="#2C3E50" font-weight="bold">任意位置引导 + Diffusion Forcing（依论文 Fig.2 上部重绘）</text>
+    <!-- timeline chunks -->
+    <rect x="80" y="110" width="110" height="60" fill="#1B4B6F" opacity="0.3" stroke="#1B4B6F" rx="4"/><text x="135" y="145" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">chunk 1（噪声 σ₁）</text>
+    <rect x="195" y="110" width="110" height="60" fill="#1B4B6F" opacity="0.55" stroke="#1B4B6F" rx="4"/><text x="250" y="145" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">chunk 2（噪声 σ₂）</text>
+    <rect x="310" y="110" width="110" height="60" fill="#5A8F7B" stroke="#2C3E50" stroke-width="2" rx="4"/><text x="365" y="138" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">z_i 干净引导帧</text><text x="365" y="156" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E4EFE9">p_ref = i（随机）</text>
+    <rect x="425" y="110" width="110" height="60" fill="#1B4B6F" opacity="0.75" stroke="#1B4B6F" rx="4"/><text x="480" y="145" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">chunk 4（噪声 σ₄）</text>
+    <rect x="540" y="110" width="110" height="60" fill="#1B4B6F" opacity="0.4" stroke="#1B4B6F" rx="4"/><text x="595" y="145" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">chunk 5（噪声 σ₅）</text>
+    <!-- expansion arrows -->
+    <path d="M310 200 Q220 230 100 210" fill="none" stroke="#E85D4E" stroke-width="2.5" marker-end="url(#arrC)"/>
+    <path d="M420 200 Q520 230 640 210" fill="none" stroke="#E85D4E" stroke-width="2.5" marker-end="url(#arrC)"/>
+    <text x="200" y="250" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">向后扩展（补历史）</text>
+    <text x="530" y="250" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">向前扩展（续未来）</text>
+    <!-- tradeoff -->
+    <rect x="120" y="272" width="560" height="34" fill="#EDE6D6" stroke="#C9A86C" rx="6"/>
+    <text x="400" y="294" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">引导距离的取舍：太远→身份保持变弱；太近→动态受限；置于生成窗口「未来侧」最均衡</text>
+    <defs><marker id="arrC" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#E85D4E"/></marker></defs>
+  </svg><div class="figcap"><b>图 4</b> · 任意位置引导把「参考图」从固定锚点变成时间轴上的滑动坐标：配合逐 chunk 异噪，模型学会的是「以任意时刻为原点双向合理扩展」，而非某种固定的生成方向捷径。</div></div>
+  <p>引导位置消融（HDTF，论文 Table 4）给出了明确的倒 U 形证据：首帧引导最差（CSIM 0.614、FID 32.84、FVD 347.65），RoPE 索引 21（离去噪窗口太近，生成过度收敛向引导帧、动作受限）与 27（太远，吸收不足、出现振荡伪影）都次优，<strong>索引 22 全面最优</strong>（CSIM 0.749、FID 23.96、FVD 235.73、LSE-C 6.58）。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>引导位置</th><th>CSIM↑</th><th>FID↓</th><th>FVD↓</th><th>LSE-C↑</th></tr></thead>
+    <tbody>
+      <tr><td class="route">First Guide（首帧）</td><td>0.614</td><td>32.84</td><td>347.65</td><td>6.01</td></tr>
+      <tr><td class="route">Index 21（太近）</td><td>0.736</td><td>24.48</td><td>267.82</td><td>6.24</td></tr>
+      <tr><td class="route">Index 27（太远）</td><td>0.711</td><td>28.17</td><td>316.62</td><td>6.08</td></tr>
+      <tr><td class="route"><b>Index 22（采用）</b></td><td><b>0.749</b></td><td><b>23.96</b></td><td><b>235.73</b></td><td><b>6.58</b></td></tr>
+    </tbody></table></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>倒 U 形曲线 = 「引导信号」与「生成自由度」的信息竞争</h4>
+    <p>引导帧离生成窗口太近，参考信息近乎无损直达，模型退化为「照着引导帧修补」，运动多样性被压缩（FVD 变差）；太远则引导信号经长程注意力稀释，身份约束失效并诱发振荡。索引 22 的最优点恰在「信号仍强、但不窒息自由度」的临界处。这与控制论里的「参考输入增益」取舍同构：增益过大系统僵化、过小系统失稳。训练时随机化 $p_{\mathrm{ref}}$ 的价值就在于让推理期可以自由选择这个增益——固定锚定的模型根本没有这个自由度。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> VoxHear：把「说」与「听」从音频里解耦出来</h2>
+  <p>数据是本文另一半贡献。现有会话视频数据集（Seamless、SpeakerVid-5M 等）普遍存在双人音频缠绕/重叠、多人、严重遮挡或全身视角问题，削弱了表情与会话动态的学习信号；更早的倾听数据集（ViCo、RealTalk、ResponseNet）身份多样性有限、仅头部取景、普遍不足 10 小时。VoxHear 用两阶段清洗管线解决：视觉轨过滤 + 音频轨解耦验证，最终得到 <strong>1,206 小时</strong>的说-听交互数据，每个样本是对齐四元组 $(V_a, A_a, V_b, A_b)$。</p>
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="330" fill="#F7F4EE"/>
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" fill="#2C3E50" font-weight="bold">VoxHear 两阶段清洗管线（依论文 Fig.4 重绘）</text>
+    <rect x="30" y="70" width="150" height="60" fill="#2C3E50" rx="6"/><text x="105" y="95" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">原始会话视频</text><text x="105" y="113" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#C9D6E2">不受限混合媒体输入</text>
+    <line x1="180" y1="100" x2="228" y2="100" stroke="#2C3E50" stroke-width="2" marker-end="url(#arrD)"/>
+    <!-- stage 1 -->
+    <rect x="230" y="55" width="230" height="140" fill="#FFFFFF" stroke="#1B4B6F" stroke-width="2" rx="8"/>
+    <text x="345" y="80" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" font-weight="bold">阶段一 · 视觉轨过滤</text>
+    <text x="248" y="108" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">· 时间切片：10 秒片段</text>
+    <text x="248" y="130" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">· DWPose 关键点提取</text>
+    <text x="248" y="152" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">· 过滤：画质差/主体不一致/多人</text>
+    <text x="248" y="174" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">· 上半身/人像裁剪</text>
+    <line x1="460" y1="125" x2="508" y2="125" stroke="#2C3E50" stroke-width="2" marker-end="url(#arrD)"/>
+    <!-- stage 2 -->
+    <rect x="510" y="55" width="230" height="140" fill="#FFFFFF" stroke="#C9A86C" stroke-width="2" rx="8"/>
+    <text x="625" y="80" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#A5854A" font-weight="bold">阶段二 · 音频轨解耦</text>
+    <text x="528" y="108" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">· 语音分离：MossFormer2</text>
+    <text x="528" y="130" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">（ClearVoice 工具箱）</text>
+    <text x="528" y="152" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">· 口型校验：SyncNet 验证</text>
+    <text x="528" y="174" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">分离轨与对应说话人口型同步</text>
+    <!-- output -->
+    <rect x="280" y="235" width="320" height="56" fill="#5A8F7B" rx="8"/>
+    <text x="440" y="258" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">VoxHear：1,206 小时</text>
+    <text x="440" y="278" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E4EFE9">对齐四元组 (V_a, A_a, V_b, A_b)：上半身视频 + 独立音频轨</text>
+    <line x1="625" y1="195" x2="520" y2="233" stroke="#2C3E50" stroke-width="2" marker-end="url(#arrD)"/>
+    <text x="400" y="315" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">双检查门控：视觉一致性 + 音频-口型同步，任一不过即丢弃</text>
+    <defs><marker id="arrD" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 5</b> · 「完美解耦的说/听双轨」是全双工训练的前提：管线的核心是让 SyncNet 当裁判——分离后的每条音频轨必须仍与对应人口型同步，否则整段丢弃。</div></div>
+  <p>第二阶段的巧思在<strong>用 SyncNet 反向验证语音分离质量</strong>：MossFormer2 分离本身不保证音画一致，但如果分离轨与对应说话人口型对不上（分离串音、时移），SyncNet 会直接暴露。这把「分离质量」这个难以直接度量的量，转译成了「口型同步」这个可度量的量——一种借既有指标做数据门控的聪明做法。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>数据集命名里的研究立场：VoxHear = 「听见声音」</h4>
+    <p>独白数据集只要「看脸对口型」；说-听数据集必须额外保证「听的那条声轨干净且属于对方」。VoxHear 的四元组设计把对话结构显式化：$(V_a, A_a)$ 与 $(V_b, A_b)$ 互为对方的倾听条件。这意味着该数据集不仅服务本文模型，还天然支持「给定一方、推演另一方反应」的反应生成任务——数据格式即任务定义，这是数据集设计的高明之处。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">08</span> 优势与证据</h2>
+  <p>证据分四层：单流基准（HDTF/MEAD 十项指标）、说-听交互基准（ResponseNet，含注意力消融）、引导位置消融、以及 11 人 MOS 用户研究。训练配置：Stage 1 数千小时公有+自采数据训 100k 步，Stage 2 用 VoxHear 超 1,000 小时训 30k 步；Wan2.2-5B 骨干、720p 多尺度桶动态分辨率、AdamW + bfloat16、EMA 0.999、新参数学习率 1e-5、骨干 2e-6、16 张 A100、全局 batch 32。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>方法</th><th>CSIM↑</th><th>FID↓</th><th>FVD↓</th><th>LSE-C↑</th><th>ASE↑</th></tr></thead>
+    <tbody>
+      <tr><td class="route">DIM</td><td>0.791</td><td>35.68</td><td>344.63</td><td>2.02</td><td>0.326</td></tr>
+      <tr><td class="route">2D Spatial CA</td><td>0.797</td><td>20.61</td><td>196.64</td><td>6.24</td><td>0.575</td></tr>
+      <tr><td class="route">3D CA + 1D RoPE</td><td>0.805</td><td>22.59</td><td>203.64</td><td>4.54</td><td>0.572</td></tr>
+      <tr><td class="route">3D CA + 1D RoPE + ALiBi</td><td>0.794</td><td>23.41</td><td>231.59</td><td>5.98</td><td>0.584</td></tr>
+      <tr><td class="route"><b>Ours（+ MHGK）</b></td><td><b>0.814</b></td><td><b>18.48</b></td><td><b>186.64</b></td><td><b>6.68</b></td><td>0.581</td></tr>
+    </tbody></table></div>
+  <p class="lead" style="margin-top:12px">ResponseNet 说-听交互评测（论文 Table 2）：DIM 是唯一可复现的现代开源对比方法，被全维度超越。注意力消融揭示了清晰的机制链——2D 局部注意力口型尚可（LSE-C 6.24）但 FVD 差（196.64），论文解释为其无法捕捉韵律对齐、且部分结果口型夸张、拖累身份；3D + RoPE 全局注意力口型塌到 4.54（长程上下文稀释口型监督）；ALiBi 把口型拉回 5.98 但仍未及 MHGK 的 6.68。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>方法（HDTF / MEAD）</th><th>FID↓</th><th>FVD↓</th><th>CSIM↑</th><th>LMD↓</th><th>LSE-C↑</th></tr></thead>
+    <tbody>
+      <tr><td class="route">OmniAvatar</td><td>23.85 / 29.87</td><td>206.80 / 263.62</td><td>0.703 / 0.782</td><td>11.96 / 6.61</td><td>6.50 / 6.26</td></tr>
+      <tr><td class="route">EchoMimic-v3</td><td>25.92 / 25.43</td><td>285.27 / 174.60</td><td>0.687 / 0.808</td><td>13.60 / 5.28</td><td>5.27 / 5.69</td></tr>
+      <tr><td class="route">Hallo3</td><td>27.13 / 64.23</td><td>301.41 / 251.54</td><td>0.660 / 0.731</td><td>14.24 / 8.33</td><td>6.47 / 5.58</td></tr>
+      <tr><td class="route"><b>Ours</b></td><td>23.96 / <b>21.82</b></td><td><b>235.73 / 206.33</b></td><td><b>0.749 / 0.876</b></td><td><b>10.25 / 3.48</b></td><td><b>6.58 / 6.28</b></td></tr>
+      <tr><td class="route">GT（真实视频）</td><td>7.07 / 3.77</td><td>— / —</td><td>1.000 / 1.000</td><td>0.00 / 0.00</td><td>7.01 / 6.52</td></tr>
+    </tbody></table></div>
+  <p>单流基准（论文 Table 1 节选）：身份（CSIM）与口型（LMD、LSE-C）优势明显，MEAD 上 FID 21.82 大幅领先；但要注意<strong>HDTF FID 上 OmniAvatar 以 23.85 略优于本文的 23.96</strong>，「全面最优」的说法应理解为总体占优而非逐项碾压。用户研究（11 人、1–5 分 MOS）中本文在自然度（4.14）、动作多样性（4.05）、音画对齐（4.18）三项第一，视觉质量 4.32 略低于 INFP 的 4.55。</p>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="320" fill="#F7F4EE"/>
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" fill="#2C3E50" font-weight="bold">注意力消融的机制链（HDTF，论文 Table 3）</text>
+    <!-- bars for LSE-C and FVD normalized visually -->
+    <text x="120" y="72" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">方法</text>
+    <text x="380" y="72" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">LSE-C↑（口型）</text>
+    <text x="620" y="72" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">FVD↓（时序动态）</text>
+    <text x="120" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">2D Spatial CA</text>
+    <rect x="300" y="96" width="127" height="18" fill="#C9A86C"/><text x="437" y="110" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">6.37</text>
+    <rect x="540" y="96" width="122" height="18" fill="#2C3E50"/><text x="672" y="110" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">306.72</text>
+    <text x="120" y="150" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">3D CA + RoPE</text>
+    <rect x="300" y="136" width="100" height="18" fill="#C9A86C"/><text x="410" y="150" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">4.98</text>
+    <rect x="540" y="136" width="108" height="18" fill="#2C3E50"/><text x="658" y="150" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">271.59</text>
+    <text x="120" y="190" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">+ ALiBi</text>
+    <rect x="300" y="176" width="111" height="18" fill="#C9A86C"/><text x="421" y="190" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">5.57</text>
+    <rect x="540" y="176" width="111" height="18" fill="#2C3E50"/><text x="661" y="190" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">279.66</text>
+    <text x="120" y="230" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#5A8F7B" font-weight="bold">+ MHGK（本文）</text>
+    <rect x="300" y="216" width="132" height="18" fill="#5A8F7B"/><text x="442" y="230" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B" font-weight="bold">6.58</text>
+    <rect x="540" y="216" width="94" height="18" fill="#5A8F7B"/><text x="644" y="230" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B" font-weight="bold">235.73</text>
+    <text x="400" y="275" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">2D 口型不差但动态差；3D 全局动态好转但口型塌陷；ALiBi 修复口型却牺牲动态；MHGK 两项兼得</text>
+  </svg><div class="figcap"><b>图 6</b> · 消融表被翻译成机制链：每一行都对应一种时间尺度的缺失或补偿，为「Dual-Resolution Property」这一核心论断提供了逐格证据。</div></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>倾听「恰当性」缺乏定量度量</h4>
+    <p>倾听反应是一对多的（同一句话可有多种合理回应），FID/CSIM 等重建型指标天然不适配。论文对倾听的评价主要靠定性对比（Fig.6/7）与 11 人小规模 MOS，未建立「反应恰当性」的客观指标。这使得「更自然的倾听反应」这一核心主张难以被独立复核，也难以横向对比闭源方法。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>SyncNet 既是裁判又是数据门控，存在循环依赖</h4>
+    <p>VoxHear 用 SyncNet 做分离轨口型校验，评测又用 SyncNet 系指标（LSE-D/LSE-C、LMD 部分）报口型优势。数据在「SyncNet 认可」的方向上被筛选，测试指标又恰好是 SyncNet——口型优势可能部分来自评测-数据同源。更干净的做法是引入独立的口型度量（如基于人脸关键点的 LMD 之外的第三方指标）做交叉验证。此外 SyncNet 校验对卡通/非人脸主体的可靠性未讨论。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>消融范围与对照公平性</h4>
+    <p>注意力消融只在自有框架内替换注意力设计，未控制参数量/训练步数差异（MHGK 无额外参数，但 3D CA 变体序列更长、显存占用不同）；对比 DIM 为复现结果，其余 SOTA 多为「公开 demo 定性比较」，且用户研究仅 11 人、INFP 视觉质量得分反而更高（4.55 vs 4.32）。另外论文承认 plain 3D CA（无 RoPE）结果极差但未给数字，读者无法评估 RoPE 与 MHGK 的贡献拆分。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">09</span> 深度洞察与批判评估：范式意义</h2>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「先说后听」的课程学习映射了人类语言习得顺序</h4>
+    <p>两阶段增量训练（先只训 Talking Adapter、再加 Listening Adapter）表面上是数值稳定技巧，实质是一条课程学习：先锁定「口型锁相」这一强监督任务，再引入「反应生成」这一弱监督任务。这与儿童语言发展中「先会说、再学会在对话中恰当地听」的顺序暗合，也符合多任务学习中「先学强信号任务、防止弱信号任务带偏表征」的经验法则。Stage 2 论文明确以「不破坏已建立的说话能力」为目标，说明作者意识到了倾听分支的梯度会稀释口型表征。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>跨论文连接：JoyStreamer 与 Beyond Monologue 是同一枚硬币的两面</h4>
+    <p>两篇论文都在处理「音频驱动数字人的条件冲突」，但切面不同：JoyStreamer 面对<strong>文本 vs 音频</strong>的冲突，用去噪时间步错峰调度；Beyond Monologue 面对<strong>口型 vs 倾听</strong>的冲突，用注意力感受野的多尺度分布。前者分配的是「生成阶段」，后者分配的是「时间尺度」。一个自然的合成问题是：如果一个模型既要文本可控又要会说话-倾听，两个正交调度（时间步 × 感受野）能否叠加而不互相干扰？这正是本篇 Q1/Q4 的研究空间。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>归纳偏置回归：大模型时代的「小设计、大杠杆」</h4>
+    <p>MHGK 不加一个参数、不改一行优化器，只在注意力分数上减一个解析矩阵，就同时改善口型与上下文——在「堆数据堆参数」的主旋律下，这是对<strong>结构先验</strong>价值的有力再确认。它也提示：音画生成里还有多少「已知物理规律」没有被写进架构？（口型的毫秒级锁相、手势-重音的耦合、注视-话轮的关联……）每一项都可能是一个 Gaussian 式的轻量偏置。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>全双工的「交互时延」未被建模</h4>
+    <p>真实对话的自然性高度依赖响应时延（插话时机、附和的毫秒级延迟）。本文生成是离线批量的，任意位置引导与异步噪声流式推理（Asynchronous Noise Streaming Inference，论文表述）虽为流式做了铺垫，但论文未报告端到端时延、也未量化反应的时间贴合度。对「交互数字人」这一目标而言，反应<em>何时</em>出现与反应<em>是什么</em>同样重要。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">10</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>高斯核的 $\sigma_h, \alpha_h$ 能否学习或按音频内容自适应？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>论文逐头分配 $\sigma_h,\alpha_h$ 但未说明是否可学习、如何初始化。若感受野固定，模型面对「快语速争吵」与「慢速抒情」时用的是同一套时间尺度——这与「说话/倾听时间尺度随韵律变化」的直觉矛盾。</p>
+      <p><strong>理论分析：</strong>把 $B^{(h)}(i,j)$ 看作先验核，注意力后验 $\propto \exp(\mathrm{score} - B)$。若令 $\sigma_h = f(\text{韵律特征})$，则先验随内容伸缩，等价于一个核回归的带宽自适应问题（如 Nadaraya-Watson 的变带宽估计）。可证：当真实音画对齐宽度随语速变化时，变带宽估计的一致性优于固定带宽。</p>
+      <p><strong>连接：</strong>连接自适应稀疏注意力（如基于内容的带宽选择）、语音韵律建模；也与 JoyStreamer 的动态 CFG 呼应——两者都是「让先验参数随信号自适应」。</p>
+      <p><strong>探究方向：</strong>用语速/能量包络预测每窗 $\sigma$，或对 $\sigma_h$ 直接做梯度学习并可视化其与语速的相关性；评测快慢语速分档下的口型与反应质量。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>倾听反应的「恰当性」如何定量度量？弱监督是否导致反应塌缩为平均点头？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>FM 损失对倾听流只有隐式监督，一对多映射下 L2 型目标会把反应推向「条件均值」——即呆板的礼貌性点头。论文虽以 MHGK 缓解僵硬，但没有指标能证明反应<em>匹配语义</em>而非<em>泛化泛动</em>。</p>
+      <p><strong>理论分析：</strong>倾听反应可建模为条件分布 $p(r \mid \text{context})$，重建目标隐含最小化 $D_{\mathrm{KL}}(p_{\mathrm{data}} \| p_\theta)$ 的样本近似，但评测若只用单一 GT，会惩罚一切合理多样性。恰当性应改为分布级度量：反应回答了对方话语的哪些语用功能（附和/惊讶/疑问），可借助语音情感识别与会话行为分类器做自动标注。</p>
+      <p><strong>连接：</strong>连接反应生成（REACT 2024 挑战赛、Responsive Listening Head 等论文引文工作）中的 appropriateness 度量、以及对话系统中的语用行为分类。</p>
+      <p><strong>探究方向：</strong>构建「语用行为匹配率」指标：对倾听音频自动标注语用行为（附和、惊讶、疑问…），统计生成视频中对应表情/动作的命中率；用它对比 MHGK 与上下文无关基线，验证长程上下文是否真的改善语用对齐。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>语音分离伪影会怎样污染 SyncNet 门控与最终模型？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>VoxHear 依赖 MossFormer2 分离 + SyncNet 校验。分离残余串音、混响、时移都可能骗过 SyncNet（其本身在困难条件下精度有限），进而把「伪解耦」数据喂给模型——倾听支路学到的可能是对方声轨里的自己人声。</p>
+      <p><strong>理论分析：</strong>这是一个噪声标签问题：若门控的假阳性率为 $p$，1,206 小时中就有约 $1206p$ 小时污染数据。当污染样本的「倾听音频」部分包含说话人自身语音时，模型会学到「倾听→自己说话」的伪相关，直接损害全双工行为。可用噪声标签学习的鲁棒训练（如小损失过滤）量化并抑制。</p>
+      <p><strong>连接：</strong>连接语音分离质量评估（SI-SDR 等）、噪声标签学习、以及 SyncNet 的适用域分析。</p>
+      <p><strong>探究方向：</strong>对 VoxHear 抽样人工审计 SyncNet 校验的假阳性率；用分离置信度（如 SI-SDR 代理）替代硬门控做加权训练，测倾听行为质量变化。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>任意位置引导与流式全双工推理如何统一？反应时延能否被显式控制？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>任意位置引导训练让模型能双向扩展，但真实对话是严格因果的：只能「听过去、说现在、想未来」。流式场景下引导帧只能来自过去，训练分布（含未来引导）与推理分布（仅过去引导）之间存在结构性错位。</p>
+      <p><strong>理论分析：</strong>训练时 $p_{\mathrm{ref}}$ 在生成窗口两侧随机，推理时条件被截断为 $p_{\mathrm{ref}} &lt; t_{\mathrm{now}}$。这构成一种 covariate shift；若不对齐，模型对未来引导学到的「从未来锚点回溯」能力在流式中永远用不上，反而可能削弱纯因果下的身份保持。可从因果掩码训练或重要性加权角度给出修正。</p>
+      <p><strong>连接：</strong>连接 StreamAvatar 类流式扩散、READ（论文引文 [37]，实时异步扩散）、以及交互时延的 HCI 文献（反应延迟 200–600ms 的自然区间）。</p>
+      <p><strong>探究方向：</strong>训练一个纯因果变体（$p_{\mathrm{ref}}$ 仅取过去）与原文对比流式场景的时延-质量曲线；进一步把「反应触发时刻」作为显式输出（何时点头/插话），把生成问题升级为「反应策略」问题。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">11</span> 代码附录</h2>
+  <p>以下伪代码把论文机制翻译为可读实现，符号沿用论文（$B$ 批、$L$ 视频时长、$L_a$ 音频时长、$S$ 每帧音频 latent 数、$D$ 特征维）。</p>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 多头高斯核 MHGK：在 3D 时空交叉注意力分数上减去逐头高斯偏置（论文 Eq.2/3）</span>
+<span class="kw">def</span> <span class="fn">mhgk_cross_attention</span>(Q, K, V, t_video, t_audio, sigma, alpha):
+    <span class="cm"># Q: [B, L*H*W, D]；K/V: [B, La*S, D]；t_video/t_audio: 时间单位索引</span>
+    <span class="cm"># sigma/alpha: 每头参数 [num_heads]，窄头管口型、宽头管会话上下文</span>
+    scores = Q @ K.transpose(-<span class="fn">1</span>, -<span class="fn">2</span>) / sqrt(D_head)          <span class="cm"># [B, heads, Nq, Nk]</span>
+    d = t_video[:, :, <span class="kw">None</span>] - t_audio[:, <span class="kw">None</span>, :]            <span class="cm"># 时间索引差 (i - j)</span>
+    B_h = alpha * (<span class="fn">1.0</span> - exp(-d ** <span class="fn">2</span> / (<span class="fn">2</span> * sigma ** <span class="fn">2</span>)))     <span class="cm"># Eq.3：高斯距离惩罚</span>
+    <span class="cm"># sigma→0：退化为局部注意力（严格口型对齐）；sigma→∞：B→0（无损全局注意力）</span>
+    attn = softmax(scores - B_h, dim=-<span class="fn">1</span>)
+    <span class="kw">return</span> attn @ V</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 任意位置引导 + Diffusion Forcing 训练步（论文 Sec.3.3）</span>
+<span class="kw">def</span> <span class="fn">arbitrary_position_training_step</span>(video_latents, ref_frame):
+    T = video_latents.shape[<span class="fn">1</span>]
+    i = randint(<span class="fn">1</span>, T)                                  <span class="cm"># 随机采引导帧（论文表述 i∈[1,T]）</span>
+    z_i = video_latents[:, i]                          <span class="cm"># 该帧不加噪，作干净引导条件</span>
+    cond = {<span class="fn">"guide"</span>: z_i, <span class="fn">"p_ref"</span>: i}                    <span class="cm"># RoPE 索引 p_ref = i</span>
+    <span class="cm"># Diffusion Forcing：每个时间 chunk 注入不同噪声强度</span>
+    noisy = [chunk + randn_like(chunk) * sigma_k <span class="kw">for</span> chunk, sigma_k <span class="kw">in</span> zip(chunks(T), sigma_schedule)]
+    pred_v = TL2V_DiT(noisy, t, cond, audio_talk, audio_listen)  <span class="cm"># 双流音频条件</span>
+    <span class="kw">return</span> flow_matching_loss(pred_v, target_velocity)  <span class="cm"># Eq.1</span>
+
+<span class="cm"># 推理：引导帧放生成窗口「未来侧」（论文观察的身份保持/动态最优权衡）</span>
+<span class="kw">def</span> <span class="fn">infer_stream</span>(ref_image, audio_talk, audio_listen, p_ref=<span class="fn">22</span>):
+    <span class="kw">return</span> denoise_loop(cond_guide=encode(ref_image), p_ref=p_ref,  <span class="cm"># 22 为 HDTF 最优（Table 4）</span>
+                        audio_talk=QFormer_talk(audio_talk),
+                        audio_listen=QFormer_listen(audio_listen))</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># VoxHear 音频轨解耦门控：分离 + SyncNet 反向验证（论文 Fig.4 阶段二）</span>
+<span class="kw">def</span> <span class="fn">build_voxhear_sample</span>(clip):
+    segments = slice_into(clip, <span class="fn">10.0</span>)                  <span class="cm"># 10 秒切片</span>
+    tracks = [MossFormer2.separate(seg) <span class="kw">for</span> seg <span class="kw">in</span> segments]   <span class="cm"># ClearVoice 工具箱</span>
+    kept = []
+    <span class="kw">for</span> seg, (A_a, A_b) <span class="kw">in</span> zip(segments, tracks):
+        <span class="cm"># 门控一：视觉（DWPose 关键点、单人、上半身）</span>
+        <span class="kw">if not</span> visual_pass(seg): <span class="kw">continue</span>
+        <span class="cm"># 门控二：每条分离轨必须与对应说话人口型同步，否则整段丢弃</span>
+        <span class="kw">if</span> SyncNet.sync_score(seg.V_a, A_a) > TH <span class="kw">and</span> SyncNet.sync_score(seg.V_b, A_b) > TH:
+            kept.append((seg.V_a, A_a, seg.V_b, A_b))    <span class="cm"># 对齐四元组</span>
+    <span class="kw">return</span> kept</pre>
+</section>

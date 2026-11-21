@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duo · 论文解读</title>
+<meta name="description" content="把世界模型拆成 Intent（认知）与 Realization（表现）两个同源能力，在统一时间线上同步，支持自发对话、打断与音视频游戏。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2026 · 技术报告</div>
+    <h1>Duo</h1>
+    <p class="hero-tagline">既能想又能演，还能随时被打断：全双工交互世界模型</p>
+    <p class="hero-desc">把世界模型拆成 Intent（认知）与 Realization（表现）两个同源能力，在统一时间线上同步，支持自发对话、打断与音视频游戏。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Duo"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="90" y="90" width="180" height="70" rx="12" fill="#1B4B6F" stroke="#1B4B6F" stroke-width="2"/><text x="180.0" y="131.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Video Tokens</text><rect x="90" y="250" width="180" height="70" rx="12" fill="#5A8F7B" stroke="#5A8F7B" stroke-width="2"/><text x="180.0" y="291.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Audio Tokens</text><rect x="560" y="170" width="180" height="70" rx="12" fill="#2C3E50" stroke="#2C3E50" stroke-width="2"/><text x="650.0" y="211.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Joint DiT</text><line x1="285" y1="125" x2="555" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><line x1="285" y1="285" x2="555" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><text x="410" y="150" text-anchor="middle" font-family="Noto Sans SC" font-size="15" fill="#E85D4E" font-weight="700">Joint / Cross Attention</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：互惠世界模型：Intent + Realization 全双工交互</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#speech-video">speech-video</a><span class="sep">/</span>Duo</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂：让世界模型「既能想，又能演」，还能随时被打断</a></li><li><a href="#s2">02 为什么「全双工」比「会说话」难得多</a></li><li><a href="#s3">03 三个关键设计</a></li><li><a href="#s4">04 关键公式（示意性形式化）</a></li><li><a href="#s5">05 能力边界：不止对话</a></li><li><a href="#s6">06 批判评估</a></li><li><a href="#s7">07 自主科研问题</a></li><li><a href="#s8">08 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂：让世界模型「既能想，又能演」，还能随时被打断</h2>
+  <p class="lead">Duo（arXiv 2611.15131，技术报告）提出 <strong>互惠世界模型（Reciprocal World Model, RWM）</strong>：把世界模型拆成两个<strong>同等基础</strong>的能力——<strong>Intent（意图/认知）</strong>与 <strong>Realization（实现/行为）</strong>。Intent 提供世界交互背后的<em>认知</em>，Realization 生成连贯的<em>音视频行为</em>。两者都持续感知实时的音频、视频、文本，从而支持<strong>全双工交互</strong>：自发对话、随时打断。</p>
+  <p>它要做的不只是「对话」——用户可以分享真实物体、重塑虚拟场景、引导助手、玩音视频游戏，<strong>无需鼠标键盘</strong>。这把「音视频交互」从「聊天窗口」升级为「与世界互动」。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「Intent + Realization」是把世界模型拆成「脑」与「身体」</h4>
+    <p>多数音视频生成模型只做 Realization（生成好看的画面与声音），认知（要做什么、为什么）交给上层 LLM。Duo 认为两者<strong>同等基础、应并列在世界模型里</strong>——这与 JAVIS 的「voice and face speak from a single representation」异曲同工，但 Duo 把「认知」也纳入了模型，而非外包给 LLM。这是一个更激进的统一：<em>思考与表现同源</em>。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 为什么「全双工」比「会说话」难得多</h2>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">半双工 vs 全双工：交互的两个层级</text>
+    <!-- half duplex -->
+    <rect x="30" y="58" width="355" height="130" rx="11" fill="#95A5A6" opacity="0.12" stroke="#95A5A6" stroke-width="1.5"/>
+    <text x="207" y="86" text-anchor="middle" font-size="12.5" font-weight="700" fill="#5D6D7E" font-family="Noto Sans SC">半双工（现有大多数）</text>
+    <text x="48" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">你说完 → 我再说</text>
+    <text x="48" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">轮次固定，不可打断</text>
+    <text x="48" y="170" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 像「对讲机」</text>
+    <!-- full duplex -->
+    <rect x="415" y="58" width="355" height="130" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="592" y="86" text-anchor="middle" font-size="12.5" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">全双工（Duo）</text>
+    <text x="433" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">可同时听与说、随时打断</text>
+    <text x="433" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">自发对话、等待、接话</text>
+    <text x="433" y="170" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 像「真人对话」</text>
+    <!-- requirement -->
+    <text x="30" y="228" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">全双工要求：<strong>持续感知</strong>实时音视频文本 + <strong>可中断</strong>的流式生成。</text>
+    <text x="30" y="258" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">这意味着模型不能「一次生成整段」，必须<strong>边感知、边决策、边表现</strong>。</text>
+  </svg><div class="figcap"><b>图 1</b> · 半双工与全双工的差别：能否被打断</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 三个关键设计</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">① 自回归意图建模</div><div class="dd">用<strong>自回归</strong>建模做连续的交互推理与规划。<span class="alt">超出「为扩散模型做指令理解」的范围——Intent 是持续推理的，不是一次性条件。</span></div></div>
+    <div class="def-item"><div class="dt">② chunk 条件 + 统一时间线</div><div class="dd">构造 <strong>chunk 特定条件</strong>，在<strong>统一时间线</strong>上同步 Intent 与 Realization 的 token。<span class="alt">模块特定注意力掩码强制块内与跨块的因果依赖，防止访问未来输入。</span></div></div>
+    <div class="def-item"><div class="dt">③ 双重 rollout 蒸馏</div><div class="dd">用 <strong>dual rollout distillation</strong> 缓解两模块的分布偏移：在<em>自回归生成的 Intent token</em> 与<em>合成音视频历史</em>上训练。<span class="alt">这是对暴露偏差的直接对冲（与 OmniForcing 的 forcing 同源）。</span></div></div>
+    <div class="def-item"><div class="dt">chunk 粒度</div><div class="dd">17 视频帧 ≈ <strong>0.71 秒</strong> @24fps。<span class="alt">60.9s 对话 → 86 个 chunk；<wait>/<blank> 标记支持等待与停顿。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="320" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">Intent 与 Realization：统一时间线上的双流</text>
+    <!-- timeline -->
+    <line x1="60" y1="150" x2="740" y2="150" stroke="#5D6D7E" stroke-width="2"/>
+    <g font-family="JetBrains Mono,monospace" font-size="9">
+      <rect x="60" y="70" width="80" height="30" rx="5" fill="#C9A86C"/><text x="100" y="90" text-anchor="middle" fill="#fff">chunk n-1</text>
+      <rect x="150" y="70" width="80" height="30" rx="5" fill="#C9A86C"/><text x="190" y="90" text-anchor="middle" fill="#fff">chunk n</text>
+      <rect x="240" y="70" width="80" height="30" rx="5" fill="#C9A86C" opacity="0.6"/><text x="280" y="90" text-anchor="middle" fill="#fff">chunk n+1</text>
+    </g>
+    <text x="60" y="60" font-size="11" fill="#A67C3D" font-family="Noto Sans SC" font-weight="700">Intent（认知/规划）</text>
+    <g font-family="JetBrains Mono,monospace" font-size="9">
+      <rect x="60" y="180" width="80" height="30" rx="5" fill="#1B4B6F"/><text x="100" y="200" text-anchor="middle" fill="#fff">音视频 n-1</text>
+      <rect x="150" y="180" width="80" height="30" rx="5" fill="#1B4B6F"/><text x="190" y="200" text-anchor="middle" fill="#fff">音视频 n</text>
+      <rect x="240" y="180" width="80" height="30" rx="5" fill="#1B4B6F" opacity="0.6"/><text x="280" y="200" text-anchor="middle" fill="#fff">音视频 n+1</text>
+    </g>
+    <text x="60" y="238" font-size="11" fill="#1B4B6F" font-family="Noto Sans SC" font-weight="700">Realization（音视频行为）</text>
+    <!-- sync arrows -->
+    <line x1="100" y1="102" x2="100" y2="178" stroke="#E85D4E" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <line x1="190" y1="102" x2="190" y2="178" stroke="#E85D4E" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="360" y="150" font-size="11" fill="#E85D4E" font-family="Noto Sans SC">统一时间线 + 因果掩码（防访问未来）</text>
+    <!-- wait/blank -->
+    <rect x="560" y="70" width="180" height="66" rx="10" fill="#5A8F7B" opacity="0.14" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="650" y="96" text-anchor="middle" font-size="11" fill="#5A8F7B" font-family="Noto Sans SC">&lt;wait&gt; / &lt;blank&gt; 标记</text>
+    <text x="650" y="118" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">支持等待、停顿、打断</text>
+    <rect x="560" y="180" width="180" height="66" rx="10" fill="#C9A86C" opacity="0.14" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="650" y="206" text-anchor="middle" font-size="11" fill="#A67C3D" font-family="Noto Sans SC">dual rollout 蒸馏</text>
+    <text x="650" y="228" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">缓解分布偏移</text>
+    <text x="60" y="300" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：chunk = 17 视频帧 ≈ 0.71s @24fps；60.9s 对话 → 86 chunks（原文 6.x）。</text>
+  </svg><div class="figcap"><b>图 2</b> · Intent 与 Realization 在统一时间线上同步，chunk 级因果</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「dual rollout 蒸馏」是对全双工暴露偏差的对症下药</h4>
+    <p>全双工让两个模块都在<em>自己的历史</em>上运行（Intent 自回归、Realization 音视频自回归），于是暴露偏差比单模块更严重——Intent 错了会带歪 Realization，反之亦然。Duo 的 dual rollout 蒸馏让学生在<em>自回归生成的</em> Intent token 和<em>合成的</em> 音视频历史上训练，正是让模型<em>见过自己的错误</em>。这与 OmniForcing 的 forcing、LeapTalk 的 bridge 端点是同一问题的三种解法。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 关键公式（示意性形式化）</h2>
+  <div class="formula-card"><div class="f-label">Eq.1 · 双模块的因果生成（示意）</div>
+    <div>$$ p(I, R) = \prod_{k} p(I_k \mid I_{&lt;k}, R_{&lt;k}) \cdot p(R_k \mid R_{&lt;k}, I_{\leq k}) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>每个 chunk k，Intent 依赖<em>过去</em>的 Intent 与 Realization（连续推理）；Realization 依赖<em>过去</em>的 Realization 与<em>当前及过去</em>的 Intent。因果掩码保证不看未来。<br>
+    <strong>注意：</strong>此式为按「unified timeline + causal mask」思路的<em>示意性形式化</em>；原文具体分解需查原文。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.2 · dual rollout 蒸馏（示意）</div>
+    <div>$$ \mathcal{L} = \mathbb{E}_{\hat{I}\sim p_\theta, \hat{R}\sim p_\theta}\big[\, D\big(\hat{I}, I^{\text{tea}}\big) + D\big(\hat{R}, R^{\text{tea}}\big) \,\big] $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>在<em>学生自回归生成的</em> Intent 与 Realization（带 hat）上计算与教师的差距——而非在真值历史上。这是「见过自己」的关键。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">打断（interruption）的行为序列：&lt;wait&gt; / &lt;blank&gt; 标记</text>
+    <!-- timeline -->
+    <line x1="50" y1="140" x2="750" y2="140" stroke="#5D6D7E" stroke-width="2"/>
+    <g font-family="JetBrains Mono,monospace" font-size="9">
+      <rect x="60" y="96" width="70" height="32" rx="5" fill="#1B4B6F"/><text x="95" y="117" text-anchor="middle" fill="#fff">chunk 76</text>
+      <rect x="140" y="96" width="70" height="32" rx="5" fill="#C9A86C"/><text x="175" y="117" text-anchor="middle" fill="#fff">77 pick</text>
+      <rect x="220" y="96" width="70" height="32" rx="5" fill="#95A5A6"/><text x="255" y="117" text-anchor="middle" fill="#fff">78 wait</text>
+      <rect x="300" y="96" width="70" height="32" rx="5" fill="#95A5A6" opacity="0.7"/><text x="335" y="117" text-anchor="middle" fill="#fff">79 blank</text>
+      <rect x="380" y="96" width="70" height="32" rx="5" fill="#5A8F7B"/><text x="415" y="117" text-anchor="middle" fill="#fff">80 Deal</text>
+      <rect x="460" y="96" width="80" height="32" rx="5" fill="#5A8F7B"/><text x="500" y="117" text-anchor="middle" fill="#fff">81 She</text>
+      <rect x="550" y="96" width="80" height="32" rx="5" fill="#5A8F7B" opacity="0.7"/><text x="590" y="117" text-anchor="middle" fill="#fff">82 ans.</text>
+    </g>
+    <text x="60" y="88" font-size="10.5" fill="#5A8F7B" font-family="Noto Sans SC">助手话语</text>
+    <!-- interruption -->
+    <rect x="220" y="150" width="150" height="34" rx="8" fill="#E85D4E" opacity="0.18" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="295" y="171" text-anchor="middle" font-size="10.5" fill="#E85D4E" font-family="Noto Sans SC">用户打断 / 等待</text>
+    <text x="60" y="212" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">助手在 chunk 78-79 用 &lt;wait&gt;/&lt;blank&gt; 等待，用户接话后（chunk 80）继续 —— 全双工的「可打断」由此实现。</text>
+    <text x="60" y="230" font-size="9.5" fill="#95A5A6" font-family="Noto Sans SC">注：chunk 序列取自原文 Conversation Chunking 示例（60.9s → 86 chunks）。</text>
+  </svg><div class="figcap"><b>图 4</b> · 打断与等待：&lt;wait&gt;/&lt;blank&gt; 标记驱动的全双工话轮</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 能力边界：不止对话</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>能力</th><th>说明（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">全双工对话</td><td>自发对话、打断（spontaneous conversations and interruptions）</td></tr>
+      <tr><td class="route">分享真实物体</td><td>用户可展示真实物体并交互</td></tr>
+      <tr><td class="route">重塑虚拟场景</td><td>直接改变虚拟环境</td></tr>
+      <tr><td class="route">引导助手</td><td>以自然方式指挥助手</td></tr>
+      <tr><td class="route">音视频游戏</td><td>无需鼠标键盘的交互式游戏</td></tr>
+      <tr><td class="route">流式粒度</td><td>17 帧/chunk ≈ 0.71s @24fps</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="250" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">从「聊天」到「与世界交互」</text>
+    <rect x="30" y="60" width="355" height="120" rx="11" fill="#95A5A6" opacity="0.12" stroke="#95A5A6" stroke-width="1.5"/>
+    <text x="207" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#5D6D7E" font-family="Noto Sans SC">传统：聊天窗口</text>
+    <text x="48" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">文本/语音问答</text>
+    <text x="48" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">输出限于「回答」</text>
+    <rect x="415" y="60" width="355" height="120" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="592" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">Duo：与世界交互</text>
+    <text x="433" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">看、听、说、做</text>
+    <text x="433" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">改场景、玩游戏、操纵物体</text>
+    <text x="30" y="216" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">关键升级：从「被动回答」到「主动参与世界」—— 这是「world model」名副其实的含义。</text>
+  </svg><div class="figcap"><b>图 3</b> · 从聊天到与世界交互</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 技术报告，细节披露有限</h4>
+    <p>Duo v1 是技术报告（27 页）。Intent 与 Realization 的具体网络规模、训练数据、评测指标在抽取段落中未完整给出。因此「它有多强」难以量化判断。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 「无需鼠标键盘」的交互精度如何？</h4>
+    <p>音视频游戏、物体操纵对<strong>精确控制</strong>要求极高。若只是「大意上能玩」，离真正可用还有距离。需看具体任务的成功率，而非演示视频。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. Intent 与 Realization 的错误耦合风险</h4>
+    <p>两模块相互依赖，一方出错会传染另一方。dual rollout 蒸馏缓解分布偏移，但<em>错误传播</em>（而非分布偏移）是另一问题。需测「Intent 错误时 Realization 的退化程度」。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 全双工的实时性约束未给具体数字</h4>
+    <p>全双工要求极低延迟（否则打断不自然）。0.71s/chunk 的粒度是否满足实时交互？需 FPS/延迟的具体数字来判断可用性。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>Intent 与 Realization 应该耦合多紧？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>耦合紧则协调好，但错误会传染；耦合松则稳定，但可能各行其是。最优耦合度是多少？</p>
+      <p><strong>理论分析：</strong>可把耦合建模为两个模块间的信息流带宽。带宽高 → 协调好但错误传播快；带宽低 → 隔离好但协调差。存在使「协调收益 − 错误传播代价」最大的最优带宽。</p>
+      <p><strong>连接：</strong>MOVA 的 Bridge 是「集中耦合」，Ovi 的逐层融合是「分散耦合」，Duo 的统一时间线是「对齐耦合」——三种耦合策略可对照。</p>
+      <p><strong>探究方向：</strong>扫描 Intent→Realization 的信息流强度，测对话连贯性与错误传播的权衡。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>chunk 大小（17 帧）该如何定？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>chunk 大小影响交互粒度与延迟。太小则语义不完整，太大则响应迟钝。</p>
+      <p><strong>理论分析：</strong>chunk 应覆盖一个「交互语义单元」（如一个词、一个动作）。17 帧 ≈ 0.71s 约一个词的时长，可能是按语音单元定的。可用信息论估计最优粒度。</p>
+      <p><strong>连接：</strong>Omni-LiveAvatar 的窗口、FlowLong 的滑窗、VDN 的帧更新，都是同类粒度选择问题。</p>
+      <p><strong>探究方向：</strong>扫描 chunk 帧数（8/17/34），测交互响应延迟与语义完整性的权衡。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>「被打断」的行为该如何学习而不显突兀？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>自然的打断需要微妙处理（何时停、如何让话）。数据里若缺乏打断样本，模型会做得生硬。</p>
+      <p><strong>理论分析：</strong>打断可建模为「话轮转换的最优停止问题」。模型需估计对方说完的概率，在期望收益最大处切入。<wait>/<blank> 标记是离散化的时间控制。</p>
+      <p><strong>连接：</strong>Beyond Monologue 的会话上下文感知核、UniLS 的听-说统一，都在处理话轮与倾听反应。</p>
+      <p><strong>探究方向：</strong>构造含打断的对话数据，测打断的自然度（人评）与时机准确率。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Duo 双模块流式生成（示意，非官方实现）</span>
+<span class="kw">class</span> <span class="fn">Duo</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">stream</span>(self, percepts, n_chunks):
+        I_hist, R_hist = [], []
+        <span class="kw">for</span> k <span class="kw">in</span> range(n_chunks):
+            <span class="cm"># Intent：自回归连续推理（依赖过去 Intent + 过去 Realization）</span>
+            I_k = self.intent(I_hist, R_hist, percepts[k])
+            <span class="cm"># Realization：依赖过去 Realization + 当前/过去 Intent</span>
+            R_k = self.realization(R_hist, I_hist + [I_k], percepts[k])
+            I_hist.append(I_k); R_hist.append(R_k)   <span class="cm"># chunk = 17 帧 ≈ 0.71s</span>
+        <span class="kw">return</span> I_hist, R_hist</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># dual rollout 蒸馏：在自回归生成的历史上训练（示意）</span>
+<span class="kw">def</span> <span class="fn">dual_rollout_distill</span>(student, teacher, prompts):
+    <span class="kw">for</span> p <span class="kw">in</span> prompts:
+        I_hat, R_hat = student.stream(p)        <span class="cm"># 学生自回归生成（带自己的误差）</span>
+        I_tea, R_tea = teacher.stream(p)        <span class="cm"># 教师</span>
+        loss = d(I_hat, I_tea) + d(R_hat, R_tea)  <span class="cm"># 在生成历史上对齐</span>
+        loss.backward(); step()
+    <span class="cm"># 交互标记（原文）：<wait> / <blank> 支持等待与打断</span></pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>Duo 的真正突破是「认知与表现同源」，而非「又能说又能画」</h4>
+    <p>市面上「多模态交互」产品多是 LLM（认知）+ TTS/视频生成（表现）的拼接。Duo 的价值在于把 Intent（认知）与 Realization（表现）<strong>放进同一个世界模型、同一条时间线</strong>。这意味着「想什么」与「做什么」不再割裂——这也是为什么它能做到自然打断（认知层知道该停）。<em>真正的全双工，来自认知与表现的统一，而非模块拼接的提速。</em></p>
+  </div>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

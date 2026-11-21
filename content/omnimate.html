@@ -1,0 +1,354 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂与问题动机</h2>
+  <p class="lead">OmniMate 要回答的问题是：<strong>数字人能不能「无限聊下去」——不知道要说多久、随时被打断、聊很久还不走形？</strong>它的答案由两个组件构成：Generation Progress Controller（GPC）给每个流式 chunk 显式的「生成进度」信号，让模型自己知道话说到了百分之几、何时该闭嘴转入聆听；Multi-Reference Conditioning Module（MRCM）用多张参考图 + 参考语音持续锚定长相与音色。骨干是 LTX2.3，配 DMD 蒸馏实现实时流式——在交互向的 VerseBench 改造基准上达到 <strong>27.64 FPS、3.49 秒首帧（TTFF）</strong>（H100，论文表述）。</p>
+  <p>论文把开放式交互流式的困难归为两个「未知」。其一，<strong>生成地平线未知</strong>：传统音频驱动生成有预定义的语音段，而交互场景里模型要根据执行指令持续作答，却不知道「内容是否已经说完」。固定时长会截断回答或产生冗余语音和动作；显式地做「完成检测」又会引入额外延迟。其二，<strong>长时身份漂移</strong>：时间上下文有限，身份线索逐渐淡化；单图或相邻短 chunk 难以在未见姿态/视角下保住视觉身份，语音上下文短也让跨轮次音色不稳。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>把「何时结束」从内生检测问题改写为外生调度问题</h4>
+    <p>「模型说到哪算完」有两种解法：让模型自己学会判断（内生，如训练一个停止检测器——但要额外延迟），或让上游 LLM 估计执行时长、把进度作为条件喂给生成器（外生）。GPC 选了后者：<strong>LLM 估计时长 → 进度值 1…1000 线性铺开 → 0 表示聆听态</strong>。这把一个开放的语义判断问题转成了一个标量回归条件，代价是把「估时长」的风险转移给了 LLM——论文自己承认时长估计不准会导致漏词或重复（见批判评估）。</p></div>
+  <div class="pipeline"><span class="pipe-step">用户语音</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">ASR</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step alt">LLM（回答 + 动作 + 估时长）</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">GPC 进度信号</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">流式联合音视觉生成</span></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 范式定位：交互流式的两个未知</h2>
+  <p>OmniMate 的坐标系横跨三条线：联合音视频生成（双分支 + 交叉注意力系如 Ovi、LTX-2、MOVA，以及单流统一系如 DaVinci）、流式化（把双向扩散蒸馏成因果架构：DMD、Self-forcing 系）、以及交互数字人（引入聆听态或预定义动作的近期工作）。论文选 <strong>LTX2.3</strong> 做骨干，理由是在质量与效率之间取得较好平衡（论文表述）；相比 StreamChar、WanStream 等依赖大规模数据或额外大参数模型的工作，OmniMate 强调「轻量适配」。</p>
+  <div class="figure"><svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+    <!-- 状态机 + 开放地平线 -->
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">交互流式的状态机：执行 ↔ 聆听，地平线开放</text>
+    <rect x="80" y="80" width="220" height="100" fill="#1B4B6F" rx="8"/>
+    <text x="190" y="115" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#fff" font-weight="bold">执行态</text>
+    <text x="190" y="142" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">progress ∈ 1…1000</text>
+    <text x="190" y="162" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#EAF1F5">说话 + 动作 + 音效</text>
+
+    <rect x="500" y="80" width="220" height="100" fill="#5A8F7B" rx="8"/>
+    <text x="610" y="115" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#fff" font-weight="bold">聆听态</text>
+    <text x="610" y="142" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#EAF1F5">progress = 0</text>
+    <text x="610" y="162" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#EAF1F5">微动 + 等待用户输入</text>
+
+    <path d="M305 115 L495 115" stroke="#E85D4E" stroke-width="2.5" marker-end="url(#a7)"/>
+    <path d="M495 155 L305 155" stroke="#2C3E50" stroke-width="2.5" marker-end="url(#a7)"/>
+    <text x="400" y="105" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">进度到 0 / 新指令到达</text>
+    <text x="400" y="178" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">LLM 给出回答 + 估时长</text>
+
+    <path d="M190 185 C 190 240, 150 250, 120 250" fill="none" stroke="#C9A86C" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a7)"/>
+    <text x="125" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#C9A86C">同一 chunk 内继续执行</text>
+
+    <rect x="80" y="295" width="640" height="45" fill="#F4F6F8" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="400" y="315" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" font-weight="bold">未知 1：这轮该说多久（生成地平线）　　未知 2：聊久了会不会走形（长时身份）</text>
+    <text x="400" y="333" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">GPC 回应未知 1 · MRCM 回应未知 2</text>
+    <defs><marker id="a7" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 1</b> · 交互状态机：把「开放式交互」具象化为执行/聆听两态循环——问题不再是「生成一段视频」，而是「生成一段状态随时切换的、不封顶的流」。</div></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>离线联合生成（Ovi/LTX-2/MOVA）</th><th>流式生成（OmniForcing/Hallo-Live）</th><th>OmniMate</th></tr></thead>
+    <tbody>
+      <tr><td class="route">生成时长</td><td>预定义</td><td>分块推进，时长仍预定义</td><td>开放（LLM 估时长 + GPC 进度）</td></tr>
+      <tr><td class="route">聆听态</td><td>无</td><td>基本缺失（易出多余声音/动作）</td><td>显式状态（progress = 0）</td></tr>
+      <tr><td class="route">身份保持</td><td>短片段内可</td><td>长时渐进退化（论文表述）</td><td>MRCM 多参考图 + 参考语音 + RollingSink</td></tr>
+      <tr><td class="route">附加模块</td><td>—</td><td>蒸馏 + KV Cache</td><td>GPC + MRCM（轻量适配）</td></tr>
+    </tbody></table></div>
+  <p>值得注意的是，OmniMate 的联合生成范围比「说话人」更宽：除语音与面部运动外，还生成身体手势和<strong>动作相关音效</strong>（如拍手）。这使它比 Hallo-Live 这类以肖像为主的框架更接近「通用音视觉交互体」，也解释了为什么需要显式的聆听态——交互等待期的「静默微动」本身就是一种必须被生成的内容。</p>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> GPC：把「说到哪了」编码成连续进度</h2>
+  <p>GPC 的机制非常干净：给定 LLM 估计的执行时长，先算出所需生成 token 数，再把进度值从 1 铺到 1000。视频按帧、音频按 token 各自定义进度：</p>
+  <div class="formula-card"><div class="f-label">Eq.1–2 · 逐帧/逐 token 进度（原文式 1–2）</div>
+    <div>$$ p^v_i = 1 + \frac{i - 1}{T_v - 1} \times 999, \; i = 1,\dots,T_v; \qquad p^a_j = 1 + \frac{j - 1}{T_a - 1} \times 999, \; j = 1,\dots,T_a $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>T_v 为视频帧数、T_a 为音频 token 数；进度是 <strong>1 到 1000 的线性插值</strong>，两端分别对应「刚开口」与「即将说完」。超出预测执行时长的 token 一律赋 0，即聆听态——0 不在 1…1000 区间内，天然成为可判别状态码。<strong>系数核对：</strong>分子为 (i−1)、分母为 (T_v−1)、量程 999、起点 1，与原文一致。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.3 · 进度注入（原文式 3）</div>
+    <div>$$ \tilde{z}^m = z^m + \mathrm{MLP}(\mathrm{PE}(p^m)), \qquad m \in \{a, v\} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>进度值先过正弦位置编码（Sinusoidal PE，沿用 OmniAvatar 的思路）再经多层 MLP，最后<strong>加到 latent 上</strong>而不是走文本交叉注意力。相加式注入保持张量形状与注意力拓扑不变，是对预训练骨干最「无侵入」的条件化——消融证实 cross-attn 式注入会出「字幕式叠字」伪影并可能在聆听态错误压暗画面（见 07 章）。</div></div>
+  <p>视频侧还有一个容易被忽略的对齐细节：第一个视频 latent 对应 1 帧、其后每个 latent 对应 8 帧，所以帧级进度要重新打包成 latent 级——把首帧进度重复 8 次后，按 <strong>[B, T_v+7, D] → [B, (T_v+7)/8, 8D]</strong> 变换，第一个 latent 携带重复的首帧进度，其余每个 latent 聚合连续 8 帧的进度嵌入（论文表述）。</p>
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <!-- GPC progress encoding -->
+    <text x="400" y="28" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">GPC：从「LLM 估时长」到 latent 上的进度信号</text>
+    <rect x="60" y="60" width="180" height="56" fill="#2C3E50"/><text x="150" y="84" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff">LLM 预测时长</text><text x="150" y="105" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">Pred Time: 8.0s</text>
+    <path d="M245 88 L285 88" stroke="#2C3E50" stroke-width="2" marker-end="url(#a8)"/>
+    <rect x="290" y="60" width="200" height="56" fill="#1B4B6F"/><text x="390" y="84" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff">进度 1…1000 线性铺开</text><text x="390" y="105" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">超出时长 → 0（聆听）</text>
+    <path d="M495 88 L535 88" stroke="#2C3E50" stroke-width="2" marker-end="url(#a8)"/>
+    <rect x="540" y="60" width="200" height="56" fill="#E85D4E"/><text x="640" y="84" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff">Sinusoidal PE + MLP</text><text x="640" y="105" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#F4F6F8">z̃ = z + MLP(PE(p))</text>
+
+    <text x="60" y="160" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">帧级进度</text>
+    <g fill="#C9A86C">
+      <rect x="130" y="140" width="34" height="30"/><rect x="168" y="140" width="34" height="30"/><rect x="206" y="140" width="34" height="30"/><rect x="244" y="140" width="34" height="30"/><rect x="282" y="140" width="34" height="30"/><rect x="320" y="140" width="34" height="30"/><rect x="358" y="140" width="34" height="30"/><rect x="396" y="140" width="34" height="30"/><rect x="434" y="140" width="34" height="30"/><rect x="472" y="140" width="34" height="30"/><rect x="510" y="140" width="34" height="30"/><rect x="548" y="140" width="34" height="30"/><rect x="586" y="140" width="34" height="30"/><rect x="624" y="140" width="34" height="30"/><rect x="662" y="140" width="34" height="30"/>
+    </g>
+    <text x="720" y="160" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">首帧重复×8</text>
+    <path d="M280 178 L280 210" stroke="#2C3E50" stroke-width="2" marker-end="url(#a8)"/>
+    <text x="300" y="200" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">[B, T_v+7, D] → [B, (T_v+7)/8, 8D]</text>
+    <text x="60" y="235" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">latent 级</text>
+    <g fill="#1B4B6F">
+      <rect x="130" y="215" width="120" height="34"/><rect x="258" y="215" width="120" height="34"/><rect x="386" y="215" width="120" height="34"/><rect x="514" y="215" width="120" height="34"/>
+    </g>
+    <text x="190" y="237" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">latent 0（含首帧）</text>
+    <text x="318" y="237" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">latent 1</text>
+    <text x="446" y="237" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">latent 2</text>
+    <text x="574" y="237" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">latent 3</text>
+
+    <rect x="130" y="270" width="540" height="42" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="400" y="290" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F" font-weight="bold">音频进度同式定义在音频 token 上（式 2），与视频进度并行注入</text>
+    <text x="400" y="307" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">进度是「外生时钟」：状态切换不再依赖模型对语义完成度的自我判断</text>
+    <defs><marker id="a8" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 2</b> · GPC 的编码链路：把「估时长 → 进度 → latent 条件」的转换具象化，重点是帧级到 latent 级的 8 帧分组重打包。</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 状态转换数据：教模型「换挡」</h2>
+  <p>有了进度信号，还需要「带换挡的教材」。GPC 的监督数据由 <strong>DMD 蒸馏过的双向教师</strong>生成：教师产出含执行↔聆听转换的序列，并把不同去噪时间步的 latent 轨迹录下来作监督。转换边界 τ 处定义一个二值的<strong>分段文本交叉注意力掩码</strong>：</p>
+  <div class="formula-card"><div class="f-label">Eq.4–5 · 分段掩码与条件切换（原文式 4–5）</div>
+    <div>$$ m_i = \begin{cases} 1, & i &lt; \tau \\ 0, & \text{otherwise} \end{cases} \qquad P_i = m_i P_{\mathrm{exec}} + (1 - m_i) P_{\mathrm{listen}} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>m_i = 1 是执行态、0 是聆听态；第 i 个 latent 的文本条件在「执行 prompt」与「通用聆听 prompt」之间按掩码二选一。通过改变初始状态与边界 τ，构造出仅执行、执行→聆听、聆听→执行、聆听→执行→聆听等多样序列。<strong>关键细节：</strong>选 DMD 蒸馏教师而非原始多步扩散教师，是因为后者存在「时序 prompt 泄漏」——语义信息会跨转换边界渗透，使实际转换偏离预设边界、监督失真（论文表述）。</div></div>
+  <p>训练时的设计不对称值得注意：ODE 初始化阶段，学生的文本交叉注意力<strong>整段只看执行 prompt</strong>，状态转换<strong>完全由注入的进度信号控制</strong>（执行 1…1000 / 聆听 0）；到了 DMD 蒸馏阶段，学生保持同样的进度条件，而 real/fake score 网络改用<strong>状态感知</strong>的文本条件（按时间 token 选执行或聆听 prompt）。这样 DMD 负责把教师的换挡行为蒸给学生，学生在推理时却只需看进度信号行事——控制接口被压缩成一个标量通道。</p>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <!-- segment-wise mask / state transition supervision -->
+    <text x="400" y="28" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">状态转换监督：分段文本掩码 + 轨迹录制</text>
+    <g font-family="Noto Sans SC,sans-serif" font-size="11">
+      <rect x="80" y="60" width="300" height="44" fill="#1B4B6F"/><text x="230" y="87" text-anchor="middle" fill="#fff">执行态：attend P_exec</text>
+      <rect x="380" y="60" width="300" height="44" fill="#5A8F7B"/><text x="530" y="87" text-anchor="middle" fill="#fff">聆听态：attend P_listen</text>
+      <line x1="380" y1="52" x2="380" y2="112" stroke="#E85D4E" stroke-width="3"/>
+      <text x="380" y="42" text-anchor="middle" fill="#E85D4E" font-size="12">边界 τ</text>
+    </g>
+    <text x="400" y="140" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">m_i = 1（i &lt; τ）→ P_i = P_exec；m_i = 0 → P_i = P_listen</text>
+
+    <rect x="80" y="165" width="600" height="70" fill="#F4F6F8" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="110" y="190" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" font-weight="bold">教师：DMD 蒸馏的双向模型</text>
+    <text x="110" y="212" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">生成带换挡的序列 + 录制各去噪步 latent 轨迹</text>
+    <text x="480" y="190" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">不用多步扩散教师：</text>
+    <text x="480" y="212" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">「时序 prompt 泄漏」使边界失真</text>
+
+    <rect x="80" y="250" width="600" height="52" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="380" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F" font-weight="bold">多样转换序列：仅执行 / 执行→聆听 / 聆听→执行 / 聆听→执行→聆听</text>
+    <text x="380" y="292" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">学生：文本条件整段锁定执行 prompt，换挡只由进度信号驱动</text>
+  </svg><div class="figcap"><b>图 3</b> · 换挡教材的构造：把「如何获得带状态转换的监督轨迹」具象化——掩码决定谁听谁的 prompt，蒸馏教师保证边界干净。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「训练时多步教师会时序泄漏」：一个对所有换挡式训练都成立的警告</h4>
+    <p>论文观察到：用原始多步扩散教师构造状态转换轨迹时，语义会<strong>跨边界渗透</strong>，导致实际转换时刻偏离设定的 τ。这揭示了扩散教师的一个普遍性质——去噪过程中的注意力会平滑语义边界，「段落感」不是免费的。对任何想用扩散模型合成「带状态/风格切换」训练数据的工作（换情绪、换说话人、换场景），这都是直接可用的经验：<strong>先蒸馏成少步模型再当数据工厂，比直接用多步模型当工厂更干净</strong>。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> MRCM：多参考的身份锚定</h2>
+  <p>长时交互的身份保持分视觉与听觉两路。视觉侧，MRCM 把 N 张参考图编码后<strong>沿时间维拼接</strong>到噪声视频 latent 前面；为免参考 token 扰动生成帧的时间位置，对参考 token 施加<strong>负 RoPE</strong>（负位置索引）。</p>
+  <div class="formula-card"><div class="f-label">Eq.6–8 · 多参考视觉条件与免训练音色条件（原文式 6–8）</div>
+    <div>$$ z^{\mathrm{ref}}_i = E_{\mathrm{VAE}}(I_i),\; i=1..N; \qquad z^{\mathrm{in}}_t = [z^{\mathrm{ref}}_1, z^{\mathrm{ref}}_2, \dots, z^{\mathrm{ref}}_N, z_t]; \qquad z^a_t = \begin{cases} z^a_{\mathrm{ref}}, & \text{有参考音频} \\ z^a_{\mathrm{gen}}, & \text{否则} \end{cases} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>视觉侧是<strong>训练过的</strong>多参考条件：训练时随机采 4 张身份相关帧作参考，推理时最多用 4 张（不足则复制）。听觉侧则是<strong>免训练</strong>的：用模型自己生成的固定 warm-up 话语初始化，之后在去噪过程中把参考语音的音频 latent <strong>持续替换</strong>进生成序列——相当于把音色锚「钉」在流的开头并全程保持。两条通路一训一不训，是参数效率与灵活性的混合策略。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <!-- MRCM -->
+    <text x="400" y="28" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">MRCM：视觉多参考 + 音频参考替换</text>
+    <g font-family="Noto Sans SC,sans-serif" font-size="11">
+      <rect x="50" y="60" width="80" height="60" fill="#C9A86C"/><text x="90" y="95" text-anchor="middle" fill="#2C3E50">Ref 1</text>
+      <rect x="140" y="60" width="80" height="60" fill="#C9A86C"/><text x="180" y="95" text-anchor="middle" fill="#2C3E50">Ref 2</text>
+      <rect x="230" y="60" width="80" height="60" fill="#C9A86C"/><text x="270" y="95" text-anchor="middle" fill="#2C3E50">Ref N</text>
+      <text x="180" y="145" text-anchor="middle" fill="#2C3E50">E_VAE 编码 → z^ref</text>
+    </g>
+    <path d="M315 90 L355 90" stroke="#2C3E50" stroke-width="2" marker-end="url(#a9)"/>
+    <rect x="360" y="55" width="240" height="70" fill="#1B4B6F"/>
+    <text x="480" y="82" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#fff">时间维拼接 [z^ref…, z_t]</text>
+    <text x="480" y="105" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">参考 token 用负 RoPE（不挤占生成帧位置）</text>
+    <path d="M605 90 L645 90" stroke="#2C3E50" stroke-width="2" marker-end="url(#a9)"/>
+    <rect x="650" y="55" width="110" height="70" fill="#2C3E50"/>
+    <text x="705" y="82" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">DiT 去噪</text>
+    <text x="705" y="105" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C">KV Cache</text>
+
+    <rect x="50" y="185" width="140" height="56" fill="#5A8F7B"/>
+    <text x="120" y="208" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">Ref Audio（可选）</text>
+    <text x="120" y="228" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#EAF1F5">z^a_ref</text>
+    <path d="M195 213 L240 213" stroke="#E85D4E" stroke-width="2.5" marker-end="url(#a9)"/>
+    <text x="218" y="202" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">替换</text>
+    <rect x="245" y="185" width="300" height="56" fill="#E85D4E"/>
+    <text x="395" y="208" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">去噪中持续以 z^a_ref 替换音频 latent</text>
+    <text x="395" y="228" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#F4F6F8">免训练；无参考时保留 z^a_gen</text>
+    <rect x="560" y="185" width="200" height="56" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="660" y="208" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F">warm-up 固定话语初始化</text>
+    <text x="660" y="228" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">（模型自身产出）</text>
+
+    <rect x="50" y="268" width="710" height="42" fill="#F4F6F8" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="405" y="287" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" font-weight="bold">训练：随机 4 张身份帧做参考　·　推理：≤4 张（不足复制）　·　长程稳定：RollingSink</text>
+    <text x="405" y="304" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">多视角参考 → 未见姿态/视角下的身份保持；参考语音 → 跨轮次音色一致</text>
+    <defs><marker id="a9" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 4</b> · MRCM 的两条身份通路：把「视觉靠拼接+负 RoPE、听觉靠 latent 替换」这两种不同成熟度的条件化手段并排具象化。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>负 RoPE：一个被低估的「不打扰」技巧</h4>
+    <p>把参考 token 拼到生成序列前面，最直接的风险是把生成帧的时间位置整体后移、破坏 RoPE 的相对距离语义。给参考 token 分配<strong>负位置</strong>，等于把它们放进时间轴的「史前区」：既参与注意力供出身份信息，又不占用生成帧的位置编号。这与 UniTalking 对音频空间维用「固定位置 RoPE」的处理异曲同工——<strong>位置编码正在成为跨模态生成里表达「你算不算时间轴公民」的语法</strong>。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 四阶段训练与流式推理</h2>
+  <p>OmniMate 的训练是一条四级流水线，每级只解决一个问题：</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">阶段 1 · 视觉条件微调</div>
+      <div class="dd">在 LTX2.3 上加入视觉身份条件（MRCM 视觉通路）微调，50K 步（论文表述）。</div></div>
+    <div class="def-item"><div class="dt">阶段 2 · 少步双向教师 + 轨迹构造</div>
+      <div class="dd">用 DMD 蒸出少步双向教师，生成带状态转换的 ODE 轨迹（5K 步量级）。</div></div>
+    <div class="def-item"><div class="dt">阶段 3 · ODE 初始化</div>
+      <div class="dd">因果掩码下联合优化 GPC 与学生（8K 步），学进度驱动的换挡。</div></div>
+    <div class="def-item"><div class="dt">阶段 4 · Self-forcing DMD</div>
+      <div class="dd">进一步蒸馏为实时学生（5K 步）。每个生成 chunk 只许 attend <strong>参考 chunk、首 chunk 与两个相邻 chunk</strong>——兼顾自回归行为与长程连续性。</div></div>
+    <div class="def-item"><div class="dt">训练配置（论文表述）</div>
+      <div class="dd">32×H100，FSDP；非 DMD 阶段 lr 2×10⁻⁵，DMD 阶段学生 2×10⁻⁶ / fake score 分支 4×10⁻⁷；480p 自适应长宽比（DMD 蒸馏用 384p）。</div></div>
+    <div class="def-item"><div class="dt">流式推理</div>
+      <div class="dd">LLM 出回答与估时长 → GPC 转进度 → MRCM 处理可选参考图/音频；每 chunk 生成 3 个视频 latent 与 25 个音频 latent（论文表述）；KV Cache + 流水线并行加速，RollingSink 维持长程视觉稳定。</div></div>
+    <div class="def-item"><div class="dt">数据（约 300 万片段）</div>
+      <div class="dd">三源：公开说话人数据（HDTF、VFHQ、VoxCeleb2、CelebV-Text、AVSpeech）+ OpenHumanVid（影视通用视频）+ 自有中英说话人长对话数据。</div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg">
+    <!-- 训练四阶段 -->
+    <text x="400" y="28" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">四阶段训练管线（步数为论文表述）</text>
+    <rect x="30" y="60" width="170" height="80" fill="#1B4B6F"/><text x="115" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">① 视觉条件微调</text><text x="115" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#C9A86C">LTX2.3 + MRCM 视觉</text><text x="115" y="128" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#C9A86C">50K 步</text>
+    <rect x="220" y="60" width="170" height="80" fill="#5A8F7B"/><text x="305" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">② 少步双向教师</text><text x="305" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#EAF1F5">DMD 蒸馏 + 换挡轨迹</text><text x="305" y="128" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#EAF1F5">5K 步</text>
+    <rect x="410" y="60" width="170" height="80" fill="#C9A86C"/><text x="495" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">③ ODE 初始化</text><text x="495" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">GPC + 学生联合优化</text><text x="495" y="128" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">8K 步</text>
+    <rect x="600" y="60" width="170" height="80" fill="#E85D4E"/><text x="685" y="88" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">④ Self-forcing DMD</text><text x="685" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#F4F6F8">实时流式学生</text><text x="685" y="128" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#F4F6F8">5K 步</text>
+    <g stroke="#2C3E50" stroke-width="2" marker-end="url(#a10)">
+      <line x1="203" y1="100" x2="217" y2="100"/><line x1="393" y1="100" x2="407" y2="100"/><line x1="583" y1="100" x2="597" y2="100"/>
+    </g>
+    <rect x="120" y="175" width="560" height="80" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="400" y="200" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F" font-weight="bold">chunk 注意力范围：参考 chunk + 首 chunk + 两个相邻 chunk</text>
+    <text x="400" y="222" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">＝ 有限感受野做长程生成：RollingSink 补长程稳定，KV Cache + 流水线并行补速度</text>
+    <text x="400" y="243" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">每 chunk：3 个视频 latent + 25 个音频 latent（论文表述）</text>
+    <defs><marker id="a10" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 5</b> · 训练管线与推理约束：把「轻量适配」具象化——四个短阶段合计约 68K 步，大头能力来自 LTX2.3 与 DMD 教师。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「参考 chunk + 首 chunk + 两邻 chunk」是长程一致性的一个极简配方</h4>
+    <p>全注意力做不了开放长度（算力与位置外推都不允许），纯因果又会累积漂移。OmniMate 的 chunk 感受野设计像一个显式维护的「工作记忆」：<strong>首 chunk 是身份与场景的长期记忆，参考 chunk 是身份锚，两邻 chunk 是短期连续性</strong>。这与 RNN 时代的 attention window / Transformer-XL 递归记忆一脉相承，只是被移植到了流式音视觉生成的约束下。Hallo-Live 用 KV Cache + 前瞻掩码处理同类问题，两条路线可以互为消融。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 实验证据与消融</h2>
+  <p>评估基于 VerseBench 的人物-场景子集做交互化改造：把原始 prompt 当作执行态，补充聆听态 prompt，并设计两次状态转换模拟真实轮流对话。指标覆盖五类：生成速度（FPS、TTFF）、音频质量、视频质量与文本对齐、音视频同步（Sync-D、IB-Score）、口型精度（LSE-C/LSE-D），另报音频/视觉身份一致性（A-ID/V-ID）。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>方法</th><th>FPS ↑</th><th>TTFF ↓</th><th>Speech ↓</th><th>V-ID ↑</th><th>Sync-D ↓</th><th>IB-Score ↑</th><th>LSE-C ↑</th></tr></thead>
+    <tbody>
+      <tr><td class="route">Ovi-1.1</td><td>2.14</td><td>114s</td><td>0.306</td><td>0.932</td><td>0.112</td><td>0.200</td><td>4.12</td></tr>
+      <tr><td class="route">LTX-2.3</td><td>2.59</td><td>76s</td><td>0.121</td><td>0.941</td><td>0.028</td><td>0.245</td><td>3.81</td></tr>
+      <tr><td class="route">MOVA-360P</td><td>0.29</td><td>658s</td><td>0.194</td><td>0.937</td><td>0.018</td><td>0.345</td><td>3.59</td></tr>
+      <tr><td class="route">OmniForcing</td><td>24.83</td><td>3.51s</td><td>0.675</td><td>0.952</td><td>0.922</td><td>0.208</td><td>2.85</td></tr>
+      <tr><td class="route">Hallo-Live</td><td>19.22</td><td>3.63s</td><td>0.773</td><td>0.950</td><td><strong>0.004</strong></td><td>0.192</td><td>1.51</td></tr>
+      <tr><td class="route">OmniMate</td><td><strong>27.64</strong></td><td><strong>3.49s</strong></td><td><strong>0.097</strong></td><td>0.957</td><td>0.042</td><td><strong>0.356</strong></td><td>4.06</td></tr>
+    </tbody></table></div>
+  <p>读表要点（均为论文表述）：OmniMate 在<strong>流式效率（FPS/TTFF）与语音准确率（Speech 0.097）上最优</strong>，IB-Score（跨模态一致性）0.356 居首，V-ID 0.957 最高；但 <strong>Sync-D 最优是 Hallo-Live（0.004）</strong>，OmniMate 0.042 次之，而 LSE-C 上 Ovi-1.1（4.12）仍略高于 OmniMate（4.06）。定性对比中论文指出：Ovi-1.1、DaVinci-Base、UniVerse-1、Hallo-Live 随时间出现渐进视觉退化；多数基线在聆听期产生多余声音或动作；DaVinci-Base、OmniForcing、Hallo-Live 在聆听↔执行转换上不准确。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>消融配置</th><th>Speech ↓</th><th>V-ID ↑</th><th>A-ID ↑</th><th>观察（论文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">Use CrossAttn（进度走文本注意力）</td><td>0.115</td><td>0.954</td><td>0.504</td><td>字幕式叠字伪影；聆听态可能错误压暗画面</td></tr>
+      <tr><td class="route">w/o DistillTeacher（用多步教师）</td><td>0.489</td><td>0.951</td><td>0.498</td><td>转换边界不准、回答不完整</td></tr>
+      <tr><td class="route">w/o DataConstruct</td><td>0.382</td><td>0.956</td><td>0.512</td><td>换挡学不会，响应延迟</td></tr>
+      <tr><td class="route">w/o GPC</td><td>0.239</td><td>0.959</td><td>0.515</td><td>提前终止、语音重复（FPS 反而 28.13）</td></tr>
+      <tr><td class="route">w/o SpeakerIdentity</td><td>0.099</td><td>0.953</td><td>0.478</td><td>跨轮次音色漂移</td></tr>
+      <tr><td class="route">w/o MRCM</td><td>0.104</td><td>0.949</td><td><strong>0.462</strong></td><td>跨模态身份一致性整体受损</td></tr>
+      <tr><td class="route">Full Model</td><td><strong>0.097</strong></td><td>0.957</td><td>0.529</td><td>—</td></tr>
+    </tbody></table></div>
+  <p>长时稳定性：30s / 60s / 240s 生成长度下指标无显著退化（Speech 0.117 / 0.103 / 0.099），支撑「开放地平线」的主张。注意 w/o GPC 的 FPS（28.13）反而高于完整模型（27.64）——<strong>GPC 的收益不在速度而在行为正确性</strong>，这是「控制模块不加速反而略减速」的诚实呈现。</p>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <!-- 交互时间线 -->
+    <text x="400" y="28" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">一次多轮交互的生成时间线（GPC 进度信号示意）</text>
+    <line x1="60" y1="120" x2="760" y2="120" stroke="#2C3E50" stroke-width="2"/>
+    <rect x="60" y="95" width="180" height="34" fill="#1B4B6F"/><text x="150" y="117" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">执行 1…1000</text>
+    <rect x="240" y="95" width="120" height="34" fill="#5A8F7B"/><text x="300" y="117" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">聆听 0</text>
+    <rect x="360" y="95" width="220" height="34" fill="#1B4B6F"/><text x="470" y="117" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">执行 1…1000</text>
+    <rect x="580" y="95" width="100" height="34" fill="#5A8F7B"/><text x="630" y="117" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">聆听 0</text>
+    <rect x="680" y="95" width="80" height="34" fill="#1B4B6F"/><text x="720" y="117" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#fff">执行</text>
+    <g font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">
+      <text x="150" y="155" text-anchor="middle">回答 + 拍手动作</text>
+      <text x="300" y="155" text-anchor="middle">微动等待</text>
+      <text x="470" y="155" text-anchor="middle">转头描述房间</text>
+      <text x="630" y="155" text-anchor="middle">等待</text>
+    </g>
+    <g stroke="#E85D4E" stroke-width="2">
+      <line x1="240" y1="88" x2="240" y2="70"/><line x1="360" y1="88" x2="360" y2="70"/><line x1="580" y1="88" x2="580" y2="70"/><line x1="680" y1="88" x2="680" y2="70"/>
+    </g>
+    <text x="400" y="62" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">换挡点由 GPC 进度信号驱动（0 ↔ 1…1000）</text>
+    <rect x="100" y="195" width="600" height="80" fill="#EAF1F5" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="400" y="220" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F" font-weight="bold">长时稳定：30s / 60s / 240s 生成下指标基本不变（论文表述）</text>
+    <text x="400" y="243" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">对比基线：聆听期多余声音/动作、执行↔聆听转换不准、长时视觉退化</text>
+    <text x="400" y="264" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">「开放式」的实证含义：地平线不封顶 + 状态随时切换 + 身份不走形</text>
+  </svg><div class="figcap"><b>图 6</b> · 多轮交互时间线：把「开放地平线 + 换挡」具象化为一条执行/聆听交替的流，进度信号是唯一的换挡开关。</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">08</span> 深度洞察与批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>跨论文数字互校：同一系统在两篇论文里为什么不一样？</h4>
+    <p>OmniMate 的表 1 报告 Hallo-Live 为 <strong>19.22 FPS / 3.63s TTFF（H100）</strong>；而 Hallo-Live 原文自报 <strong>20.38 FPS / 0.94s 延迟（2×H200）</strong>。硬件不同（H100 vs H200）、指标口径不同（TTFF 首帧 vs 论文的延迟定义），两者并不直接矛盾，但恰好说明<strong>实时生成领域缺少统一的效率评测协议</strong>：FPS 数到什么粒度、延迟从哪一刻起算、用几张卡，都由各家自定义。读者跨论文比较数字时必须先对齐口径，否则「谁更快」的结论可以被口径随意翻转。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>GPC 把风险外包给了 LLM 估时长——论文承认会漏词/重复</h4>
+    <p>论文局限一节写明：极长回答或时长估计不准会「偶尔导致漏词或重复」。这正是外生进度方案的结构性风险：<strong>进度是被指定的，不是被生成内容校准的</strong>。当实际要说的内容比估计时长长，进度先到 1000 而话没说完（截断/重复）；反之则提前进入聆听（冷场）。消融里 w/o GPC 的重复语音、w/o DataConstruct 的响应延迟，其实都是这一风险的不同投影。此外「身份保持限制了大幅度外观/场景变化的动作生成」——MRCM 的身份锚同时也是表现力的天花板。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>评估基准与统计口径的边界</h4>
+    <p>评测基于 VerseBench <strong>人物-场景子集</strong>的交互化改造（论文自建），聆听 prompt 与状态转换由作者设计——好处是贴合任务，坏处是无第三方基准可比、也未报告人类主观评分。指标层面，Speech（越低越好）在流式方法间差距巨大（OmniMate 0.097 vs Hallo-Live 0.773），但论文未展开该指标的定义细节（标注「论文表述」），不同方法的语音内容遵循度是否在同一 prompt 预算下比较，需要附录佐证。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>三篇论文合看：音视频联合生成的「控制信号」谱系</h4>
+    <p>UniTalking 用<strong>文本 + 参考</strong>控制内容与身份，靠联合注意力自发达成同步；Hallo-Live 用<strong>掩码窗口</strong>控制「能看到多少未来」；OmniMate 用<strong>进度标量</strong>控制「生成到哪、何时换挡」。三者可以叠成一个统一的控制栈：内容条件（文本/身份/音色）+ 可见性控制（因果/前瞻）+ 调度控制（进度/状态）。一个尚未被任何一篇回答的问题是：这三层控制信号的<strong>相互作用</strong>——比如 GPC 进度与 FEA 前瞻窗口同时存在时，换挡点会不会因为偷看未来而提前摆位？</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">09</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>进度信号能否被「内容感知」地生成，替代 LLM 的外生估时长？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>GPC 的进度由 LLM 预估时长线性铺开，估计误差直接导致漏词/重复；若进度能由生成内容自身校准（如文本剩余量、音素完成度），可消除外生误差源。</p>
+      <p><strong>理论分析：</strong>当前是开环控制：进度不依赖输出。闭环版本需要一个轻量「已完成度」估计器，把控制问题变成带观测的跟踪问题；稳定性取决于估计器延迟与 chunk 长度的关系。</p>
+      <p><strong>连接：</strong>Hallo-Live 的 Future-Expanding Attention 证明短程未来信息可得且有用；把「未来文本剩余量」作为进度先验，是把两篇论文的信息源合并。</p>
+      <p><strong>探究方向：</strong>训练一个基于生成 token 历史的进度回归头，与 LLM 估时长基线对比漏词率、重复率、换挡准时度。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>负 RoPE 参考 token 与 chunk 感受野（首 chunk + 参考 + 两邻）的容量极限在哪里？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>多参考拼接 + 负位置在 ≤4 张参考图下有效，但参考数量、chunk 记忆构成对长时（&gt;240s）身份保持的贡献曲线未知。</p>
+      <p><strong>理论分析：</strong>注意力容量有限时，参考 token 与相邻 chunk 争夺 softmax 质量；身份锚（参考）与连续性锚（相邻）之间的权重分配可能随生成长度漂移，导致后期身份弱化。</p>
+      <p><strong>连接：</strong>UniTalking 的固定序列长度（512/257）同样暴露了「条件容量上限」问题；RollingSink 的记忆维护与 Transformer-XL 式递归记忆同构，可迁移其容量分析工具。</p>
+      <p><strong>探究方向：</strong>扫描参考图数量 × 生成时长 × 记忆 chunk 构成的三维网格，测量 V-ID/A-ID 的衰减曲线，找出容量瓶颈的主因。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>「先蒸馏教师再造数据」的顺序，对所有换挡监督都必要吗？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>OmniMate 用 DMD 蒸馏教师规避多步教师的时序 prompt 泄漏，但这一步增加了训练管线（阶段 2）；泄漏的严重程度取决于什么，尚无刻画。</p>
+      <p><strong>理论分析：</strong>泄漏源于多步去噪中注意力对语义边界的平滑；其严重度或与去噪步数、跨段语义相似度、注意力层数相关。若能预测泄漏程度，可对部分场景跳过蒸馏步骤。</p>
+      <p><strong>连接：</strong>Hallo-Live 的 Stage I 也是「先对齐教师轨迹再 rollout」的渐进顺序；两文共同指向「教师行为的干净程度决定学生学到什么」这一命题。</p>
+      <p><strong>探究方向：</strong>控制去噪步数与语义相似度，量化边界偏移量；对比蒸馏教师/多步教师/纯合成规则数据三种监督源的换挡准确率。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>三层控制信号（内容条件、可见性掩码、进度调度）的相互作用如何消解冲突？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>内容条件想多说、进度信号说到点必须停、前瞻掩码想偷看未来——三者同处一个注意力栈时，冲突由谁仲裁没有答案。</p>
+      <p><strong>理论分析：</strong>可把三类信号视为对生成分布的不同投影约束，冲突表现为生成内容的「提前收束」或「无视进度」；需要一个显式的优先级机制或约束优化视角（如把进度作为硬约束、内容作为软约束）。</p>
+      <p><strong>连接：</strong>Hallo-Live 的 β 崩塌说明多信号加权缺乏内在防护；UniTalking 的多条件相加融合则假设了条件可加性——三篇论文都在用「加权/相加」处理多信号，而没有冲突仲裁机制。</p>
+      <p><strong>探究方向：</strong>构造刻意冲突的指令集（时长极短但内容很长），测量现有系统的行为；设计带显式仲裁层的融合模块并做对照。</p></div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">10</span> 代码附录</h2>
+  <p>以下代码按论文公式结构还原关键流程，均为<strong>示意性实现</strong>（非官方开源代码）。</p>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># GPC：LLM 估时长 → 进度 1..1000（聆听=0）→ 正弦 PE + MLP 注入 latent（式 1-3）</span>
+<span class="kw">def</span> <span class="fn">gpc_progress</span>(n_tokens, pred_duration_tokens, is_video):
+    <span class="cm"># p_i = 1 + (i-1)/(T-1) * 999；超出预测时长 → 0（聆听态）</span>
+    T = n_tokens
+    prog = 1 + torch.<span class="fn">arange</span>(T) / (T - 1) * 999
+    prog[pred_duration_tokens:] = 0.0               <span class="cm"># 聆听态</span>
+    <span class="kw">return</span> prog
+
+<span class="kw">def</span> <span class="fn">inject_progress</span>(z, progress, mlp, pe):
+    <span class="cm"># z̃^m = z^m + MLP(PE(p^m)), m ∈ {a, v}（式 3）</span>
+    <span class="kw">return</span> z + <span class="fn">mlp</span>(<span class="fn">pe</span>(progress))
+
+<span class="kw">def</span> <span class="fn">pack_video_progress</span>(frame_progress):
+    <span class="cm"># 首帧重复 8 次后分组：[B, T_v+7, D] -> [B, (T_v+7)/8, 8D]</span>
+    first = frame_progress[:1].<span class="fn">repeat</span>(8)
+    p = torch.<span class="fn">cat</span>([first, frame_progress[1:]])
+    <span class="kw">return</span> p.<span class="fn">reshape</span>(-1, 8 * D)                     <span class="cm"># 每 8 帧 → 1 个 latent token</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># MRCM + 换挡数据构造：多参考拼接（负 RoPE）+ 分段文本掩码（式 4-8）</span>
+<span class="kw">def</span> <span class="fn">mrcm_visual</span>(ref_images, z_noisy, vae, rope):
+    z_ref = [vae.<span class="fn">encode</span>(I) <span class="kw">for</span> I <span class="kw">in</span> ref_images[:4]]  <span class="cm"># 式 6：最多 4 张（不足复制）</span>
+    z_in = torch.<span class="fn">cat</span>(z_ref + [z_noisy], dim=1)      <span class="cm"># 式 7：时间维拼接</span>
+    <span class="kw">return</span> <span class="fn">rope</span>(z_in, ref_pos=<span class="str">"negative"</span>)           <span class="cm"># 参考 token 负位置，不挤占生成帧</span>
+
+<span class="kw">def</span> <span class="fn">mrcm_speaker</span>(z_audio, z_ref_audio=<span class="kw">None</span>):
+    <span class="cm"># 免训练音色条件：去噪中持续替换参考语音 latent（式 8）</span>
+    <span class="kw">return</span> z_ref_audio <span class="kw">if</span> z_ref_audio <span class="kw">is not None else</span> z_audio
+
+<span class="kw">def</span> <span class="fn">state_transition_sample</span>(teacher, tau, n_latents):
+    <span class="cm"># 教师：DMD 蒸馏的双向模型（避免多步教师的时序 prompt 泄漏）</span>
+    m = (torch.<span class="fn">arange</span>(n_latents) &lt; tau).<span class="fn">float</span>()     <span class="cm"># 式 4：1=执行，0=聆听</span>
+    P = m[:, None] * P_exec + (1 - m[:, None]) * P_listen   <span class="cm"># 式 5</span>
+    traj = teacher.<span class="fn">generate_with_trajectory</span>(P)      <span class="cm"># 录制各去噪步 latent 轨迹</span>
+    <span class="kw">return</span> traj                                    <span class="cm"># 供阶段 3 ODE 初始化监督</span></pre>
+</section>

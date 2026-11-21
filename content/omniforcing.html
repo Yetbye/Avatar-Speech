@@ -1,0 +1,225 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂：把「离线的双向大模型」蒸馏成「实时的流式生成器」</h2>
+  <p class="lead">音视频联合生成的好模型几乎都是<strong>双向注意力 + 多步去噪</strong>的——这决定了它们必须等整段看完才能开始生成，天然无法实时。OmniForcing 的主张是：<strong>不改训练数据、不从头训，而是把一个离线的双流双向扩散模型（教师）蒸馏成流式自回归生成器（学生）</strong>。论文称这是「第一个」做这件事的框架。</p>
+  <p>关键难点在于：<strong>朴素的因果蒸馏会失败</strong>。论文的观察是「naively applying causal distillation... S≥4 converge stably with normal visual」——即学生在步数 S≥4 时才稳定收敛。这说明「双向 → 因果」的转换不是简单加个 mask 就行，需要专门的技术。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>为什么「蒸馏」是把基座变实时的正确路径</h4>
+    <p>有两种方式把离线模型变实时：(a) 从头训一个流式模型；(b) 蒸馏一个离线强模型。前者要重付数据与算力成本，且质量通常不如离线版；后者继承教师的全部知识，只需解决「因果化」问题。OmniForcing 选 (b)，本质是在说：<strong>实时性的障碍是结构（双向注意力），不是知识（模型能力）</strong>。这个判断很有洞察力——知识是可以迁移的，结构限制只能重建。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 范式定位：双向 → 因果的三个转换难点</h2>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="320" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">从双向教师到因果学生：三个必须解决的问题</text>
+    <!-- teacher -->
+    <rect x="30" y="58" width="340" height="88" rx="10" fill="#1B4B6F" opacity="0.12" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="200" y="84" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">教师：双流双向扩散</text>
+    <text x="200" y="110" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">离线、多步去噪、双向注意力</text>
+    <text x="200" y="130" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">（LTX-2 级别的联合生成能力）</text>
+    <!-- student -->
+    <rect x="430" y="58" width="340" height="88" rx="10" fill="#5A8F7B" opacity="0.14" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="600" y="84" text-anchor="middle" font-size="12.5" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">学生：流式自回归</text>
+    <text x="600" y="110" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">因果注意力、少步、边生成边输出</text>
+    <text x="600" y="130" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">（实时，但易误差累积）</text>
+    <line x1="372" y1="102" x2="426" y2="102" stroke="#E85D4E" stroke-width="3" marker-end="url(#k1)"/>
+    <!-- 3 problems -->
+    <rect x="30" y="170" width="235" height="118" rx="10" fill="#E85D4E" opacity="0.1" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="147" y="196" text-anchor="middle" font-size="11.5" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">① 感受野不匹配</text>
+    <text x="48" y="222" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">教师每步能看到全序列；</text>
+    <text x="48" y="242" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">学生只能看过去。</text>
+    <text x="48" y="270" font-size="10" fill="#95A5A6" font-family="Noto Sans SC">→ 未来信息无法迁移</text>
+
+    <rect x="282" y="170" width="235" height="118" rx="10" fill="#C9A86C" opacity="0.12" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="399" y="196" text-anchor="middle" font-size="11.5" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">② 步数不匹配</text>
+    <text x="300" y="222" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">教师多步去噪；</text>
+    <text x="300" y="242" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">学生需少步（甚至一步）。</text>
+    <text x="300" y="270" font-size="10" fill="#95A5A6" font-family="Noto Sans SC">→ S≥4 才稳定收敛</text>
+
+    <rect x="534" y="170" width="235" height="118" rx="10" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="651" y="196" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">③ 模态同步不匹配</text>
+    <text x="552" y="222" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">双流教师靠双向交互对齐；</text>
+    <text x="552" y="242" font-size="10.5" fill="#2C3E50" font-family="Noto Sans SC">因果学生只能因果对齐。</text>
+    <text x="552" y="270" font-size="10" fill="#95A5A6" font-family="Noto Sans SC">→ 同步质量易退化</text>
+    <defs><marker id="k1" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker></defs>
+  </svg><div class="figcap"><b>图 1</b> · 双向教师 → 因果学生：三个转换难点</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> 核心方法：Forcing 式蒸馏的思路</h2>
+  <p>「Forcing」这个名字指向序列建模里的 teacher forcing / scheduled sampling 一脉：在训练时把<strong>教师的输出</strong>与<strong>学生的自回归输出</strong>混合，逐步把学生从「依赖教师」过渡到「自给自足」。OmniForcing 把这个思路扩展到<strong>扩散模型的蒸馏</strong>与<strong>双模态流式生成</strong>。</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">教师</div><div class="dd">离线双流双向扩散模型（如 LTX-2 级别），负责提供高质量的目标分布。<span class="alt">教师不参与推理，只在训练时提供软标签/中间表示。</span></div></div>
+    <div class="def-item"><div class="dt">学生</div><div class="dd">流式自回归生成器：因果注意力 + 少步去噪。<span class="alt">结构上支持边生成边输出，满足实时约束。</span></div></div>
+    <div class="def-item"><div class="dt">Forcing 策略</div><div class="dd">逐步从「教师输出」过渡到「学生输出」作为条件，训练学生在<em>自己的历史</em>上继续生成。<span class="alt">这直接对抗自回归的暴露偏差（exposure bias）——训练时见过自己的错误。</span></div></div>
+    <div class="def-item"><div class="dt">步数约束</div><div class="dd">学生需要 S≥4 步才稳定收敛。<span class="alt">说明少步蒸馏在联合生成上比单模态更难——两个模态要同时被压步数。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">Forcing：条件从「教师」逐步交给「学生自己」</text>
+    <!-- timeline -->
+    <line x1="60" y1="150" x2="740" y2="150" stroke="#5D6D7E" stroke-width="2"/>
+    <text x="60" y="180" font-size="11" fill="#95A5A6" font-family="Noto Sans SC">训练早期</text>
+    <text x="700" y="180" font-size="11" fill="#95A5A6" font-family="Noto Sans SC">训练后期</text>
+    <!-- teacher box -->
+    <rect x="80" y="88" width="200" height="52" rx="9" fill="#1B4B6F" opacity="0.2" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="180" y="110" text-anchor="middle" font-size="11.5" fill="#1B4B6F" font-family="Noto Sans SC">教师输出作条件</text>
+    <text x="180" y="128" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">（软标签 / 中间表示）</text>
+    <!-- student box -->
+    <rect x="520" y="88" width="200" height="52" rx="9" fill="#5A8F7B" opacity="0.2" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="620" y="110" text-anchor="middle" font-size="11.5" fill="#5A8F7B" font-family="Noto Sans SC">学生自身输出作条件</text>
+    <text x="620" y="128" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">（自回归历史）</text>
+    <!-- transition arrow -->
+    <path d="M 290 114 Q 400 60 510 114" fill="none" stroke="#E85D4E" stroke-width="2.5" marker-end="url(#k2)"/>
+    <text x="400" y="72" text-anchor="middle" font-size="11" fill="#E85D4E" font-family="Noto Sans SC">逐步过渡（forcing）</text>
+    <!-- benefits -->
+    <text x="60" y="228" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">好处：</text>
+    <text x="60" y="252" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">· 继承教师的全部知识（画质、同步、语音），不需重训数据</text>
+    <text x="60" y="276" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">· 学生在自己的历史分布上训练 → 推理时遇到自身误差不崩</text>
+    <defs><marker id="k2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#E85D4E"/></marker></defs>
+  </svg><div class="figcap"><b>图 2</b> · Forcing 的条件过渡：从教师输出到学生自身历史</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>暴露偏差是流式生成的头号杀手，Forcing 是对症下药</h4>
+    <p>自回归模型训练时总用「真值历史」（teacher forcing），推理时却用自己的「预测历史」，分布不匹配导致误差累积。这个问题在文本生成里被广泛研究，但在<strong>音视频联合生成</strong>里更严重：一个模态的误差会通过跨模态注意力传染给另一个模态，形成<strong>误差共振</strong>。Forcing 的价值在于它让学生在训练时就经历这种传染，从而学到恢复能力。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 关键公式（示意性形式化）</h2>
+  <div class="formula-card"><div class="f-label">Eq.1 · Forcing 蒸馏目标（示意，非论文逐字式）</div>
+    <div>$$ \mathcal{L}=\mathbb{E}_{t}\Big[\;\big\| \hat{x}^{\text{stu}}_t - x^{\text{tea}}_t \big\|^2 \;+\; \lambda\,\big\| \hat{x}^{\text{stu}}_t - x^{\text{stu}}_{t-1} \big\|^2\Big] $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>第一项让学生逼近<strong>教师</strong>的输出（知识迁移）；第二项让学生在<strong>自身前一步输出</strong>的条件下保持一致（暴露偏差对冲）。<span class="kbd-term">λ</span> 随训练推进增大——早期多听教师，后期多听自己。<br>
+    <strong>注意：</strong>此式为按论文思路的<em>示意性形式化</em>，原文的具体损失形式与系数需查原文式；「forcing schedule」的具体形式（线性/余弦）未在抽取段落中给出。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.2 · 步数约束（经验观察）</div>
+    <div>$$ S \geq 4 \implies \text{训练稳定收敛（视觉质量正常）} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>联合生成的少步蒸馏比单模态更难：两个模态的分布要同时被压到 S 步内。S&lt;4 时学生可能在一个模态上塌缩（如音频变噪声）。<br>
+    <strong>来源：</strong>原文表述「S ≥4 converge stably with normal visual」，属经验阈值，非理论保证。</div></div>
+</section>
+
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">步数 S 与稳定性：S≥4 才稳定收敛（示意）</text>
+    <line x1="90" y1="180" x2="740" y2="180" stroke="#5D6D7E" stroke-width="2"/>
+    <line x1="90" y1="180" x2="90" y2="58" stroke="#5D6D7E" stroke-width="2"/>
+    <text x="415" y="210" text-anchor="middle" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">学生去噪步数 S</text>
+    <g font-family="JetBrains Mono,monospace" font-size="10" fill="#95A5A6">
+      <text x="118" y="197">S=1</text><text x="250" y="197">S=2</text><text x="382" y="197">S=4</text><text x="514" y="197">S=6</text><text x="646" y="197">S=8</text>
+    </g>
+    <rect x="90" y="58" width="292" height="122" fill="#E85D4E" opacity="0.08"/>
+    <text x="236" y="78" text-anchor="middle" font-size="11" fill="#E85D4E" font-family="Noto Sans SC">不稳定 / 模态塌缩</text>
+    <path d="M 118 164 Q 200 148 318 112 T 646 82" fill="none" stroke="#5A8F7B" stroke-width="3"/>
+    <circle cx="382" cy="100" r="6" fill="#1B4B6F"/>
+    <line x1="382" y1="100" x2="382" y2="180" stroke="#1B4B6F" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="392" y="96" font-size="11" fill="#1B4B6F" font-family="Noto Sans SC">阈值：S=4</text>
+  </svg><div class="figcap"><b>图 4</b> · 步数下限的经验阈值（原文：S ≥ 4 收敛稳定）</div></div>
+
+<section class="b-section">
+  <h2><span class="num">05</span> 优势与证据</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>结论（原文表述）</th><th>评测</th></tr></thead>
+    <tbody>
+      <tr><td class="route">主结果</td><td>在 JavisBench 上综合表现领先</td><td>Table 1：AV-Quality / Text 相关指标；TTFC 与 FPS 见 Table 2</td></tr>
+      <tr><td class="route">蒸馏保真度</td><td>与双向 LTX-2 教师在同提示集上对比</td><td>Table 2：用 VBench 评测视觉质量</td></tr>
+      <tr><td class="route">实时性</td><td>流式自回归，可边生成边输出</td><td>TTFC（首帧时间）/ FPS</td></tr>
+      <tr><td class="route">稳定性</td><td>S≥4 步数下稳定收敛</td><td>经验观察</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 240" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="240" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">教师 vs 学生：保真度与实时性的取舍</text>
+    <!-- 2x2 -->
+    <line x1="400" y1="60" x2="400" y2="200" stroke="#E8E8E4" stroke-width="1"/>
+    <line x1="120" y1="130" x2="680" y2="130" stroke="#E8E8E4" stroke-width="1"/>
+    <text x="140" y="76" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">高保真</text>
+    <text x="660" y="76" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">高保真</text>
+    <text x="140" y="196" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">低保真</text>
+    <text x="120" y="150" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC" transform="rotate(-90 120 150)">离线</text>
+    <text x="120" y="116" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC" transform="rotate(-90 120 116)">实时</text>
+    <!-- teacher dot -->
+    <circle cx="320" cy="82" r="9" fill="#1B4B6F"/>
+    <text x="336" y="86" font-size="11" fill="#1B4B6F" font-family="Noto Sans SC">教师（LTX-2 级，离线双向）</text>
+    <!-- student dot -->
+    <circle cx="470" cy="102" r="9" fill="#5A8F7B"/>
+    <text x="486" y="106" font-size="11" fill="#5A8F7B" font-family="Noto Sans SC">OmniForcing 学生（流式因果）</text>
+    <text x="336" y="122" font-size="10" fill="#95A5A6" font-family="Noto Sans SC">（示意：学生略降保真，但换取实时）</text>
+    <text x="140" y="222" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">位置为示意，实际数值以原文 Table 2 为准。</text>
+  </svg><div class="figcap"><b>图 3</b> · 教师–学生的定位：小幅保真度代价换实时能力</div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 「首个」的宣称需要限定</h4>
+    <p>论文称「first framework to distill an offline dual-stream bidirectional diffusion model into a high-fidelity streaming autoregressive generator」。这个限定词很多（dual-stream、bidirectional、diffusion→autoregressive），每个限定都在缩小范围。与 LeapTalk、Salt++ 等流式工作的关系需要仔细区分——它们可能走了不同路径但解决同一问题。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. S≥4 的步数要求，对「实时」的定义是关键</h4>
+    <p>若 S=4 仍需 4 次前向，那实时性取决于单步耗时。论文报告了 FPS 与 TTFC，但「S≥4」意味着不能做到极致的一步生成——对超低延迟场景（如语音对话）可能仍有压力。这需要看 FPS 是否满足具体应用的帧率要求。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 蒸馏保真度的评测用 VBench，但 VBench 偏视觉</h4>
+    <p>Table 2 用 VBench 评测视觉质量，但联合生成的核心是<strong>音画同步</strong>。若只报视觉指标，无法判断同步是否在蒸馏中退化。需要补充 Sync 类指标（如 Sync-C/D）或人评同步维度。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 教师是 LTX-2 级别，学生的上限受限于教师</h4>
+    <p>蒸馏学生的能力上限不超过教师。若教师本身在某些场景（长尾、歌唱）弱，学生也会弱。这不是本文缺陷，但决定了该方法的适用范围——它适合「已有强教师」的场景，不适合「无强教师」的冷启动。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>双模态的误差共振能否被显式建模并抑制？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>流式生成里一个模态的误差会通过跨模态注意力传染另一个。若能量化这种「共振」，就能设计针对性的抑制机制。</p>
+      <p><strong>理论分析：</strong>把两模态的生成过程建模为耦合动力系统。误差向量 e = (e_v, e_a)，传播满足 e_{t+1} = M e_t。M 的谱半径决定共振强度；若 &gt;1 则指数发散。Forcing 可看作在训练中把 M 的谱压到 &lt;1。</p>
+      <p><strong>连接：</strong>VDN 的「非扩张转移」是同一思路在记忆层面的应用；两者可统一为「误差传播的收缩性约束」。</p>
+      <p><strong>探究方向：</strong>在推理时注入已知误差（如人为加噪一帧），测两模态误差随时间的联合衰减曲线。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>步数下限 S≥4 是本质的，还是当前技术的限制？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>若 S≥4 是本质下限，则超低延迟应用需另寻路径；若只是当前蒸馏技术的限制，则有优化空间。</p>
+      <p><strong>理论分析：</strong>联合生成需同时覆盖两个模态的分布，每步的「信息注入量」有限。若每个模态至少需 k 步才能从噪声中定形，则 S≥2k 是一个信息论下界。两个模态的 k 不同（音频需更少？）可由此分析。</p>
+      <p><strong>连接：</strong>LeapTalk 用不同机制打破延迟–质量权衡，可能给出另一条路径。</p>
+      <p><strong>探究方向：</strong>扫描 S=1..8，报告每个模态的质量拐点，判断「哪个模态先崩」。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>Forcing 的 schedule 应该如何随模态分别设计？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>视频与音频的分布复杂度不同，用同一个 forcing schedule 可能对其中一个模态过快或过慢。</p>
+      <p><strong>理论分析：</strong>设两个模态的分布复杂度为 C_v、C_a。forcing schedule 的过渡速度应与各自的收敛速度成正比；若 C_v &gt; C_a，则视频应更晚脱离教师引导。</p>
+      <p><strong>连接：</strong>Ovi 用 λ_v=0.85/λ_a=0.15 的损失权重，是按模态难度分配的一种实现；forcing schedule 是另一种。</p>
+      <p><strong>探究方向：</strong>对比统一 schedule 与双模态独立 schedule，测最终的音画同步与各自质量。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">08</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Forcing 蒸馏：条件从教师逐步过渡到学生（示意，非官方实现）</span>
+<span class="kw">def</span> <span class="fn">forcing_step</span>(student, teacher, x_prev, step, total_steps, lam):
+    <span class="cm"># lam: 0→1 的过渡系数，越大越依赖学生自身</span>
+    <span class="kw">with</span> torch.no_grad():
+        x_teacher = teacher(x_prev)          <span class="cm"># 教师软标签</span>
+    x_student = student(x_prev)              <span class="cm"># 学生自回归输出</span>
+    <span class="cm"># 混合条件：早期偏教师，后期偏学生</span>
+    x_cond = (1 - lam) * x_teacher + lam * x_student
+    <span class="kw">return</span> student(x_cond)                   <span class="cm"># 在混合条件下再生成</span>
+
+<span class="kw">def</span> <span class="fn">forcing_schedule</span>(step, total_steps, kind=<span class="st">"linear"</span>):
+    <span class="kw">if</span> kind == <span class="st">"linear"</span>:
+        <span class="kw">return</span> step / total_steps
+    <span class="cm"># 可选：余弦、按模态分别调度</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 流式自回归学生的因果前向（示意）</span>
+<span class="kw">class</span> <span class="fn">StreamingStudent</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x, history):
+        <span class="cm"># 因果注意力：只看 history（过去的生成结果）</span>
+        attn_mask = causal_mask(x, history)
+        h = self.blocks(x, attn_mask=attn_mask)
+        <span class="kw">return</span> self.head(h)
+
+    <span class="cm"># 步数约束（原文经验）：S ≥ 4 才稳定收敛</span>
+    MIN_STEPS = <span class="st">4</span></pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「蒸馏」把实时性变成了一个<em>可迁移性</em>问题</h4>
+    <p>OmniForcing 的方法论价值超过它的具体结构：它证明了<strong>实时性不需要从头训</strong>，可以从强离线模型蒸馏而来。这把一个「架构问题」转化成了「知识迁移问题」——后者有更成熟的工具（distillation、forcing、schedule）。对整个领域而言，这意味着「离线强模型 + 实时蒸馏」可以成为一条标准路径，而不是每个团队各自造流式架构。</p>
+  </div>
+</section>

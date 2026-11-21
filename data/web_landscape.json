@@ -1,0 +1,207 @@
+{
+  "gathered_at": "2026-11",
+  "note": "web_search 不可用(401)，全部经 arXiv API (export.arxiv.org) 与 arxiv.org/abs 摘要页核对；one_liner 仅摘自实际抓取到的摘要，未抓到摘要的条目不收录。A 类说明：LTX-2.3 无独立论文，以 LTX-2 (2601.03233) 代表；MiniMax-H3/Hailuo 无独立模型卡论文，但为被大量论文引用的真实开源音视频基座(33B)，此处以直接评测该模型的 2609.18323 作为代表条目；Ovi 论文标题为 'Ovi: Twin Backbone Cross-Modal Fusion'，'OmniVerse' 命名未出现在论文正文；JavisDiT 与 JavisDiT++ 分列。 | 更正：Lynn 已确认为 LynnReal-Omni (arXiv 2609.15863)，此前按关键词『Lynn』检索未命中系检索词问题，非论文不存在。",
+  "papers": [
+    {
+      "short": "LTX-2",
+      "title": "LTX-2: Efficient Joint Audio-Visual Foundation Model",
+      "arxiv": "2601.03233",
+      "date": "2026-01",
+      "cat": "av-foundation",
+      "route": "非对称双流 Transformer：14B 视频流 + 5B 音频流，经双向音视频交叉注意力 + cross-modality AdaLN 共享时间步条件",
+      "one_liner": "开源统一视听基础模型，以非对称双流 Transformer(14B 视频 + 5B 音频)和 modality-CFG 生成高质量、时序同步、含语音与环境/foley 音效的音画内容。",
+      "anchor": true
+    },
+    {
+      "short": "JavisDiT",
+      "title": "JavisDiT: Joint Audio-Video Diffusion Transformer with Hierarchical Spatio-Temporal Prior Synchronization",
+      "arxiv": "2503.23377",
+      "date": "2025-03",
+      "cat": "av-foundation",
+      "route": "联合音视频 DiT + 分层时空同步先验(HiST-Sypo)估计器 + JavisBench 同步评测基准",
+      "one_liner": "联合音视频扩散 Transformer，用分层时空同步先验估计器引导细粒度音画同步，并提出含 10,140 条文本描述有声视频的 JavisBench 同步评测基准与专用同步度量。",
+      "anchor": true
+    },
+    {
+      "short": "JavisDiT++",
+      "title": "JavisDiT++: Unified Modeling and Optimization for Joint Audio-Video Generation",
+      "arxiv": "2602.19163",
+      "date": "2026-02",
+      "cat": "av-foundation",
+      "route": "MS-MoE(模态特定专家混合) + 时序对齐 RoPE(TA-RoPE) + 音视频直接偏好优化(AV-DPO)，基于 Wan2.1-1.3B-T2V",
+      "one_liner": "面向联合音视频生成(JAVG)的统一建模与优化框架，以模态特定 MoE、时序对齐 RoPE 和 AV-DPO，在仅约 1M 公开样本下显著超越既有方法、逼近 Veo3。",
+      "anchor": true
+    },
+    {
+      "short": "Ovi",
+      "title": "Ovi: Twin Backbone Cross-Modal Fusion for Audio-Video Generation",
+      "arxiv": "2510.01284",
+      "date": "2025-10",
+      "cat": "av-foundation",
+      "route": "孪生 DiT 模块块级跨模态融合：scaled-RoPE 时序交换 + 双向交叉注意力语义交换，音频塔与强视频模型同构初始化",
+      "one_liner": "把音视频作为单一生成过程的统一范式，用孪生 DiT 的块级跨模态融合实现自然同步，音频塔从数十万小时原始音频训练出带说话人身份与情感的语音和逼真音效。",
+      "anchor": true
+    },
+    {
+      "short": "MOVA",
+      "title": "MOVA: Towards Scalable and Synchronized Video-Audio Generation",
+      "arxiv": "2602.08794",
+      "date": "2026-02",
+      "cat": "av-foundation",
+      "route": "开源 MoE 架构(32B 总参 / 18B 激活)，支持 IT2VA(图-文到视频-音频)",
+      "one_liner": "开源 MOSS Video and Audio 模型，用 32B(激活 18B)的 MoE 架构生成高质量同步音画内容，含唇形同步语音、环境感知音效与内容对齐音乐，支持 IT2VA 任务并开放权重与代码。",
+      "anchor": true
+    },
+    {
+      "short": "VDN",
+      "title": "Video DeltaNet: A Video-Native Hybrid Attention for Livestream Video Generation",
+      "arxiv": "2609.20744",
+      "date": "2026-09",
+      "cat": "av-foundation",
+      "route": "局部 Softmax 注意力 + 双向线性记忆(Video Delta Attention)的视频原生混合注意力，实例化于 MiniMax H3",
+      "one_liner": "视频原生混合注意力(Video DeltaNet)，结合局部 Softmax 与双向线性记忆，在 MiniMax H3 上经 8 步蒸馏后 14.3 秒 768p 视频 DiT 去噪仅需 6.70 秒(14.5 倍提速)。",
+      "anchor": true
+    },
+    {
+      "short": "OmniForcing",
+      "title": "OmniForcing: Unleashing Real-time Joint Audio-Visual Generation",
+      "arxiv": "2603.11647",
+      "date": "2026-03",
+      "cat": "av-foundation",
+      "route": "非对称块因果对齐 + 零截断全局前缀 + 音频 Sink Token(Identity RoPE) + 联合自强迫蒸馏 + 模态无关滚动 KV-cache",
+      "one_liner": "首个把离线双流双向扩散模型蒸馏为高保真流式自回归生成器的框架，以非对称块因果对齐、音频 Sink Token 与联合自强迫蒸馏，单卡约 25FPS 实现实时联合音视生成且同步与画质媲美双向教师。",
+      "anchor": true
+    },
+    {
+      "short": "MiniMax-H3",
+      "title": "Can MiniMax-H3 Reason About the Physical World? An Evaluation of Omni-Modal Generative Model",
+      "arxiv": "2609.18323",
+      "date": "2026-09",
+      "cat": "av-foundation",
+      "route": "全模态生成模型评测(代表条目)：MiniMax-H3 在共享隐空间中结合多模态理解与联合音视生成；无独立模型卡",
+      "one_liner": "对全模态生成模型 MiniMax-H3(结合多模态上下文理解与共享隐空间中的联合音视生成)的物理世界推理评测：517 个实例总体成功率 41.97%，视频决策推理最高(56%)、音频消歧最弱(27.4%)。",
+      "anchor": true
+    },
+    {
+      "short": "Apollo",
+      "title": "Apollo: Unified Multi-Task Audio-Video Joint Generation",
+      "arxiv": "2601.04151",
+      "date": "2026-01",
+      "cat": "av-foundation",
+      "route": "单塔统一 DiT 块 + Omni-Full Attention；渐进式多任务训练 + 多阶段课程 + 大规模密集描述数据集",
+      "one_liner": "以单塔统一 DiT 块与 Omni-Full Attention 实现紧致音画对齐与强扩展性的多任务音视频联合生成，配首个大规模密集描述音视频数据集，效果大幅超越既有方法并媲美 Veo 3。",
+      "anchor": true
+    },
+    {
+      "short": "Seedance 2.0",
+      "title": "Seedance 2.0: Advancing Video Generation for World Complexity",
+      "arxiv": "2604.14148",
+      "date": "2026-04",
+      "cat": "av-foundation",
+      "route": "统一高效大规模多模态音视频联合生成架构(模型卡)，支持文/图/音/视频四种输入，含 Fast 低延迟版",
+      "one_liner": "原生多模态音视频生成模型(2026 年 2 月发布)，统一架构支持文/图/音/视频四种输入，直接生成 4-15 秒 480p/720p 音画内容，另提供面向低延迟场景的 Seedance 2.0 Fast 版本。",
+      "anchor": true
+    },
+    {
+      "short": "OmniHuman",
+      "title": "OmniHuman: A Large-scale Dataset and Benchmark for Human-Centric Video Generation",
+      "arxiv": "2604.18326",
+      "date": "2026-04",
+      "cat": "av-foundation",
+      "route": "大规模多场景人体中心数据集(视频级场景/帧级交互/个体级属性分层标注) + OHBench 三级评测体系",
+      "one_liner": "面向人体中心视频生成的大规模多场景数据集与 OmniHuman Benchmark(OHBench)：分层标注覆盖场景、交互与个体属性，并提出与人类感知高度一致、可诊断全局场景/关系交互/个体属性的评测指标。",
+      "anchor": true
+    },
+    {
+      "short": "FlowLong",
+      "title": "FlowLong: Inference-time Long Video Generation via Manifold-constrained Tweedie Matching",
+      "arxiv": "2605.20910",
+      "date": "2026-05",
+      "cat": "av-foundation",
+      "route": "免训练推理期：重叠滑动窗口 + Tweedie matching(流形约束+时序一致) + 随机早期采样，架构无关",
+      "one_liner": "免训练的推理期长视频生成方法，用重叠滑动窗口经 Tweedie matching 拼接并配合随机早期采样，架构无关地把视频延长至原生窗口数倍，并可无微调扩展到联合音视频生成与文生 3DGS。",
+      "anchor": true
+    },
+    {
+      "short": "MM-Sonate",
+      "title": "MM-Sonate: Multimodal Controllable Audio-Video Generation with Zero-Shot Voice Cloning",
+      "arxiv": "2601.01568",
+      "date": "2026-01",
+      "cat": "speech-video",
+      "route": "多模态流匹配：统一指令-音素输入 + 音色注入机制(解耦说话人身份与语言内容) + 噪声负条件策略",
+      "one_liner": "统一可控音视频联合生成与零样本声音克隆的多模态流匹配框架，用统一指令-音素输入保证严格语言与时序对齐，唇形同步与语音可懂度达 SOTA、声音克隆保真度媲美专用 TTS。",
+      "anchor": true
+    },
+    {
+      "short": "Omni-LiveAvatar",
+      "title": "Omni-LiveAvatar: Minute-Level Real-Time Streaming Joint Audio-Video Avatar Generation",
+      "arxiv": "2608.13602",
+      "date": "2026-08",
+      "cat": "speech-video",
+      "route": "渐进自回归蒸馏 + 音视频长短时记忆(有界记忆) + 分层滚动提示规划",
+      "one_liner": "首个分钟级实时流式联合音视频 avatar 生成框架，把大型双向联合音视频扩散模型蒸馏为少步自回归生成器，较教师模型 LTX-2 提速 33 倍且在画质/音质/跨模态同步/人体保真上超越加速基线。",
+      "anchor": false
+    },
+    {
+      "short": "Salt++",
+      "title": "Salt++: Context-Aligned Post-Training for Few-Step Streaming Multimodal Generation",
+      "arxiv": "2609.36995",
+      "date": "2026-09",
+      "cat": "av-foundation",
+      "route": "两阶段后训练：因果自流(CSF) + 上下文对齐自回归 DMD(共享因果掩码/前缀的 block-conditional KL)",
+      "one_liner": "面向少步流式音视频生成的两阶段后训练框架，以因果自流和上下文对齐自回归 DMD，在 480p 4 步因果设置下较 OmniForcing 视觉/运动质量提升 57%/45%，并可扩展到 4 步 1664×960 生成。",
+      "anchor": false
+    },
+    {
+      "short": "LeapTalk",
+      "title": "LeapTalk: Breaking the Latency-Quality Trade-off in Talking Head Generation",
+      "arxiv": "2608.00079",
+      "date": "2026-08",
+      "cat": "speech-video",
+      "route": "单步 bridge 蒸馏：Brownian bridge 数据到数据传输 + 异构蒸馏(SNR 对齐时间变换) + 音频驱动 CFG",
+      "one_liner": "稳定实时的长时 talking-head 生成框架，用 Brownian bridge 数据到数据传输与异构蒸馏缓解身份漂移，仅 1 步达 200FPS 并保持细粒度唇形同步。",
+      "anchor": false
+    },
+    {
+      "short": "JAVIS",
+      "title": "JAVIS: Joint Audio-Visual Interaction and Streaming for Real-Time Conversational Agents",
+      "arxiv": "2610.22499",
+      "date": "2026-10",
+      "cat": "speech-video",
+      "route": "共享 LLM 上的联合精化头产出统一音视表示 → 流式语音分支 + 人脸分支；含 334 小时 JAVIS-Syn 语料",
+      "one_liner": "面向实时音视频对话 agent 的端到端流式框架，让语音与人脸'从单一表示说话'，初始延迟较强基线低约 200 倍，唇形同步与面部表情更佳，并发布 334 小时富表现力多轮音视频对话语料 JAVIS-Syn。",
+      "anchor": false
+    },
+    {
+      "short": "AVC-Reward",
+      "title": "AVC-Reward: Event-Centric Audio-Video Consistency Evaluation",
+      "arxiv": "2610.22321",
+      "date": "2026-10",
+      "cat": "av-foundation",
+      "route": "事件中心评测：解耦音/视事件 → 三级一致性(全局叙事/事件级时序/细粒度属性)，实例化为可训练奖励模型 + AVC-Benchmark",
+      "one_liner": "事件中心的音视频一致性评测框架，把音/视事件解耦做粗到细三级一致性度量，实例化为可训练奖励模型 AVC-Reward 并构建 AVC-Benchmark，与人类判断对齐达 SOTA 且可作在线强化学习信号。",
+      "anchor": false
+    },
+    {
+      "short": "Lynn",
+      "title": "LynnReal-Omni: Native multi-modal Video Generation for Agentic Visual Workflows",
+      "arxiv": "2609.15863",
+      "date": "2026-09",
+      "cat": "speech-video",
+      "route": "智能体视觉工作流的原生多模态视频生成（27B Flash 实时渲染变体）",
+      "one_liner": "用显式参考条件 + 统一模型解决扩散视频的不可控与长时漂移；Standard/Flash 双变体，少步蒸馏强调多模态控制保持。",
+      "anchor": true
+    },
+    {
+      "short": "Duo",
+      "title": "Duo: A Reciprocal World Model for Full-Duplex Interaction",
+      "arxiv": "2611.15131",
+      "date": "2026-11",
+      "cat": "speech-video",
+      "route": "互惠世界模型：Intent + Realization 全双工交互",
+      "one_liner": "把世界模型拆成 Intent（认知）与 Realization（表现），在统一时间线上同步，支持自发对话、打断、音视频游戏。",
+      "anchor": true
+    }
+  ],
+  "unfound": []
+}

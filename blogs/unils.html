@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniLS · 论文解读</title>
+<meta name="description" content="端到端音频驱动的统一听-说数字人，单一框架内完成倾听反应与说话生成。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2025 · Preprint</div>
+    <h1>UniLS</h1>
+    <p class="hero-tagline">端到端音频驱动，统一数字人的倾听与说话</p>
+    <p class="hero-desc">端到端音频驱动的统一听-说数字人，单一框架内完成倾听反应与说话生成。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="UniLS"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="90" y="120" width="270" height="120" rx="22" fill="#1B4B6F"/><text x="225" y="192" text-anchor="middle" font-family="Noto Sans SC" font-size="19" font-weight="700" fill="#fff">说话 Speaking</text><rect x="460" y="230" width="270" height="120" rx="22" fill="#5A8F7B"/><text x="595" y="302" text-anchor="middle" font-family="Noto Sans SC" font-size="19" font-weight="700" fill="#fff">倾听 Listening</text><line x1="360" y1="250" x2="455" y2="275" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><line x1="455" y1="200" x2="365" y2="175" stroke="#C9A86C" stroke-width="3" marker-end="url(#ah)"/></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：端到端统一听-说 (audio-driven)</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#speech-video">speech-video</a><span class="sep">/</span>UniLS</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂：让数字人「听」得和「说」一样自然</a></li><li><a href="#s2">02 问题诊断：倾听僵硬与音频–运动相关性失衡</a></li><li><a href="#s3">03 范式定位：从非端到端到纯音频驱动</a></li><li><a href="#s4">04 系统分解：多尺度 VQ codec 与 chunk 自回归生成器</a></li><li><a href="#s5">05 关键公式：残差量化与两阶段自回归目标</a></li><li><a href="#s6">06 两阶段训练：先验与调制的分离式配方</a></li><li><a href="#s7">07 实验与证据：44.1% 从哪来，实时怎么算</a></li><li><a href="#s8">08 深度洞察：从「倾听僵硬」到生成式建模的一般原理</a></li><li><a href="#s9">09 自主科研问题</a></li><li><a href="#s10">10 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂：让数字人「听」得和「说」一样自然</h2>
+  <p class="lead">UniLS 要解决的是对话数字人里最被忽视的半张脸：<strong>倾听</strong>。现有系统要么只会说（speak-only），要么只会听（listen-only）；唯一尝试联合生成的前代工作 DualTalk 还得先算出说话者的面部序列才能生成倾听者，非端到端、卡实时。UniLS 给出第一个<strong>纯双轨音频驱动的端到端统一听-说框架</strong>：只吃 speaker-A 与 speaker-B 的音频，同时生成两人的听-说动作。它的关键诊断是——直接端到端训练会让倾听动作「僵住」，根源是<strong>音频–运动相关性的结构性失衡</strong>：说话者的运动被自己的语音强驱动，而倾听者的运动主要跟随内部运动先验、只被对方语音弱引导。解法是一个两阶段训练范式：<strong>Stage 1 先用无音频的自回归生成器学「内部运动先验」</strong>（眨眼、微点头、微表情的自发动态），<strong>Stage 2 再引入双轨音频微调</strong>，让外部语音调制而不是定义倾听行为。最终在说话精度上达到 SOTA，倾听指标最高提升 44.1%。</p>
+  <p>论文最有价值的部分不是某个模块，而是那个<strong>失败观察</strong>：naive 端到端训练下，只要自己这路音频是静音，倾听表情就退化成「扑克脸」——少眨眼、无微表情、几乎不动头。这个观察把「倾听僵硬」从一个玄学的观感问题，还原成一个可诊断、可修的训练动力学问题。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>倾听不是音频的函数，而是先验被音频调制的结果</h4>
+    <p>UniLS 的核心洞察在认知层面其实很朴素：人的倾听表情<strong>先</strong>遵循自己的运动模式（眨眼频率、轻微点头、肌肉协调），<strong>然后</strong>才被外部语音调制。把它形式化为「内部运动先验 + 外部音频调制」的两因子模型后，工程方案几乎是推论：先验必须在<strong>无音频</strong>的条件下学（否则音频这个强相关信号会淹没先验），调制再以轻量方式嫁接（cross-attention + LoRA）。这是一种「先学会做自己，再学会响应世界」的训练哲学——与 NLP 里先语言建模预训练、再指令微调的逻辑同构。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 问题诊断：倾听僵硬与音频–运动相关性失衡</h2>
+  <p>论文第 3 章的诊断链条值得逐环拆解。<strong>观察</strong>：端到端训练时，speaker-A 在倾听（自己音频仅含静音）时生成的运动趋近于零——poker-face，几乎没有眨眼、微表情与头部运动；而自然的倾听应该有轻微点头、适时眨眼、视线转移等<strong>主动倾听线索</strong>。<strong>分析</strong>：对音频特征（wav2vec）与表情参数（FLAME）做 t-SNE 分布对比，说话情形下音频与运动嵌入聚在邻近区域、成对距离小；倾听情形下倾听动作散布在远离对应音频的区域——倾听行为（眨眼、微表情）大量<strong>独立于语音信号</strong>发生。</p>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="ul-arrow1" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#2C3E50"/></marker>
+    <marker id="ul-arrow1r" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#E85D4E"/></marker></defs>
+    <text x="30" y="32" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#1B4B6F" font-weight="bold">音频–运动相关性失衡（依 Fig.2 的 t-SNE 观察重绘）</text>
+    <rect x="30" y="52" width="350" height="180" rx="10" fill="#F2EDE4" stroke="#5A8F7B"/>
+    <text x="205" y="76" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#5A8F7B" text-anchor="middle">说话：音频与运动强对齐</text>
+    <ellipse cx="160" cy="150" rx="55" ry="38" fill="#5A8F7B" opacity="0.35"/>
+    <ellipse cx="235" cy="158" rx="48" ry="34" fill="#1B4B6F" opacity="0.35"/>
+    <text x="145" y="154" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">音频嵌入</text>
+    <text x="252" y="162" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">说话运动</text>
+    <text x="205" y="216" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">成对距离小：音素/节奏逐帧绑定口型</text>
+    <rect x="420" y="52" width="350" height="180" rx="10" fill="#F2EDE4" stroke="#E85D4E"/>
+    <text x="595" y="76" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#E85D4E" text-anchor="middle">倾听：音频与运动弱相关</text>
+    <ellipse cx="520" cy="140" rx="45" ry="32" fill="#1B4B6F" opacity="0.35"/>
+    <circle cx="640" cy="118" r="12" fill="#E85D4E" opacity="0.45"/>
+    <circle cx="678" cy="152" r="11" fill="#E85D4E" opacity="0.45"/>
+    <circle cx="615" cy="176" r="10" fill="#E85D4E" opacity="0.45"/>
+    <circle cx="690" cy="110" r="9" fill="#E85D4E" opacity="0.45"/>
+    <text x="512" y="144" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">对方音频</text>
+    <text x="650" y="204" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">倾听运动（散布）</text>
+    <text x="595" y="222" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">眨眼/微表情大量独立于语音发生</text>
+    <rect x="30" y="258" width="740" height="48" rx="8" fill="#2C3E50"/>
+    <text x="400" y="278" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">naive 联合训练 ⇒ 网络学到强音频驱动的「说话」映射，但对「倾听」收到的梯度指引不足</text>
+    <text x="400" y="298" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#C9A86C" text-anchor="middle">⇒ 倾听分支坍缩到「安全、低方差」的静态面部先验（poker-face）</text>
+    <line x1="205" y1="234" x2="330" y2="254" stroke="#2C3E50" stroke-width="2" marker-end="url(#ul-arrow1)"/>
+    <line x1="595" y1="234" x2="470" y2="254" stroke="#E85D4E" stroke-width="2" marker-end="url(#ul-arrow1r)"/>
+    <rect x="30" y="326" width="740" height="42" rx="8" fill="#F2EDE4" stroke="#C9A86C"/>
+    <text x="400" y="352" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" text-anchor="middle">理论推论：倾听行为 = 内部运动先验（自发动态） ⊕ 外部音频调制（对话响应）— 两个成分必须分开学</text>
+  </svg><div class="figcap"><b>图 1</b> · 把「倾听僵硬」具象化为分布几何问题：说话时音频-运动簇重叠、倾听时运动点散布远离音频簇——强信号掩弱信号，弱信号分支被梯度饿死。</div></div>
+  <p>这个诊断可以直接用优化语言复述：在联合损失下，说话分支的梯度大且方向明确（音素–口型逐帧对应），倾听分支的梯度小且含糊（对方语音与自己的眨眼几乎没有互信息）。于是网络参数更新被说话分支主导，倾听分支学到的是「输出均值最安全」的退化解。<strong>损失函数没有错，错在把两个相关性强度差一个数量级的任务塞进同一个条件接口。</strong></p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「模态强度不均」是一类可迁移的失败模式</h4>
+    <p>UniLS 观察到的失衡在多模态学习里有普遍名字：强模态（说话音频）淹没弱模态（倾听时的外部音频），模型退化为只依赖强模态。这与视觉问答里语言先验压过图像、多任务学习里高梯度任务吃掉低梯度任务是同构现象。UniLS 的两阶段解法本质是<strong>课程学习 + 信息通道隔离</strong>：先在无强模态的条件下把弱任务的先验基础打好，再以受控容量（LoRA + 新增 cross-attention）引入强模态。这个配方值得迁移到任何「强弱信号并存」的生成任务。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 范式定位：从非端到端到纯音频驱动</h2>
+  <p>图 1 的范式对比在论文里占据 C 位：speak-only 模型没有倾听生成，listen-only 模型没有说话生成，前代 speak-listen 方法（DualTalk）要<strong>先生成 speaker-A 的面部序列再生成 speaker-B</strong>——这个中间流水线引入额外处理阶段与潜在时序滞后，堵死实时部署。UniLS 则只吃两条音频流、一次前向生成双方动作，端到端且支持实时。</p>
+  <div class="figure"><svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="ul-arrow2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#2C3E50"/></marker>
+    <marker id="ul-arrow2r" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#E85D4E"/></marker></defs>
+    <text x="30" y="32" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#1B4B6F" font-weight="bold">前代：DualTalk 式级联（非端到端）</text>
+    <rect x="30" y="52" width="140" height="52" rx="8" fill="#2C3E50"/>
+    <text x="100" y="75" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">双方音频</text>
+    <text x="100" y="93" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">（先算 A 的运动）</text>
+    <rect x="210" y="52" width="170" height="52" rx="8" fill="#E85D4E"/>
+    <text x="295" y="75" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">speaker-A 运动生成</text>
+    <text x="295" y="93" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="middle">额外流水线 + 时序滞后</text>
+    <rect x="420" y="52" width="190" height="52" rx="8" fill="#2C3E50"/>
+    <text x="515" y="75" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">speaker-B 听-说模型</text>
+    <text x="515" y="93" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">依赖 A 的运动作为输入</text>
+    <rect x="650" y="52" width="120" height="52" rx="8" fill="#5A8F7B"/>
+    <text x="710" y="83" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">B 的动作</text>
+    <line x1="172" y1="78" x2="206" y2="78" stroke="#2C3E50" stroke-width="2" marker-end="url(#ul-arrow2)"/>
+    <line x1="382" y1="78" x2="416" y2="78" stroke="#E85D4E" stroke-width="2.5" marker-end="url(#ul-arrow2r)"/>
+    <line x1="612" y1="78" x2="646" y2="78" stroke="#2C3E50" stroke-width="2" marker-end="url(#ul-arrow2)"/>
+    <text x="400" y="128" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#E85D4E" text-anchor="middle">❌ 非端到端：A 的生成阻塞实时</text>
+    <text x="30" y="180" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#1B4B6F" font-weight="bold">UniLS：端到端双轨音频</text>
+    <rect x="30" y="200" width="160" height="52" rx="8" fill="#2C3E50"/>
+    <text x="110" y="223" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">speaker-A 音频 a^A</text>
+    <text x="110" y="241" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">说话驱动</text>
+    <rect x="30" y="266" width="160" height="52" rx="8" fill="#2C3E50"/>
+    <text x="110" y="289" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">speaker-B 音频 a^B</text>
+    <text x="110" y="307" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">倾听调制</text>
+    <rect x="250" y="216" width="220" height="86" rx="10" fill="#1B4B6F"/>
+    <text x="360" y="248" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF" text-anchor="middle">UniLS 模型（单一框架）</text>
+    <text x="360" y="270" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">双 cross-attention + LoRA</text>
+    <text x="360" y="288" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">先验来自 Stage 1</text>
+    <rect x="530" y="216" width="240" height="86" rx="10" fill="#5A8F7B"/>
+    <text x="650" y="248" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF" text-anchor="middle">A 运动 + B 运动</text>
+    <text x="650" y="270" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="middle">✅ 端到端 · ✅ 实时</text>
+    <text x="650" y="288" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="middle">560.6 FPS（RTX 5090）</text>
+    <line x1="192" y1="226" x2="246" y2="240" stroke="#2C3E50" stroke-width="2" marker-end="url(#ul-arrow2)"/>
+    <line x1="192" y1="292" x2="246" y2="278" stroke="#2C3E50" stroke-width="2" marker-end="url(#ul-arrow2)"/>
+    <line x1="472" y1="259" x2="526" y2="259" stroke="#2C3E50" stroke-width="2.5" marker-end="url(#ul-arrow2)"/>
+    <text x="400" y="344" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" text-anchor="middle">生成 speaker-B 时仅交换两条音频的角色：对称设计，一个模型双向可用</text>
+  </svg><div class="figcap"><b>图 2</b> · 范式对比：把「级联依赖」画成红色链路，就能一眼看出非端到端设计的时延从哪来——不是模型慢，是流水线串行。</div></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>范式</th><th>代表</th><th>输入</th><th>缺口</th></tr></thead>
+    <tbody>
+      <tr><td class="route">speak-only</td><td>FaceFormer / CodeTalker / ARTalk / SelfTalk</td><td>说话者语音</td><td>不生成倾听反应</td></tr>
+      <tr><td class="route">listen-only</td><td>Learning2Listen / CustomListener 等</td><td>说话者语音/语境</td><td>不生成说话动作；多为单轮短反应</td></tr>
+      <tr><td class="route">speak-listen 级联</td><td>DualTalk</td><td>双方音频 + 对方预计算运动</td><td>非端到端，额外运动获取/生成流水线阻塞实时</td></tr>
+      <tr><td class="route">端到端统一</td><td>UniLS</td><td>仅双轨音频 + 风格嵌入</td><td>本文方案：单一框架、双向生成、实时</td></tr>
+    </tbody></table></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 系统分解：多尺度 VQ codec 与 chunk 自回归生成器</h2>
+  <p>脸部表征用 FLAME：表情参数 ψ、姿态参数 θ（含头姿、下颌、眼动）与形状参数 β，合成 5,023 个顶点的 3D 网格。动作以 chunk 为单位组织为矩阵 M ∈ ℝ^{T×D}（T 帧拼接表情与姿态）。生成器 G 是纯 transformer 自回归模型（堆叠 self-attention + FFN），底层动作表示来自一个<strong>时序多尺度 VQ codec</strong>（沿用 ARTalk 的路线）：transformer 编码器提时序特征，多尺度码本逐层量化残差。</p>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="ul-arrow3" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#2C3E50"/></marker></defs>
+    <text x="30" y="32" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#1B4B6F" font-weight="bold">两阶段训练架构（依 Fig.3 重绘）</text>
+    <rect x="30" y="52" width="360" height="150" rx="10" fill="#F2EDE4" stroke="#1B4B6F"/>
+    <text x="210" y="76" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#1B4B6F" text-anchor="middle" font-weight="bold">Stage 1 · 无音频生成器训练</text>
+    <rect x="50" y="92" width="150" height="40" rx="6" fill="#2C3E50"/>
+    <text x="125" y="117" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="middle">过去动作 chunk M_{1:t}</text>
+    <rect x="220" y="92" width="150" height="40" rx="6" fill="#C9A86C"/>
+    <text x="295" y="117" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">风格嵌入 s</text>
+    <rect x="50" y="146" width="320" height="42" rx="6" fill="#1B4B6F"/>
+    <text x="210" y="164" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="middle">自回归 G：Self-Attn + FFN ×N（全部🔥训练）</text>
+    <text x="210" y="181" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">输出：自由运动 chunk M̂_{t:2t}（内部运动先验）</text>
+    <line x1="125" y1="134" x2="125" y2="142" stroke="#2C3E50" stroke-width="2" marker-end="url(#ul-arrow3)"/>
+    <line x1="295" y1="134" x2="295" y2="142" stroke="#2C3E50" stroke-width="2" marker-end="url(#ul-arrow3)"/>
+    <rect x="430" y="52" width="350" height="150" rx="10" fill="#F2EDE4" stroke="#E85D4E"/>
+    <text x="605" y="76" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#E85D4E" text-anchor="middle" font-weight="bold">Stage 2 · 双轨音频驱动微调</text>
+    <rect x="450" y="92" width="140" height="40" rx="6" fill="#2C3E50"/>
+    <text x="520" y="117" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="middle">a^A（说话）/ a^B（倾听）</text>
+    <rect x="610" y="92" width="150" height="40" rx="6" fill="#C9A86C"/>
+    <text x="685" y="117" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">风格嵌入 s</text>
+    <rect x="450" y="146" width="310" height="42" rx="6" fill="#1B4B6F"/>
+    <text x="605" y="164" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="middle">每块 +2 个 Cross-Attn（新层🔥从零训）</text>
+    <text x="605" y="181" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">主干用 LoRA🔥 微调，保护 Stage-1 先验</text>
+    <line x1="520" y1="134" x2="520" y2="142" stroke="#2C3E50" stroke-width="2" marker-end="url(#ul-arrow3)"/>
+    <line x1="685" y1="134" x2="685" y2="142" stroke="#2C3E50" stroke-width="2" marker-end="url(#ul-arrow3)"/>
+    <line x1="392" y1="127" x2="426" y2="127" stroke="#2C3E50" stroke-width="2.5" marker-end="url(#ul-arrow3)"/>
+    <text x="409" y="115" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">继承</text>
+    <text x="30" y="238" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#1B4B6F" font-weight="bold">多尺度 VQ codec（残差量化）</text>
+    <rect x="30" y="256" width="120" height="52" rx="6" fill="#2C3E50"/>
+    <text x="90" y="278" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="middle">动作 chunk M</text>
+    <text x="90" y="296" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C" text-anchor="middle">100 帧 / 4 秒</text>
+    <rect x="180" y="256" width="130" height="52" rx="6" fill="#1B4B6F"/>
+    <text x="245" y="278" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="middle">transformer 编码</text>
+    <text x="245" y="296" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9A86C" text-anchor="middle">时序特征 f^(0)</text>
+    <rect x="340" y="256" width="230" height="52" rx="6" fill="#5A8F7B"/>
+    <text x="455" y="278" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="middle">逐尺度 Quant → Interp → 残差</text>
+    <text x="455" y="296" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF" text-anchor="middle">尺度 [1, 5, 25, 50, 100]</text>
+    <rect x="600" y="256" width="170" height="52" rx="6" fill="#C9A86C"/>
+    <text x="685" y="278" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">多尺度离散码</text>
+    <text x="685" y="296" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" text-anchor="middle">码本 256 × 64 维</text>
+    <line x1="152" y1="282" x2="176" y2="282" stroke="#2C3E50" stroke-width="2" marker-end="url(#ul-arrow3)"/>
+    <line x1="312" y1="282" x2="336" y2="282" stroke="#2C3E50" stroke-width="2" marker-end="url(#ul-arrow3)"/>
+    <line x1="572" y1="282" x2="596" y2="282" stroke="#2C3E50" stroke-width="2" marker-end="url(#ul-arrow3)"/>
+    <rect x="30" y="328" width="740" height="38" rx="8" fill="#F2EDE4" stroke="#C9A86C"/>
+    <text x="400" y="352" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" text-anchor="middle">离散码作为自回归生成器的监督目标；正文为叙述清晰直接用连续矩阵 M 表述（论文表述）</text>
+  </svg><div class="figcap"><b>图 3</b> · 两阶段架构 + codec：Stage 1 全参数训练学先验，Stage 2 用「新层从零训 + 主干 LoRA」的容量管制引入音频——防止强模态覆写弱先验。</div></div>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">Latent 与解码</div>
+      <div class="dd">动作先经 transformer 编码为时序特征，再由多尺度码本逐层量化残差（Interp 负责调整时序分辨率保证平滑过渡），各尺度码累积表示原动作；生成器在离散码空间受监督。<span class="alt">替代方案：直接回归连续 FLAME 参数（FaceFormer 路线）——更简单但运动多样性与时间连贯性弱，论文沿用 ARTalk 已验证的 codec。</span></div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">Stage 1 用无配对多场景数据（CelebV、TalkingHead-1KH、TEDTalk、VFHQ，共 546.5 小时）；Stage 2 用 Seamless Interaction 配对对话数据（657.5 小时：说话 251.5h/22.6M 帧、倾听 406.0h/36.5M 帧；622.5h 训练 / 4.8h 验证 / 30.2h 测试）。音频编码为冻结的 wav2vec。<span class="alt">替代方案：只用对话数据训 Stage 1——消融显示听说指标全面下降，多场景数据是先验强度的来源。</span></div></div>
+    <div class="def-item"><div class="dt">双轨条件注入</div>
+      <div class="dd">每个 transformer 块加两个 cross-attention 层：一个对 speaker-A 音频（说话行为）、一个对 speaker-B 音频（倾听行为）；新层从零训练，Stage-1 主干以 LoRA 微调，「在适配音频条件的同时不覆写已学到的内部运动先验」。生成 B 的动作时两路音频角色互换。<span class="alt">替代方案：单个 cross-attention 吃混合音频流——消融显示说话指标大幅退化（LVE 11.48 vs 5.83），混合流难以区分说话特征。</span></div></div>
+    <div class="def-item"><div class="dt">风格与身份</div>
+      <div class="dd">风格嵌入 s 编码说话者特有的运动特征（沿用 ARTalk 的学习方式），与输入 chunk 拼接后进入生成器，支撑跨身份的运动个性。</div></div>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 关键公式：残差量化与两阶段自回归目标</h2>
+  <p>UniLS 的公式体系比 EmbodiedHead 简洁：一个 codec 递推、两个自回归生成式。但每个公式都对应一个设计决策，值得逐个拆。</p>
+  <div class="formula-card"><div class="f-label">Eq.1 · 多尺度残差量化</div>
+    <div>$$ \mathbf{c}^{(l+1)} = \mathrm{Interp}\big(\mathrm{Quant}(\mathbf{f}^{(l)}), k_l\big), \qquad \mathbf{f}^{(l+1)} = \mathbf{f}^{(l)} - \mathbf{c}^{(l+1)} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>每一层尺度先量化当前特征、把量化结果插值回运动码 c^(l+1)，然后<strong>减去</strong>它得到残差 f^(l+1) 传给下一层——粗尺度抓大轮廓、细尺度补细节，逐层「雕刻」。尺度序列 [1, 5, 25, 50, 100]（对应 100 帧窗口的时序分辨率），码本 256 条、码维 64。Quant(·) 取最近码本条目，Interp(·, k_l) 调整时序分辨率以保证平滑过渡。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.2–3 · Stage 1 无音频自回归生成</div>
+    <div>$$ \hat{\mathbf{M}}_{t:2t} = G(\mathbf{M}_{1:t}, \mathbf{s}) $$</div>
+    <div>$$ \mathcal{L} = \sum_{t=1}^{T} \big\| \hat{\mathbf{M}}_{t:2t} - \mathbf{M}_{t:2t} \big\| $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>只给过去动作与风格嵌入，预测下一个动作 chunk——没有音频时，模型只能依赖「脸一般怎么动」的统计规律，于是眨眼频率、微点头、微表情这些自发动态被固化为内部运动先验。注意损失是<strong>逐 chunk 的普通范数（非平方）</strong>求和（论文式 3 原文如此）。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.4 · Stage 2 双轨音频条件生成</div>
+    <div>$$ \hat{\mathbf{M}}_{t:2t} = G(\mathbf{M}_{1:t}, \mathbf{a}^A_{1:t}, \mathbf{a}^B_{1:t}, \mathbf{s}) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>训练目标仍用式 (3) 的 chunk 级重建损失，只是条件集合扩展为双轨音频 a^A（自己的语音 → 驱动说话口型）与 a^B（对方的语音 → 调制倾听反应）。生成 speaker-B 时两路音频互换角色，同一模型双向复用。音频 1:t 表示条件只用当前及过去的音频，与自回归展开方向一致。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 两阶段训练：先验与调制的分离式配方</h2>
+  <p>把第 02 章的诊断翻译成训练日程，就是 UniLS 的全部秘密。<strong>Stage 1</strong>：在无配对多场景数据上、<strong>彻底去掉音频输入</strong>，训一个预测下一 chunk 的自回归生成器；由于没有任何外部驱动信号，模型只能最大化「像一段自然人脸运动」的先验似然，多样化的多场景数据（新闻播报、访谈、直播、闲聊）保证先验的覆盖面。<strong>Stage 2</strong>：在配对对话数据上接入双轨音频，用两个新增 cross-attention 从零训练、主干 LoRA 低秩微调——LoRA 的选择不是为了省显存，而是<strong>刻意限制音频对先验的改写能力</strong>。</p>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="ul-arrow4" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#2C3E50"/></marker></defs>
+    <text x="30" y="32" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#1B4B6F" font-weight="bold">倾听行为的分解：内部先验 ⊕ 外部调制</text>
+    <circle cx="260" cy="180" r="110" fill="#5A8F7B" opacity="0.30"/>
+    <circle cx="450" cy="180" r="95" fill="#E85D4E" opacity="0.28"/>
+    <text x="215" y="150" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" text-anchor="middle">内部运动先验</text>
+    <text x="200" y="176" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">眨眼频率 · 微点头</text>
+    <text x="205" y="196" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">肌肉协调 · 微表情</text>
+    <text x="230" y="222" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">（Stage 1：无音频学习）</text>
+    <text x="490" y="150" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" text-anchor="middle">外部音频调制</text>
+    <text x="500" y="176" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">节奏 · 重音 · 响应时机</text>
+    <text x="505" y="196" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">（Stage 2：cross-attn）</text>
+    <text x="355" y="185" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" text-anchor="middle" font-weight="bold">自然倾听</text>
+    <rect x="30" y="290" width="740" height="40" rx="8" fill="#2C3E50"/>
+    <text x="400" y="315" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">消融支撑：去掉 Stage 1，倾听 FDD 25.64 / F-FID 5.97 vs 完整 17.12 / 4.30 —— 先验缺失直接塌向静态</text>
+  </svg><div class="figcap"><b>图 4</b> · 概念关系图：倾听 = 先验 ∩ 调制。两圆分离画，才能看清为什么「一阶段端到端」必然把右圆学丢。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>LoRA 在这里不是省钱工具，而是「先验保护器」</h4>
+    <p>Stage 2 用 LoRA 微调主干的动机，论文写得很直白：「efficiently adapt to audio conditioning without overwriting the learned internal motion priors」。从优化视角看，LoRA 把音频适配限制在低秩子空间内，等价于对「先验被改写」这一风险做容量约束——与持续学习（continual learning）里用参数隔离/低秩弹性权重防止灾难性遗忘的思路一致。结合「cross-attention 新层从零训、先验主干低秩动」的分工，UniLS 实际上给出了一套<strong>生成模型的模态嫁接手术规程</strong>：新模态走新通路，老能力冻结+低秩。这对多模态扩展（文本、视线、手势）有直接的工程借鉴价值。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>多场景数据为何对「倾听」重要：先验的支撑集问题</h4>
+    <p>直觉上倾听行为来自对话场景，为何 Stage 1 反而要用新闻、访谈、直播等<strong>无配对</strong>数据？因为先验要覆盖的是「人脸自发运动的分布」，而对话数据里倾听帧（406 小时）大多处于低运动状态，本身就偏斜；多场景数据里丰富的说话/表演/情绪动态为「脸可以怎么动」提供了更宽的支撑集。消融证实去掉多场景数据后听说双双变差（倾听 FDD 17.81 vs 17.12、F-FID 4.62 vs 4.30）。这呼应表征学习的一个一般规律：<strong>先验质量取决于预训练分布的广度，而非与目标任务的表面相似度</strong>。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 实验与证据：44.1% 从哪来，实时怎么算</h2>
+  <p>在 Seamless Interaction 测试集上（30.2 小时），UniLS 的说话指标全面领先（LVE 5.83 / MHD 1.89 / FDD 18.41 / PDD 4.67 / JDD 0.71），倾听指标的优势更大（FDD 17.12 / PDD 4.75 / JDD 0.98 / F-FID 4.304 / P-FID 0.038）。摘要里的「最高 44.1% 提升」对应的是<strong>倾听 FDD 相对 ARTalk*（双音频适配版 ARTalk）的 30.62 → 17.12</strong>，恰好 44.1%；F-FID 从 10.779 → 4.304 更是近 60%。值得注意的是 DualTalk 的倾听 FDD 高达 43.58——比 speak-only 适配版还差，暗示其级联设计在倾听分布上失配严重。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>方法</th><th>说话 LVE↓</th><th>说话 FDD↓</th><th>倾听 FDD↓</th><th>倾听 F-FID↓</th><th>倾听 P-FID↓</th></tr></thead>
+    <tbody>
+      <tr><td class="route">DiffPoseTalk</td><td>9.48</td><td>32.66</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td class="route">ARTalk</td><td>7.46</td><td>31.64</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td class="route">ARTalk*（加音频适配）</td><td>6.79</td><td>27.41</td><td>30.62</td><td>10.779</td><td>0.072</td></tr>
+      <tr><td class="route">DualTalk（非端到端）</td><td>6.35</td><td>37.46</td><td>43.58</td><td>13.143</td><td>0.079</td></tr>
+      <tr><td class="route">UniLS</td><td><strong>5.83</strong></td><td><strong>18.41</strong></td><td><strong>17.12</strong></td><td><strong>4.304</strong></td><td><strong>0.038</strong></td></tr>
+    </tbody></table></div>
+  <p>消融表把贡献拆到三个组件：<strong>双 cross-attention</strong>（换成单层混合音频流后说话 LVE 从 5.83 崩到 11.48，MHD 1.89 → 3.00——混合流里区分两条语音的特征极其困难）；<strong>Stage 1</strong>（去掉后倾听 FDD 25.64、F-FID 5.97，接近 w/o 多场景的劣化量级）；<strong>多场景数据</strong>（去掉后听说全面退化）。用户研究（25 人 × 32 组两两比较，共 128 题，左右随机防位置偏差）中对 DualTalk 的倾听反应偏好率 91.35%——几乎所有受试者都能感知到倾听僵硬与否的差别。实时性方面，单卡 RTX 5090 上 UniLS 560.6 FPS / 739.4 GFLOPS / 421.3M 参数，优于 ARTalk*（357.7 FPS / 489.5M）且 DualTalk 因非端到端直接 N/A。</p>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <text x="30" y="32" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#1B4B6F" font-weight="bold">实时性能对比（Tab.4，RTX 5090）</text>
+    <line x1="230" y1="60" x2="230" y2="240" stroke="#2C3E50" stroke-width="2"/>
+    <line x1="230" y1="240" x2="770" y2="240" stroke="#2C3E50" stroke-width="2"/>
+    <text x="120" y="100" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">ARTalk*</text>
+    <rect x="230" y="82" width="322" height="28" fill="#C9A86C"/>
+    <text x="562" y="101" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">357.7 FPS · 489.5M 参数</text>
+    <text x="120" y="155" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">DualTalk</text>
+    <rect x="230" y="137" width="120" height="28" fill="#E85D4E" opacity="0.55"/>
+    <text x="360" y="156" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">N/A（非端到端，无法实时）· 647.3M 参数</text>
+    <text x="120" y="210" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" font-weight="bold">UniLS</text>
+    <rect x="230" y="192" width="505" height="28" fill="#5A8F7B"/>
+    <text x="745" y="211" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="end">560.6 FPS · 421.3M 参数</text>
+    <text x="400" y="272" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">GFLOPS：UniLS 739.4 最高，却拿到最高帧率 —— 吞吐优势来自架构并行度而非计算量</text>
+    <text x="400" y="290" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">训练成本：4 × H200 共约 40 GPU 小时（Stage 1 约 10h + Stage 2 约 30h，论文表述）</text>
+  </svg><div class="figcap"><b>图 5</b> · 实时对比示意：GFLOPS 与 FPS 脱钩是一个提示——对自回归模型，批并行度与显存带宽比理论计算量更决定真实吞吐。</div></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>消融设定</th><th>说话 LVE↓</th><th>倾听 FDD↓</th><th>倾听 F-FID↓</th><th>解读</th></tr></thead>
+    <tbody>
+      <tr><td class="route">single cross-attn（混合音频流）</td><td>11.48</td><td>27.46</td><td>5.97</td><td>说话崩得最狠：混合流无法区分语音特征</td></tr>
+      <tr><td class="route">w/o stage 1</td><td>6.32</td><td>25.64</td><td>5.97</td><td>倾听塌向静态：先验缺失</td></tr>
+      <tr><td class="route">w/o multi-scenario data</td><td>6.26</td><td>17.81</td><td>4.62</td><td>先验支撑集变窄，听说都退化</td></tr>
+      <tr><td class="route">Ours</td><td><strong>5.83</strong></td><td><strong>17.12</strong></td><td><strong>4.30</strong></td><td>三组件缺一不可</td></tr>
+    </tbody></table></div>
+  <p>附录里还有一个常被忽略的证据：<strong>Stage 1 音频自由生成器单独评测</strong>（Table 5）——无任何音频输入、自由自回归展开时，倾听 FDD 21.83 / F-FID 6.45，虽不及完整模型，但已远好于各基线的倾听水平，说明「先验确实存在且可用」，Stage 2 的调制是在充实而非凭空创造倾听行为。</p>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>「分布指标」赢了，「逐点对齐」怎么办？</h4>
+    <p>倾听行为本质是一对多映射（同一段语音可以有多种合理反应），因此 FDD/PDD/JDD/FID 这类分布指标是合理选择。但分布自然 ≠ <strong>时机恰当</strong>：一个在统计上完美、却在对方停顿处无动于衷或在对方讲笑话时才眨眼的系统，分布指标看不出来。论文的用户研究部分弥补了这一点（反应自然度 91.35% 偏好），但反应<strong>时机/语义恰当性</strong>仍无量化指标——这也正是其局限一节承认的语义缺失。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>chunk 边界的不连续被论文自认，但未量化</h4>
+    <p>局限一节明确写到 chunk-based 形式「occasionally causing subtle discontinuities」。4 秒（100 帧）一个 chunk 的自回归生成，块边界的运动如何衔接论文没有展开：是重叠窗口、还是硬切？训练用 chunk 级损失 Σ‖·‖，对跨 chunk 的二阶连续性（加速度）没有约束，理论上边界处出现 C⁰ 连续但 C¹ 跳变是意料之中的。对 25 FPS 的人脸运动，加速度跳变足以被感知为「抽动」。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>跨论文互评的口径落差</h4>
+    <p>EmbodiedHead 在 DualTalk 测试集上重训的 UniLS 只拿到 LVE 12.73 / SID 1.57，与本文自评的 5.83 相去甚远。两处训练数据（Seamless 657.5h vs DualTalk 训练集）、测试集与渲染管线均不同，无法判定是实现差异还是域差异，但这提醒：<strong>自建测试集 + 自建跟踪管线的「SOTA」声明存在口径风险</strong>，跨论文比较必须看相对同表差距。这也是本文只在 Seamless Interaction 单一数据源上评测的隐含代价。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 深度洞察：从「倾听僵硬」到生成式建模的一般原理</h2>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>失败分析驱动的架构设计，比涨点叙事更可迁移</h4>
+    <p>UniLS 的论文结构本身就是方法论示范：观察失败（poker-face）→ 量化归因（t-SNE 相关性失衡）→ 机理假设（先验+调制两因子）→ 架构推论（两阶段 + LoRA + 双 cross-attn）→ 消融逐环验证。相比「加了某模块涨了 0.5 点」的叙事，这种失败分析链条的可迁移性强得多：下一个人遇到「多模态联合训练某分支塌缩」时，可以直接套用这套诊断流程，而不必照搬 UniLS 的具体结构。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>跨论文连接：UniLS 与 EmbodiedHead 是同一枚硬币的两面</h4>
+    <p>两篇论文都承认「倾听主要由声学线索而非语义驱动」的局限，也都以 FLAME 为动作空间、以实时对话数字人为目标，但解题位置完全不同：UniLS 在<strong>训练范式</strong>上做文章（先验与调制分离），EmbodiedHead 在<strong>条件接口</strong>上做文章（单流 + 显式 LS-state）。前者生成分布更丰富（SID 语义下的多样性），后者因果性与轮替更可靠。一个自然的合成方向是：用 UniLS 的先验式倾听 + EmbodiedHead 的显式状态门控，再加上 LLM 文本语义条件——这几乎就是下一节 Q3 的研究纲领。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「先验-调制」分解呼应语言模型的预训练-对齐结构</h4>
+    <p>Stage 1 学「脸一般怎么动」≈ 人脸运动的「语言建模」，Stage 2 学「何时对语音做何反应」≈ 指令/条件对齐。UniLS 无意中复刻了 LLM 的两段式配方，甚至连「对齐阶段要保护先验」（LoRA 低秩、防覆写）都与 LLM 对齐中的灾难性遗忘对策一致。这暗示一条更一般的原理：<strong>凡是「自发行为 + 外部响应」结构的生成任务，都应把自发先验的建模与外部条件的调制在训练日程上解耦</strong>。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s9" ><span class="num">09</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>「先验 + 调制」分解的最优边界：LoRA 秩如何定量决定倾听多样性？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>LoRA 在 Stage 2 里兼做「先验保护器」，但秩 r 取多少、它与倾听多样性（F-FID）/ 响应准确性的权衡曲线长什么样，论文没有给出。若能给出 r 的选择准则，这套「模态嫁接」配方就从经验变成可配置的方法。</p>
+      <p><strong>理论分析：</strong>可把 Stage 2 视为在先验分布 p_prior(motion) 上做条件倾斜：低秩约束限制了倾斜幅度，从而保底多样性。形式上可考察条件分布与先验分布的 KL 随 r 的变化，预测存在一个「多样性塌缩相变点」。</p>
+      <p><strong>连接：</strong>与 LLM 微调中 LoRA 秩 vs 灾难性遗忘的实证研究、以及扩散模型 guidance scale 控制多样性-保真度权衡的已知规律同构。</p>
+      <p><strong>探究方向：</strong>扫描 r ∈ {4, 8, 16, 32, 全参}，画 F-FID、倾听 FDD、说话 LVE 三维曲线；用「生成运动相对 Stage-1 先验的 KL」作为中间解释变量。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>倾听反应的「时机」能否被显式建模并评测？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>当前评测（FDD/PDD/JDD/FID）全是分布级指标，反应时机（在对方话语边界点头、在笑点后微笑）没有对应指标。而时机恰恰是人类判断「这人在听我说话」的第一线索。</p>
+      <p><strong>理论分析：</strong>可以把倾听反应建模为点过程（point process）：事件强度由对方语音的韵律边界/停顿调制。评测可借鉴事件检测的时序容忍度框架，定义「反应-诱发对齐得分」。训练上可加一个轻量的时机对齐损失。</p>
+      <p><strong>连接：</strong>对话分析（conversation analysis）里的 backchannel 理论、语音合成里的韵律边界检测、以及音乐-动作节拍对齐（BA 指标）提供了现成的形式化工具。</p>
+      <p><strong>探究方向：</strong>从 Seamless Interaction 标注「倾听事件」（点头/眨眼/微笑）及其诱发语音线索，训练事件强度调制器，对照现有方法测时机得分。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>语义条件如何让倾听从「反应」升级为「回应」？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>UniLS 明确承认缺乏语义理解——不能「点头表示同意、摇头表示反对」。对话数字人要通过图灵测试式的自然度，语义恰当的非言语回应（同意、惊讶、困惑）是下一道门槛。</p>
+      <p><strong>理论分析：</strong>语义信号（文本/LLM 嵌入）是慢变、离散、句级的，与逐帧声学信号时序尺度差两个数量级；若直接混入同一 cross-attention 会重演「强信号淹没弱信号」。合理的做法是分层：语义走慢变全局调制（类似 EmbodiedHead 的 AdaLN 通路），声学走快变绑定。</p>
+      <p><strong>连接：</strong>MM-Head 的文本条件控制、EmbodiedHead 对语义化的 future work 规划、以及 LLM 流式 token 的因果可用性，三者拼起来恰好是实现路径。</p>
+      <p><strong>探究方向：</strong>构建带语义标注的对话子集（同意/不同意/惊讶/理解），在 Stage 2 增设文本 cross-attention 分支，用语义反应准确率 + 时机得分做联合评测。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>chunk 自回归与连续生成之间的第三条路是什么？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>chunk 化带来块边界细微不连续（论文自认），而去掉 chunk 逐帧自回归又会积累漂移、牺牲并行度（560.6 FPS 的来源之一）。是否存在既连续又高效的展开方式？</p>
+      <p><strong>理论分析：</strong>块边界的不连续源于训练目标只覆盖块内重建、无跨块约束。可引入块间重叠训练 + 速度/加速度一致性损失，或用 diffusion 式的块内全并行 + 块间因果状态传递的混合结构（与 EmbodiedHead future work 的 AR–diffusion 混合不谋而合）。</p>
+      <p><strong>连接：</strong>视频生成里的 temporal overlap 策略、语音合成流式模型的 lookahead-受限卷积、以及 Neural ODE 的连续深度思路都提供旁证。</p>
+      <p><strong>探究方向：</strong>在现有框架上做「重叠 chunk + 跨块平滑损失」的最小改动实验，用运动加速度谱的高频能量量化边界伪影。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s10" ><span class="num">10</span> 代码附录</h2>
+  <p>以下代码按论文 Eq.1–4 与 Fig.3 的结构重写为可读伪代码，用于说明机制；<strong>非官方实现</strong>，超参以原文为准（码本 256×64、窗口 100 帧、尺度 [1,5,25,50,100]、AdamW lr 1e-4、codec 100K 迭代 batch 64、两阶段生成器 200K 迭代 batch 128）。</p>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 多尺度 VQ codec 的残差量化（依 Eq.1 重写）</span>
+<span class="kw">def</span> <span class="fn">multi_scale_quant</span>(M, encoder, codebooks, scales=(1, 5, 25, 50, 100)):
+    f = <span class="fn">transformer_encode</span>(M)                <span class="cm"># f^(0): 时序特征</span>
+    codes = []
+    <span class="kw">for</span> l, k_l <span class="kw">in</span> <span class="fn">enumerate</span>(scales):
+        c = <span class="fn">interp</span>(<span class="fn">quant</span>(f, codebooks[l]), k_l)  <span class="cm"># 最近码本条目 + 时序插值</span>
+        codes.append(c)
+        f = f - c                              <span class="cm"># 残差传给下一尺度</span>
+    <span class="kw">return</span> <span class="fn">accumulate</span>(codes)                  <span class="cm"># 各尺度码累积 ≈ 原动作</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 两阶段训练：先学内部运动先验，再做双轨音频调制（依 Eq.2–4 重写）</span>
+<span class="kw">def</span> <span class="fn">stage1_train</span>(G, loader_unpaired):        <span class="cm"># 无配对多场景数据，无音频</span>
+    <span class="kw">for</span> M, s <span class="kw">in</span> loader_unpaired:
+        M_hat = G(M[:, :t], s)                 <span class="cm"># Eq.2: M̂_{t:2t} = G(M_{1:t}, s)</span>
+        loss = <span class="fn">norm</span>(M_hat - M[:, t:2t])        <span class="cm"># Eq.3: chunk 级重建（原文为普通范数）</span>
+        <span class="fn">step</span>(loss)                             <span class="cm"># AdamW lr=1e-4, batch=128, 200K iters</span>
+
+<span class="kw">def</span> <span class="fn">stage2_finetune</span>(G, loader_paired):       <span class="cm"># Seamless Interaction 配对对话数据</span>
+    G = <span class="fn">add_dual_cross_attn</span>(G)                <span class="cm"># 每块 2 层：对 a^A（说）/ a^B（听）</span>
+    G = <span class="fn">lora_wrap</span>(G.backbone)                  <span class="cm"># 主干低秩微调，保护 Stage-1 先验</span>
+    <span class="kw">for</span> M, s, a_A, a_B <span class="kw">in</span> loader_paired:
+        M_hat = G(M[:, :t], a_A, a_B, s)       <span class="cm"># Eq.4: 双轨音频条件</span>
+        loss = <span class="fn">norm</span>(M_hat - M[:, t:2t])        <span class="cm"># 目标仍是 Eq.3</span>
+        <span class="fn">step</span>(loss)
+    <span class="cm"># 生成 speaker-B：交换 a_A / a_B 角色即可（对称设计）</span></pre>
+  <p>细节对照：音频编码器为冻结 wav2vec；风格嵌入 s 与输入 chunk 拼接进入生成器；codec 训练单独 100K 迭代（batch 64）；两阶段合计约 40 GPU 小时（4 × H200，Stage 1 约 10h、Stage 2 约 30h，论文表述）。</p>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

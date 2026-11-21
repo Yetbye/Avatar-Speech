@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OmniHuman · 论文解读</title>
+<meta name="description" content="针对场景/相机多样性、交互建模、个体属性对齐三类缺陷，给出分层标注的大规模人类中心数据集与 OHBench 三级评测。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2026 · 数据集 &amp; Benchmark</div>
+    <h1>OmniHuman</h1>
+    <p class="hero-tagline">补上人类中心生成的数据底座：分层标注 + 三级评测</p>
+    <p class="hero-desc">针对场景/相机多样性、交互建模、个体属性对齐三类缺陷，给出分层标注的大规模人类中心数据集与 OHBench 三级评测。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OmniHuman"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><circle cx="150" cy="130" r="13" fill="#1B4B6F"/><circle cx="150" cy="250" r="13" fill="#5A8F7B"/><line x1="150" y1="146" x2="150" y2="234" stroke="#C9A86C" stroke-width="2.5"/><circle cx="250" cy="160" r="13" fill="#1B4B6F"/><circle cx="250" cy="270" r="13" fill="#5A8F7B"/><line x1="250" y1="176" x2="250" y2="254" stroke="#C9A86C" stroke-width="2.5"/><circle cx="350" cy="190" r="13" fill="#1B4B6F"/><circle cx="350" cy="290" r="13" fill="#5A8F7B"/><line x1="350" y1="206" x2="350" y2="274" stroke="#C9A86C" stroke-width="2.5"/><circle cx="450" cy="220" r="13" fill="#1B4B6F"/><circle cx="450" cy="310" r="13" fill="#5A8F7B"/><line x1="450" y1="236" x2="450" y2="294" stroke="#C9A86C" stroke-width="2.5"/><circle cx="550" cy="250" r="13" fill="#1B4B6F"/><circle cx="550" cy="330" r="13" fill="#5A8F7B"/><line x1="550" y1="266" x2="550" y2="314" stroke="#C9A86C" stroke-width="2.5"/><circle cx="650" cy="280" r="13" fill="#1B4B6F"/><circle cx="650" cy="350" r="13" fill="#5A8F7B"/><line x1="650" y1="296" x2="650" y2="334" stroke="#C9A86C" stroke-width="2.5"/><text x="410" y="410" text-anchor="middle" font-family="Noto Sans SC" font-size="17" font-weight="700" fill="#2C3E50">Latent 对齐 · 共享语义坐标</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：分层标注数据集 + OHBench 三级评测</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#av-foundation">av-foundation</a><span class="sep">/</span>OmniHuman</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂：补上「人类中心生成」的数据底座</a></li><li><a href="#s2">02 三类结构缺陷：为什么现有数据不够</a></li><li><a href="#s3">03 数据集：OmniHumanVid 的规模与三层标注</a></li><li><a href="#s4">04 OHBench：三级评测与「人类感知一致」的指标</a></li><li><a href="#s5">05 优势与证据 + 批判评估</a></li><li><a href="#s6">06 自主科研问题</a></li><li><a href="#s7">07 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂：补上「人类中心生成」的数据底座</h2>
+  <p class="lead">音视频联合生成模型已经很强了，但要生成<strong>复杂真实物理场景里的人</strong>仍然吃力。OmniHuman 的诊断很直接：<strong>根因在数据集的结构性缺陷</strong>，而不是模型不够大。它给出了迄今规模可观的人类中心数据集 <strong>OmniHumanVid</strong>——<strong>1M 视频、1800 小时、80K 身份、967M 标注、172M caption 词</strong>，配<strong>三级分层标注</strong>；并配套 <strong>OHBench</strong> 三级评测体系。</p>
+  <p>这篇论文属于「数据 + 基准」而非生成模型，但在白板要点里占据关键一环：<strong>数据与场景</strong>（开源数据集 → 单人场景 → 长尾数据）。它系统回答了「要生成真实的人，数据该长什么样」。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「数据的结构缺陷」是被长期低估的瓶颈</h4>
+    <p>本领域习惯把生成失败归咎于模型架构。OmniHuman 反过来指出：现有数据集在<strong>场景/相机多样性、交互建模、个体属性对齐</strong>三个维度上就缺料——模型没学过复杂交互，自然也生不出来。这个「先看数据、再看模型」的诊断顺序，与 MOVA 的「三挑战（data/modeling/scaling）把 data 放第一」完全一致。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 三类结构缺陷：为什么现有数据不够</h2>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="320" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">现有数据集的三类结构缺陷</text>
+    <rect x="30" y="58" width="235" height="170" rx="11" fill="#E85D4E" opacity="0.1" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="147" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">① 场景/相机多样性有限</text>
+    <text x="48" y="118" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">缺少全局场景与</text>
+    <text x="48" y="142" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">相机视角的变化</text>
+    <text x="48" y="176" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 模型只会正面、简单背景</text>
+
+    <rect x="282" y="58" width="235" height="170" rx="11" fill="#C9A86C" opacity="0.12" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="399" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">② 交互建模稀疏</text>
+    <text x="300" y="118" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">人-人、人-物交互</text>
+    <text x="300" y="142" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">的样本覆盖不足</text>
+    <text x="300" y="176" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 生成不出「做事的人」</text>
+
+    <rect x="534" y="58" width="235" height="170" rx="11" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="651" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">③ 个体属性对齐不足</text>
+    <text x="552" y="118" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">身份、外貌、动作等</text>
+    <text x="552" y="142" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">属性未与内容对齐标注</text>
+    <text x="552" y="176" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 属性一致性难保证</text>
+
+    <text x="30" y="262" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">三者共同导致：模型生成的「人」往往只是「会动的人形」，而非「在真实场景里做真实交互的个体」。</text>
+    <text x="30" y="290" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">→ 需要从「场景 / 交互 / 属性」三层同时补齐。</text>
+  </svg><div class="figcap"><b>图 1</b> · 三类结构缺陷：场景多样性、交互建模、属性对齐</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 数据集：OmniHumanVid 的规模与三层标注</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>规模（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">视频时长</td><td>1800 小时</td></tr>
+      <tr><td class="route">视频数</td><td>1M 视频</td></tr>
+      <tr><td class="route">身份数</td><td>80K 身份</td></tr>
+      <tr><td class="route">动态片段</td><td>1M dynamic clips</td></tr>
+      <tr><td class="route">标注量</td><td>967M 标注</td></tr>
+      <tr><td class="route">caption 词数</td><td>172M caption words</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="320" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">三级分层标注</text>
+    <rect x="30" y="58" width="235" height="130" rx="11" fill="#1B4B6F" opacity="0.12" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="147" y="88" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">video-level</text>
+    <text x="147" y="112" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">场景 / 相机</text>
+    <text x="147" y="140" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">全局语境</text>
+
+    <rect x="282" y="58" width="235" height="130" rx="11" fill="#5A8F7B" opacity="0.14" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="399" y="88" text-anchor="middle" font-size="12.5" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">frame-level</text>
+    <text x="399" y="112" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">交互（人-人 / 人-物）</text>
+    <text x="399" y="140" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">动态过程</text>
+
+    <rect x="534" y="58" width="235" height="130" rx="11" fill="#C9A86C" opacity="0.16" stroke="#C9A86C" stroke-width="2"/>
+    <text x="651" y="88" text-anchor="middle" font-size="12.5" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">individual-level</text>
+    <text x="651" y="112" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">个体属性</text>
+    <text x="651" y="140" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">身份 / 外貌 / 动作</text>
+
+    <!-- pipeline -->
+    <text x="30" y="222" font-size="11.5" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">全自动管线：</text>
+    <rect x="30" y="238" width="175" height="44" rx="8" fill="#5D6D7E"/><text x="117" y="265" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">采集</text>
+    <rect x="215" y="238" width="175" height="44" rx="8" fill="#1B4B6F"/><text x="302" y="265" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">多模态标注</text>
+    <rect x="400" y="238" width="175" height="44" rx="8" fill="#5A8F7B"/><text x="487" y="265" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">质量过滤</text>
+    <rect x="585" y="238" width="185" height="44" rx="8" fill="#C9A86C"/><text x="677" y="265" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">分层标注合成</text>
+    <g stroke="#95A5A6" stroke-width="2">
+      <line x1="207" y1="260" x2="213" y2="260"/><line x1="392" y1="260" x2="398" y2="260"/><line x1="577" y1="260" x2="583" y2="260"/>
+    </g>
+    <text x="30" y="308" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：管线为对原文「fully automated pipeline」的流程化概括，具体模型与阈值以原文为准。</text>
+  </svg><div class="figcap"><b>图 2</b> · 三级分层标注与全自动数据管线</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「分层标注」的价值：让同一个样本在三个粒度上被监督</h4>
+    <p>大多数数据集只在单一粒度标注（如整段 caption）。OmniHuman 在<strong>场景/交互/属性</strong>三个粒度同时标注，意味着模型能在三个层次上分别获得监督信号——这与 LTX-2 的多层特征抽取、Apollo 的密集描述是同一思路的极端化：<em>标注越细，模型越能学到结构</em>。代价是标注成本高，所以才需要「全自动管线」。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> OHBench：三级评测与「人类感知一致」的指标</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">三级评测体系</div><div class="dd">OHBench 提供对人类中心音视频合成的<strong>科学诊断</strong>（scientific diagnosis），覆盖三层。<span class="alt">不是单一总分，而是分层诊断——这决定了它能否定位失败原因。</span></div></div>
+    <div class="def-item"><div class="dt">人类感知一致性</div><div class="dd">关键创新：指标与<strong>人类感知高度一致</strong>（highly consistent with human perception）。<span class="alt">这是评测可靠性的核心；此前的自动指标常与人感脱节。</span></div></div>
+    <div class="def-item"><div class="dt">填补的缺口</div><div class="dd">在<strong>全局场景、关系交互、个体属性</strong>三方面给出全面诊断。<span class="alt">恰好对应数据集的三层标注——评测与数据同构。</span></div></div>
+    <div class="def-item"><div class="dt">意义</div><div class="dd">为「人类中心音视频合成」提供可复现的评测基准。<span class="alt">此前缺乏专为「人」设计的联合生成基准。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 270" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="270" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">OHBench：分层诊断而非单一总分</text>
+    <!-- pyramid -->
+    <polygon points="400,60 250,190 550,190" fill="#1B4B6F" opacity="0.14" stroke="#1B4B6F" stroke-width="2"/>
+    <polygon points="400,60 325,125 475,125" fill="#5A8F7B" opacity="0.3"/>
+    <text x="400" y="112" text-anchor="middle" font-size="11" fill="#1B4B6F" font-family="Noto Sans SC">个体属性</text>
+    <text x="330" y="164" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">关系交互</text>
+    <text x="472" y="164" text-anchor="middle" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">全局场景</text>
+    <text x="400" y="215" text-anchor="middle" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">三层诊断 → 定位失败在「场景 / 交互 / 属性」哪一层</text>
+    <text x="400" y="245" text-anchor="middle" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">关键：指标与人类感知高度一致（原文表述）</text>
+  </svg><div class="figcap"><b>图 3</b> · OHBench 的三层诊断结构</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 优势与证据 + 批判评估</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>结论（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">数据规模</td><td>1M 视频 / 1800h / 80K 身份 / 967M 标注</td></tr>
+      <tr><td class="route">标注</td><td>三级分层（场景 / 交互 / 属性），全自动管线</td></tr>
+      <tr><td class="route">评测</td><td>OHBench 三级诊断，指标与人类感知高度一致</td></tr>
+      <tr><td class="route">诊断范围</td><td>全局场景、关系交互、个体属性全覆盖</td></tr>
+    </tbody></table></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 「与人类感知一致」的量化证据需看相关系数</h4>
+    <p>这是全文最重要的主张，但「highly consistent」是定性表述。需要给出与人评的相关系数（如 Spearman/Pearson）及样本量，才能支撑评测可信度。若缺此数据，「一致」只是声明。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 全自动标注的误差率未讨论</h4>
+    <p>967M 标注由全自动管线产出，必然有错误率（尤其是交互与个体属性这类难标注维度）。若标注噪声高，下游模型学到的就是「噪声监督」。需报告标注质量抽检的准确率。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 数据集是否公开、许可如何，影响可复现性</h4>
+    <p>数据规模巨大（1800h、80K 身份），若不公开或有限制许可，第三方难以复现基于它的实验。这决定了该数据集能否真正成为「领域公共底座」。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 「真实物理场景」的覆盖边界</h4>
+    <p>数据来自真实视频，但「复杂物理场景」是相对说法。对极端场景（高速运动、强遮挡、罕见交互）的覆盖如何？这些恰是长尾难点，需给出场景分布统计。</p></div>
+  <div class="figure"><svg viewBox="0 0 800 235" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="235" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">数据规模对比（示意）</text>
+    <g font-family="Noto Sans SC" font-size="11">
+      <text x="30" y="76" fill="#5D6D7E">OmniHumanVid</text>
+      <rect x="200" y="60" width="540" height="22" rx="4" fill="#1B4B6F"/>
+      <text x="752" y="77" text-anchor="end" fill="#fff" font-family="JetBrains Mono,monospace">1800h / 1M</text>
+      <text x="30" y="116" fill="#5D6D7E">典型单人说话数据集</text>
+      <rect x="200" y="100" width="150" height="22" rx="4" fill="#95A5A6"/>
+      <text x="362" y="117" fill="#5D6D7E" font-family="JetBrains Mono,monospace">数百 h</text>
+      <text x="30" y="156" fill="#5D6D7E">小规模交互数据集</text>
+      <rect x="200" y="140" width="90" height="22" rx="4" fill="#C9A86C"/>
+      <text x="302" y="157" fill="#A67C3D" font-family="JetBrains Mono,monospace">数十 h</text>
+    </g>
+    <text x="30" y="210" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">非 OmniHuman 的条形为示意量级，用于说明规模优势，非原文数据。</text>
+  </svg><div class="figcap"><b>图 4</b> · 规模优势：1800 小时 / 1M 视频 / 80K 身份</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>三级标注各自对生成质量的贡献是多少？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>分层标注成本高。若其中某一层贡献很小，可优先省掉它。</p>
+      <p><strong>理论分析：</strong>可做分层消融：只用场景标注 / 只加交互 / 再加属性，测各层带来的质量增益。用信息增益量化各层价值。</p>
+      <p><strong>连接：</strong>Apollo 的密集描述、MOVA 的细粒度 caption 都强调标注粒度；此消融可统一回答「标注该多细」。</p>
+      <p><strong>探究方向：</strong>在固定模型上做三级标注的逐层加入实验，画质量-标注成本曲线。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>「人类感知一致」的指标能否反过来指导训练（reward）？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>若 OHBench 的指标确实贴近人感，它应能用作训练信号（reward/损失），直接优化人感质量。</p>
+      <p><strong>理论分析：</strong>可把指标微调为可微 reward，用 RLHF/DPO 或直接梯度优化。关键在于指标是否平滑可微——人感指标常是离散/排序的，需做松弛。</p>
+      <p><strong>连接：</strong>AVC-Reward 正是把「事件级一致性」做成 reward；两者可互补（OHBench 管诊断，AVC-Reward 管优化）。</p>
+      <p><strong>探究方向：</strong>把 OHBench 指标作为奖励，在生成侧做 RLHF，测人评是否提升。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>长尾场景如何定向补采？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>即使 1800 小时，长尾（罕见交互、极端场景）仍可能稀缺。如何主动发现并补齐缺口？</p>
+      <p><strong>理论分析：</strong>可按标注分布的熵识别欠采样区域，设计主动学习采样策略。设场景类别的先验为 P(c)，则应按 1/P(c) 加权补采。</p>
+      <p><strong>连接：</strong>MOVA 的数据漏斗（保留 26.39%）同样面临长尾损失；这是本领域的共性问题。</p>
+      <p><strong>探究方向：</strong>分析各场景类别的样本量分布，对稀有类定向收集，测生成的长尾表现。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 三级分层标注的数据结构（示意，非官方实现）</span>
+<span class="kw">class</span> <span class="fn">OmniHumanSample</span>:
+    video_level:   dict   <span class="cm"># {"scene":..., "camera":...}</span>
+    frame_level:   list   <span class="cm"># [{"person_person":..., "person_object":...}]</span>
+    individual_level: dict <span class="cm># {"identity":..., "appearance":..., "action":...}</span>
+
+<span class="cm"># OHBench 三层诊断</span>
+<span class="kw">def</span> <span class="fn">ohbench_score</span>(pred, gt):
+    <span class="kw">return</span> dict(
+        scene       = scene_consistency(pred, gt),
+        interaction = interaction_quality(pred, gt),
+        attribute   = attribute_alignment(pred, gt),
+    )</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 数据规模与标注量（原文 Fig.1）</span>
+OMNIHUMAN = dict(
+    videos=<span class="st">1_000_000</span>, hours=<span class="st">1800</span>, identities=<span class="st">80_000</span>,
+    dynamic_clips=<span class="st">1_000_000</span>, annotations=<span class="st">967_000_000</span>, caption_words=<span class="st">172_000_000</span>,
+)
+<span class="cm"># 长尾补采：按场景先验的逆频率加权</span>
+<span class="kw">def</span> <span class="fn">resample_weight</span>(c, prior):
+    <span class="kw">return</span> <span class="st">1.0</span> / prior[c]</pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>数据集论文的长期价值：它定义了「这个任务的难点是什么」</h4>
+    <p>OmniHuman 的意义不在模型多强，而在于它把「人类中心生成」的难点<em>结构化</em>为「场景 / 交互 / 属性」三层，并提供配套诊断。这相当于给领域立了一把尺子：以后所有方法都要回答「在三层上各能得几分」。这种「定义评测维度」的工作，往往比单点刷榜更能推动领域前进——它让比较变得有意义。</p>
+  </div>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

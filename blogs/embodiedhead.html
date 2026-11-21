@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EmbodiedHead · 论文解读</title>
+<meta name="description" content="实时的听+说一体数字头，用于对话式智能体，兼顾倾听反应与说话生成。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2025 · Preprint</div>
+    <h1>EmbodiedHead</h1>
+    <p class="hero-tagline">面向对话智能体的实时听-说具身数字头</p>
+    <p class="hero-desc">实时的听+说一体数字头，用于对话式智能体，兼顾倾听反应与说话生成。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="EmbodiedHead"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="70" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="105" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="140" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="175" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="210" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="245" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="280" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="315" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="350" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="385" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="420" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="455" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="490" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="525" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="560" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="595" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="630" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="665" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="700" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="735" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="72" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="130" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="188" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="246" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="304" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="362" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="420" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="478" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="536" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="594" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="652" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="710" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><line x1="70" y1="120" x2="750" y2="120" stroke="#E85D4E" stroke-width="2" marker-end="url(#ah)"/><text x="410" y="105" text-anchor="middle" font-family="Noto Sans SC" font-size="16" font-weight="700" fill="#E85D4E">异步双流 · 流式时间轴</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：实时听-说具身对话智能体</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#speech-video">speech-video</a><span class="sep">/</span>EmbodiedHead</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂：给 LLM 装上一张会听会说的脸</a></li><li><a href="#s2">02 范式定位：为什么放弃双流音频</a></li><li><a href="#s3">03 系统分解：Rectified-Flow DiT × 可微渲染器</a></li><li><a href="#s4">04 关键公式：直路径流匹配如何撑起少步生成与图像域监督</a></li><li><a href="#s5">05 条件注入三通路与 History Context Packing</a></li><li><a href="#s6">06 LS-state 与 Streaming Audio Scheduler：把轮替变成工程问题</a></li><li><a href="#s7">07 两阶段训练：用图像域证据纠正 3D 跟踪偏差</a></li><li><a href="#s8">08 实验与证据：附录里藏着的三个细节</a></li><li><a href="#s9">09 深度洞察：三个设计哲学的交汇</a></li><li><a href="#s10">10 自主科研问题</a></li><li><a href="#s11">11 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂：给 LLM 装上一张会听会说的脸</h2>
+  <p class="lead">EmbodiedHead 回答的是一个工程化三难问题：一个真正能上线的<strong>头部具身数字人（Head-Embodied LLM Avatar）</strong>，必须同时做到<strong>实时生成</strong>、<strong>听-说统一行为</strong>、<strong>高渲染画质</strong>——而这三者在既有技术路线里互相牵制。论文的解法是把首个用于该任务的 <strong>Rectified-Flow Diffusion Transformer（DiT）</strong>与<strong>可微渲染器</strong>耦合，用 4 步采样跑出高保真动作；再用<strong>单流音频接口 + 逐帧听-说状态（LS-state）条件</strong>加一个 <strong>Streaming Audio Scheduler</strong>，去掉双流方法对「对方同窗反应」的 look-ahead 依赖，实现无缝轮替；最后用<strong>两阶段训练</strong>（系数空间预训练 + 图像域联合精调）弥合「动作级监督」与「用户真正看到的渲染质量」之间的鸿沟。</p>
+  <p>论文的核心叙事可以压缩成一句话：过去的 3D talking-head 方法在<strong>系数空间</strong>（FLAME 参数）里训练和评测，报出的速度与精度并不等于用户屏幕上看到的东西；而过去的听-说统一方法用<strong>双流音频</strong>训练，在真实的 user–LLM 对话里根本拿不到同窗的对方反应音频。EmbodiedHead 把这两个「评价口径/接口口径」的问题一起修掉，并把速度压到单卡 RTX 3090 上全链路 59 FPS（仅动作系数生成模块超过 900 FPS，论文表述）。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「具身社会在场」不只是画质问题，而是交互因果性问题</h4>
+    <p>论文开篇引用 Embodied Social Presence（ESP）理论：具身表征是人体验共在感（co-presence）的焦点，更丰富的具身线索会强化临场感与参与度。但 EmbodiedHead 真正的贡献在于把「临场感」拆成了一个<strong>因果性约束</strong>：用户–LLM 对话是严格因果流，任何需要「未来窗口内对方反应」的条件在推理时都不存在。于是「听-说统一」不是一个生成质量问题，而是一个<strong>条件可得性</strong>问题——这正是单流接口 + LS-state 的设计动机，也解释了为什么双流方法在实际部署中会「退化为轮流的单音频驱动」（论文表述）。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 范式定位：为什么放弃双流音频</h2>
+  <p>听-说统一生成经历了从「单听者建模」（Learning to Listen）到多轮流式框架的演化：DualTalk 把它扩展到多轮双人对话，但整段音频离线一次生成，无法流式部署；TIMAR 引入轮次级因果建模，却要吃对方<strong>视觉流</strong>作为输入，实时场景采集成本高；INFP 与 UniLS 在双流音频设定下继续改进自然度与连续性。EmbodiedHead 对这条线的批判相当直接：<strong>所有双流方法共享一个结构性缺陷</strong>——生成当前窗口需要同一时间跨度内对方的反应音频/视觉，而真实 user–LLM 聊天里这不可得；实践中这些方法会退化成交替单音频驱动，倾听阶段的模式推断不可靠。</p>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="eh-arrow1" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#2C3E50"/></marker>
+    <marker id="eh-arrow1r" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#E85D4E"/></marker></defs>
+    <text x="40" y="34" font-family="Noto Sans SC,sans-serif" font-size="19" fill="#1B4B6F" font-weight="bold">双流音频范式（DualTalk / UniLS / TIMAR）</text>
+    <rect x="40" y="56" width="170" height="52" rx="8" fill="#2C3E50"/>
+    <text x="125" y="79" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#FFFFFF" text-anchor="middle">对方同窗反应音频</text>
+    <text x="125" y="98" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">（推理时不存在）</text>
+    <rect x="245" y="56" width="130" height="52" rx="8" fill="#1B4B6F"/>
+    <text x="310" y="87" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#FFFFFF" text-anchor="middle">双流条件生成器</text>
+    <rect x="410" y="56" width="150" height="52" rx="8" fill="#5A8F7B"/>
+    <text x="485" y="87" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#FFFFFF" text-anchor="middle">当前窗口响应</text>
+    <line x1="212" y1="82" x2="241" y2="82" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow1)"/>
+    <line x1="377" y1="82" x2="406" y2="82" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow1)"/>
+    <line x1="125" y1="112" x2="125" y2="146" stroke="#E85D4E" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#eh-arrow1r)"/>
+    <text x="135" y="140" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#E85D4E">look-ahead 依赖：训练可见、推理不可见</text>
+    <text x="40" y="192" font-family="Noto Sans SC,sans-serif" font-size="19" fill="#1B4B6F" font-weight="bold">单流音频 + 显式 LS-state（EmbodiedHead）</text>
+    <rect x="40" y="212" width="180" height="52" rx="8" fill="#2C3E50"/>
+    <text x="130" y="235" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#FFFFFF" text-anchor="middle">麦克风流 + LLM 流</text>
+    <text x="130" y="254" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">全部为因果可得信息</text>
+    <rect x="255" y="212" width="185" height="52" rx="8" fill="#1B4B6F"/>
+    <text x="347" y="235" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#FFFFFF" text-anchor="middle">Streaming Audio Scheduler</text>
+    <text x="347" y="254" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">输出统一窗口 + 逐帧 q</text>
+    <rect x="475" y="212" width="150" height="52" rx="8" fill="#5A8F7B"/>
+    <text x="550" y="235" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#FFFFFF" text-anchor="middle">DiT（q 经输入与 FiLM 注入）</text>
+    <text x="550" y="254" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">听/说逐帧显式可控</text>
+    <line x1="222" y1="238" x2="251" y2="238" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow1)"/>
+    <line x1="442" y1="238" x2="471" y2="238" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow1)"/>
+    <line x1="627" y1="238" x2="662" y2="238" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow1)"/>
+    <text x="668" y="234" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">实时</text>
+    <text x="668" y="252" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">59 FPS</text>
+    <rect x="40" y="300" width="720" height="52" rx="8" fill="#F2EDE4" stroke="#C9A86C"/>
+    <text x="60" y="322" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">统一窗口时间轴：[用户说话 | LLM 说话 | 静默倾听 | 用户说话 …]，每帧标注 q=+1（说）或 q=−1（听）</text>
+    <rect x="60" y="332" width="150" height="12" fill="#E85D4E"/><rect x="210" y="332" width="210" height="12" fill="#1B4B6F"/>
+    <rect x="420" y="332" width="180" height="12" fill="#5A8F7B"/><rect x="600" y="332" width="140" height="12" fill="#E85D4E"/>
+  </svg><div class="figcap"><b>图 1</b> · 范式对比：把「对方同窗反应」这个推理时不可得的条件（上）替换为「音频来源决定的逐帧 LS-state」（下），是 EmbodiedHead 实现因果流式听-说统一的关键一步。</div></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>路线</th><th>代表工作</th><th>条件输入</th><th>结构性问题（论文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">单听者建模</td><td>Learning to Listen</td><td>说话者语音/网格</td><td>仅单轮反应，不建模多轮对话</td></tr>
+      <tr><td class="route">双流 · 离线</td><td>DualTalk</td><td>双方完整音频序列</td><td>整段离线单次生成，无法流式部署</td></tr>
+      <tr><td class="route">双流 · 视觉条件</td><td>TIMAR</td><td>对方视觉流 + 轮次因果建模</td><td>视觉流采集成本高；推理仍需同窗对方反馈</td></tr>
+      <tr><td class="route">双流 · 音频</td><td>INFP / UniLS</td><td>双方音频</td><td>同窗 look-ahead 依赖，因果场景下不可靠</td></tr>
+      <tr><td class="route">单流 + 显式状态</td><td>EmbodiedHead</td><td>统一音频流 + 逐帧 q ∈ {−1,+1}</td><td>本文方案：无 look-ahead，支持无缝轮替</td></tr>
+    </tbody></table></div>
+  <p>另一个被 EmbodiedHead 点名的问题是 MANGO：它意识到图像域监督的价值，但建立在 DDPM 上，需要多步采样才能出可靠结果——<strong>DDPM 的单步估计误差大，图像域损失无法锚定在与真实推理行为一致的输出上</strong>，这为后文 Rectified Flow 的「单步端点估计」埋下伏笔（第 04 章）。</p>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 系统分解：Rectified-Flow DiT × 可微渲染器</h2>
+  <p>给定音频片段 a，模型要在长度 T 帧的流式窗口内生成时序连贯的 3D 动作序列 x₁ ∈ ℝ^{T×D}。脸部几何用 FLAME 参数化：逐帧表情 e^τ ∈ ℝ¹⁰⁰ 与姿态 p^τ，共享身份形状 s ∈ ℝ³⁰⁰；附录给出的完整动作向量为 <strong>115 维</strong>（100 个表情系数 + 下颌姿态、眼球姿态、全局旋转、全局平移），预测窗口 100 帧、帧率 25 FPS（约 4 秒）。</p>
+  <div class="figure"><svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="eh-arrow2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#2C3E50"/></marker></defs>
+    <rect x="20" y="30" width="150" height="46" rx="8" fill="#2C3E50"/>
+    <text x="95" y="50" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">麦克风（用户）</text>
+    <text x="95" y="68" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">LLM 语音流</text>
+    <rect x="200" y="30" width="180" height="46" rx="8" fill="#C9A86C"/>
+    <text x="290" y="50" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" text-anchor="middle">Streaming Audio</text>
+    <text x="290" y="68" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" text-anchor="middle">Scheduler（Alg.1）</text>
+    <rect x="410" y="30" width="150" height="46" rx="8" fill="#1B4B6F"/>
+    <text x="485" y="50" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">mHuBERT-147</text>
+    <text x="485" y="68" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">层融合 + Conv(k=5,s=2)</text>
+    <rect x="590" y="30" width="190" height="46" rx="8" fill="#5A8F7B"/>
+    <text x="685" y="50" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">音频 token（448 维）</text>
+    <text x="685" y="68" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">对角局部掩码 |i−j| ≤ 2</text>
+    <line x1="172" y1="53" x2="196" y2="53" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow2)"/>
+    <line x1="382" y1="53" x2="406" y2="53" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow2)"/>
+    <line x1="562" y1="53" x2="586" y2="53" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow2)"/>
+    <rect x="20" y="110" width="150" height="60" rx="8" fill="#2C3E50"/>
+    <text x="95" y="134" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">历史动作 75 帧</text>
+    <text x="95" y="152" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">x^hist ⊕ q^hist</text>
+    <rect x="200" y="110" width="150" height="60" rx="8" fill="#2C3E50"/>
+    <text x="275" y="134" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">噪声窗口 x_t（100 帧）</text>
+    <text x="275" y="152" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">⊕ q^cur（116 维/帧）</text>
+    <rect x="380" y="110" width="120" height="60" rx="8" fill="#C9A86C"/>
+    <text x="440" y="134" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" text-anchor="middle">HCP 压缩</text>
+    <text x="440" y="152" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">75 帧 → 20 token</text>
+    <rect x="530" y="110" width="250" height="60" rx="8" fill="#1B4B6F"/>
+    <text x="655" y="134" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">DiT ×8 块（d=448, 8 头）</text>
+    <text x="655" y="152" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">Self-Attn(120) · Audio Cross-Attn · FFN</text>
+    <line x1="172" y1="140" x2="376" y2="140" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow2)"/>
+    <line x1="352" y1="140" x2="376" y2="140" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow2)"/>
+    <line x1="502" y1="140" x2="526" y2="140" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow2)"/>
+    <line x1="685" y1="78" x2="685" y2="106" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow2)"/>
+    <rect x="200" y="196" width="180" height="48" rx="8" fill="#5A8F7B"/>
+    <text x="290" y="216" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">速度场 v_θ → 4 步 Euler</text>
+    <text x="290" y="234" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">x̂₁ ≈ x_t + (1−t)v_θ</text>
+    <rect x="420" y="196" width="170" height="48" rx="8" fill="#1B4B6F"/>
+    <text x="505" y="216" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">GAGAvatar 可微渲染器</text>
+    <text x="505" y="234" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">Î = R(x̂₁, s)（256×256）</text>
+    <rect x="630" y="196" width="150" height="48" rx="8" fill="#E85D4E"/>
+    <text x="705" y="216" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">图像域损失</text>
+    <text x="705" y="234" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="middle">L1 + LPIPS（Stage II）</text>
+    <line x1="655" y1="172" x2="290" y2="192" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow2)"/>
+    <line x1="382" y1="220" x2="416" y2="220" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow2)"/>
+    <line x1="592" y1="220" x2="626" y2="220" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow2)"/>
+    <line x1="705" y1="246" x2="705" y2="290" stroke="#E85D4E" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#eh-arrow2)"/>
+    <line x1="705" y1="290" x2="470" y2="290" stroke="#E85D4E" stroke-width="2" stroke-dasharray="6 4"/>
+    <line x1="470" y1="290" x2="470" y2="248" stroke="#E85D4E" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#eh-arrow2)"/>
+    <text x="480" y="284" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">联合精调 DiT + 渲染器（端点梯度回传）</text>
+    <rect x="20" y="316" width="760" height="60" rx="8" fill="#F2EDE4" stroke="#C9A86C"/>
+    <text x="40" y="340" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">全局条件（AdaLN，896 维）= 时间步嵌入 448 ⊕ 参考嵌入 112 ⊕ 全局音频 224 ⊕ 运动幅度 112</text>
+    <text x="40" y="362" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">条件注入三通路：① 输入端拼接 q 通道 ② 音频特征 FiLM（逐帧 q 调制） ③ AdaLN 全局调制（零初始化）</text>
+  </svg><div class="figcap"><b>图 2</b> · 架构流：把「调度器 → 音频编码 → 多条件 DiT → 少步采样 → 可微渲染」这条链画出来，才能看清为什么图像域能监督到「真正被采样的端点」。</div></div>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">Latent 与解码</div>
+      <div class="dd">不做隐空间压缩：DiT 直接在 FLAME 系数空间预测 115 维速度场，末端由 GAGAvatar 可微渲染器把 FLAME 网格解码为图像。渲染器显式建模口腔内部（牙齿、舌头），对说话外观至关重要。<span class="alt">替代方案：NeRF/3DGS 逐人重建路线外观细节更好，但场景近乎静态、需昂贵的逐人重建，不适合通用 LLM 部署。</span></div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">数据：自建 11,372 条样本 / 27.2 小时（TFHP 14.7h + TalkVid &amp; VFHQ 7.8h + RealTalk 3.9h 专攻倾听行为），FLAME 伪真值由 GAGAvatar 跟踪管线提取；测试集为 100 条说话 + 50 条倾听片段。音频前置为冻结的 mHuBERT-147（多语言），逐层 softmax 加权融合。<span class="alt">替代方案：直接在跟踪伪真值上端到端训练会被跟踪噪声反噬，故拆成两阶段（见第 07 章）。</span></div></div>
+    <div class="def-item"><div class="dt">流式接口</div>
+      <div class="dd">单音频流 + 逐帧 LS-state q ∈ {−1,+1}（+1 说 / −1 听）。训练期用 TalkNet-ASD 产出帧级说话置信度、短时平滑后二值化；推理期按音频来源标注（LLM 来源 → +1，环境/麦克风 → −1）。<span class="alt">替代方案：让模型自己从音频推断模式——消融显示会把微弱/远处语音误判为倾听，并出现无意义张嘴。</span></div></div>
+    <div class="def-item"><div class="dt">采样与推理</div>
+      <div class="dd">Rectified Flow 直路径支持可靠单步端点估计，默认 4 步 Euler 积分，运动幅度引导设为 0.3（论文表述）。全链路 59 FPS（RTX 3090），仅动作系数模块 &gt;900 FPS。</div></div>
+  </div>
+  <div class="pipeline"><span class="pipe-step">双音频源</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step alt">Scheduler（窗口 + q）</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">mHuBERT 音频 token</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">RF-DiT ×8</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step alt">FLAME x̂₁</span><span class="pipe-arrow">→</span>
+    <span class="pipe-step">GAGAvatar 渲染</span></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 关键公式：直路径流匹配如何撑起少步生成与图像域监督</h2>
+  <p>Rectified Flow 的价值不只是「少步」。它把噪声 x₀ ~ 𝒩(0, I) 与数据 x₁ 之间定义为<strong>直线插值路径</strong>，目标速度恒为 x₁ − x₀——这个「位移场」性质让单步 Euler 估计就落在真实端点附近，从而 Stage II 的图像损失可以直接监督<strong>推理时真正会被渲染的那个输出</strong>。这是 EmbodiedHead 与 MANGO（DDPM 单步误差大、图像监督悬空）的本质差异。</p>
+  <div class="formula-card"><div class="f-label">Eq.2–3 · Rectified Flow 路径与 Flow Matching 目标</div>
+    <div>$$ \mathbf{x}_t = \mathbf{x}_0 + t\,(\mathbf{x}_1 - \mathbf{x}_0),\qquad t\sim\mathcal{U}[0,1] $$</div>
+    <div>$$ \mathcal{L}_{\mathrm{FM}} = \mathbb{E}\Big[\big\|\mathbf{v}_\theta(\mathbf{x}_t, t, \mathbf{c}) - (\mathbf{x}_1 - \mathbf{x}_0)\big\|_2^2\Big] $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>x₀ 是高斯噪声、x₁ 是真实 FLAME 动作序列；路径是直线，所以目标速度 u_t = dx_t/dt = x₁ − x₀ 是常向量。网络学的是「从任意 t 出发往数据端走多远」的位移场，而不是 DDPM 那种需要多步去噪的分数场。条件集合 c = (a, s, x_ref, x_hist, q, m) 分别是音频、身份形状、参考帧、历史动作、LS-state 与运动幅度。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.5 · 状态条件 FiLM 调制（音频进 cross-attention 之前）</div>
+    <div>$$ \hat{\mathbf{A}}^{\tau} = \mathbf{A}^{\tau} \odot \big(1 + \boldsymbol{\alpha}(q^{\tau})\big) + \boldsymbol{\beta}(q^{\tau}) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>同一段声学特征在「我在说」和「我在听」两种模式下应有完全不同的解释方式——FiLM 让逐帧状态 q^τ ∈ {−1,+1} 对音频特征做仿射重标定（缩放 1+α、偏移 β）。[α(q^τ), β(q^τ)] ∈ ℝ^{2D} 由零初始化的轻量 MLP 产出（附录：隐层 112 维、输出权重零初始化，训练从恒等映射起步）；每个 DiT 块有独立调制参数，块内跨时间步共享。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.6 · Stage I 系数空间分组加权目标</div>
+    <div>$$ \mathcal{L}_{\mathrm{I}} = \sum_{k\in\mathcal{K}} \lambda_k \big\| \mathbf{v}_\theta^{(k)} - (\mathbf{x}_1^{(k)} - \mathbf{x}_0^{(k)}) \big\|_2^2 + \lambda_{\mathrm{smooth}}\,\mathcal{L}_{\mathrm{smooth}}^{\mathrm{pose}} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>动作向量被拆成 5 个参数组 𝒦 = {表情, 下颌, 眼球, 旋转, 平移} 分组计损。附录给出系数：λ_expr = 0.6，λ_jaw = λ_eye = λ_rot = λ_trans = 0.1，λ_smooth = 0.1；位姿平滑项 ℒ_smooth^pose = Σ_τ ‖p^{τ+1} − p^τ‖²₂ <strong>只作用于旋转与平移维度</strong>，压制剪辑与跟踪抖动，同时刻意排除表情与下颌以免过度平滑唇部发音。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.7–8 · 单步端点估计与 Stage II 图像域联合目标</div>
+    <div>$$ \hat{\mathbf{x}}_1 \approx \mathbf{x}_t + (1-t)\,\mathbf{v}_\theta(\mathbf{x}_t, t, \mathbf{c}) $$</div>
+    <div>$$ \mathcal{L}_{\mathrm{II}} = \lambda_{\mathrm{coef}}\,\mathcal{L}_{\mathrm{I}} + \lambda_{\mathrm{img}}\Big(\lambda_{1}\|\hat{\mathbf{I}}-\mathbf{I}\|_{1} + \lambda_{p}\|\psi(\hat{\mathbf{I}})-\psi(\mathbf{I})\|_{2}^{2}\Big) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>因为目标速度恒定，设 t=0 的单步推断就「恰好等于」被渲染的端点，于是图像损失监督的正是推理输出本身。Î = R(x̂₁, s) 为 GAGAvatar 渲染，ψ(·) 是冻结的 AlexNet-LPIPS 特征。附录系数：λ_coef = 0.2、λ₁ = 0.2、λ_p = 0.2，渲染分辨率 256×256，渲染器学习率为基础值 ×0.5；外层 λ_img 的具体数值论文未给出（论文表述）。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.14–15 · 多样性指标 SID（附录 B.2 核对）</div>
+    <div>$$ \mathrm{SID}_k = -\sum_{c=1}^{K} p_c \log_2(p_c + \epsilon),\qquad \epsilon = 10^{-8} $$</div>
+    <div>$$ \mathrm{SID} = \frac{1}{3}\big(\mathrm{SID}_{\mathrm{jaw}} + \mathrm{SID}_{\mathrm{exp50}} + \mathrm{SID}_{\mathrm{rot}}\big) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>对同一音频生成的多样本，在真值特征分布上拟合 K-Means，用聚类分配直方图的香农熵度量多样性；最终 SID 是下颌、前 50 个主表情维、旋转三个语义组的均值。配套指标：LVE（唇部顶点最大 L2 误差均值）、FDD（上脸相对运动时序标准差之差）、MOD（上下唇关键点 62/66 距离的平均绝对误差）、BA（高斯核 σ=0.1s 的双向节拍对齐）。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 条件注入三通路与 History Context Packing</h2>
+  <p>DiT 的条件不是一把梭哈进 cross-attention，而是走了<strong>三条互补通路</strong>，各有分工：输入端把 LS-state 作为额外通道拼进每一帧特征（提供显式模式指示并形成模式一致的时序上下文）；音频 cross-attention 前用 FiLM 做状态调制（把模式信号贯穿网络深度）；AdaLN 注入全局条件（时间步、参考、全局音频、运动幅度）。这种「表层通道 + 深层调制 + 全局门控」的分层设计，本质上是在对抗一个数据侧的退化解：如果模式信号太弱，模型会把倾听误判为说话、在倾听时幻觉性张嘴。</p>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="eh-arrow3" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#2C3E50"/></marker></defs>
+    <text x="30" y="34" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#1B4B6F" font-weight="bold">History Context Packing（75 帧 → 20 token）</text>
+    <rect x="30" y="52" width="120" height="56" rx="6" fill="#C9A86C"/>
+    <text x="90" y="76" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" text-anchor="middle">组 1：5 帧</text>
+    <text x="90" y="94" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">→ 5 token</text>
+    <rect x="165" y="52" width="120" height="56" rx="6" fill="#C9A86C"/>
+    <text x="225" y="76" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" text-anchor="middle">组 2：10 帧</text>
+    <text x="225" y="94" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">→ 5 token</text>
+    <rect x="300" y="52" width="120" height="56" rx="6" fill="#C9A86C"/>
+    <text x="360" y="76" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" text-anchor="middle">组 3：20 帧</text>
+    <text x="360" y="94" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">→ 5 token</text>
+    <rect x="435" y="52" width="120" height="56" rx="6" fill="#C9A86C"/>
+    <text x="495" y="76" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" text-anchor="middle">组 4：40 帧</text>
+    <text x="495" y="94" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">→ 5 token</text>
+    <text x="30" y="136" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">指数增长的感受野跨度：近处细、远处粗 → 75 帧历史压缩为 20 个 token，每个组独立线性投影</text>
+    <rect x="30" y="156" width="330" height="50" rx="6" fill="#1B4B6F"/>
+    <text x="195" y="177" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">20 个打包历史 token ⊕ 100 个当前窗口 token</text>
+    <text x="195" y="196" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">Self-Attention 序列长 120</text>
+    <rect x="400" y="156" width="370" height="50" rx="6" fill="#5A8F7B"/>
+    <text x="585" y="177" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">Cross-Attention 只作用于 100 个当前 token</text>
+    <text x="585" y="196" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF" text-anchor="middle">历史 token 仅通过 self-attention 贡献上下文</text>
+    <line x1="362" y1="181" x2="396" y2="181" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow3)"/>
+    <text x="30" y="248" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#1B4B6F" font-weight="bold">条件注入三通路</text>
+    <rect x="30" y="266" width="230" height="86" rx="8" fill="#F2EDE4" stroke="#1B4B6F"/>
+    <text x="145" y="290" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" text-anchor="middle">① 输入端通道拼接</text>
+    <text x="145" y="312" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">x̃^hist=[x^hist,q^hist]，x̃_t=[x_t,q^cur]</text>
+    <text x="145" y="332" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">每帧 +1 维 → 116 维/帧</text>
+    <rect x="285" y="266" width="230" height="86" rx="8" fill="#F2EDE4" stroke="#5A8F7B"/>
+    <text x="400" y="290" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#5A8F7B" text-anchor="middle">② 音频 FiLM 调制</text>
+    <text x="400" y="312" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">Â^τ = A^τ⊙(1+α(q^τ)) + β(q^τ)</text>
+    <text x="400" y="332" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">零初始化 MLP，逐块独立</text>
+    <rect x="540" y="266" width="230" height="86" rx="8" fill="#F2EDE4" stroke="#E85D4E"/>
+    <text x="655" y="290" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#E85D4E" text-anchor="middle">③ AdaLN 全局条件</text>
+    <text x="655" y="312" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">t ⊕ [s,x_ref] ⊕ 全局音频 ⊕ m</text>
+    <text x="655" y="332" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">896 维 = 448+112+224+112</text>
+  </svg><div class="figcap"><b>图 3</b> · HCP 与条件通路：把「指数增长感受野的历史压缩」与「模式信号的三层注入」并排，可见该架构在 120 token 的短序列里塞进了 4 秒当前窗口 + 3 秒历史（75 帧 @25FPS）。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>HCP 是对「生成式视频模型漂移」问题的移植式解法</h4>
+    <p>History Context Packing 灵感来自下一帧预测视频扩散模型的 frame context packing（论文引文 [44]，用于防漂移）。在 talking-head 任务里它解决的是另一组矛盾：流式窗口需要长历史来保持身份/姿态连续，但 self-attention 复杂度随序列长度平方增长。指数增长跨度（5/10/20/40 帧）+ 每组固定 5 token，本质是一种<strong>对数尺度的记忆分配</strong>——近处动作细节高分辨率保留、远处只留趋势，与语音编码里多尺度特征金字塔、甚至神经科学里工作记忆的粗细粒度分层异曲同工。值得注意的是 cross-attention 刻意只覆盖当前 100 token、历史靠 self-attention 渗透，这保证音频对齐不会被压缩过的历史 token 污染。</div></div>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">音频编码</div>
+      <div class="dd">冻结 mHuBERT-147，全部隐层用可学习 softmax 权重融合，且 cross-attention 分支与全局条件分支<strong>各用一套独立的层融合权重</strong>；随后 kernel=5、stride=2 的一维跨步卷积 + LayerNorm 把音频序列对齐到动作帧率，产出 448 维音频 token。<span class="alt">替代方案：只取最后一层特征——会丢掉跨语言音素信息，而自建数据含多语言来源。</span></div></div>
+    <div class="def-item"><div class="dt">时间对齐</div>
+      <div class="dd">cross-attention 用对角局部掩码：M_{i,j} = 0 当 |i−j| ≤ R，否则 −∞，R = 2 帧。每个动作 token 只关注对齐音频序列里的窄邻域，强化音素–口型的逐帧绑定。<span class="alt">替代方案：全注意力——会允许远处音素「偷看」，降低唇同步精度并增加计算。</span></div></div>
+    <div class="def-item"><div class="dt">运动幅度条件</div>
+      <div class="dd">m = [m_r, m_t] ∈ [0,1]²，训练时由真值窗口的平均逐帧旋转位移（SO(3) 测地角）与平移位移幅值归一化得到。论文主张它比隐式风格特征可解释性与实用性更强，用于对抗「弱音频–动作相关导致的过平均」。<span class="alt">替代方案：DiffPoseTalk / ARTalk 的风格嵌入——控制含义不透明，难以按用户需求调节。</span></div></div>
+    <div class="def-item"><div class="dt">主干结构</div>
+      <div class="dd">8 个 DiT 块 × 8 注意力头，模型维 448（头维 56）、MLP ratio 4（FFN 隐宽 1792），RoPE 旋转基 θ = 10000；末端 AdaLN 调制投影把 100 token 映回 115 维速度预测。</div></div>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> LS-state 与 Streaming Audio Scheduler：把轮替变成工程问题</h2>
+  <p>听-说状态 q ∈ {−1,+1} 是这套系统的「挡位杆」。训练期它来自 TalkNet-ASD 的帧级说话置信度（短时平滑后二值化）；推理期它根本不需要推断——直接由<strong>音频来源</strong>决定：来自 LLM 的帧标 +1，来自环境/麦克风的帧标 −1。这是对「模式推断不可靠」问题的一个务实回答：把一个学习问题降级为一个调度问题。</p>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="eh-arrow4" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#2C3E50"/></marker></defs>
+    <text x="30" y="32" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#1B4B6F" font-weight="bold">Streaming Audio Scheduler：两种窗口合成情形（Algorithm 1）</text>
+    <text x="30" y="66" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">情形 A：U ≥ T —— 说话队列 Q_S 单独填满窗口</text>
+    <rect x="30" y="80" width="740" height="26" fill="#1B4B6F"/>
+    <text x="400" y="98" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">a = SliceHead(Q_S, c_S, T)，q ← +1_T（整窗说话）</text>
+    <text x="30" y="136" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">情形 B：0 &lt; U &lt; T —— 残余说话 + 倾听尾部拼窗，按上一窗口尾模式 m_prev 决定拼接顺序</text>
+    <rect x="30" y="150" width="290" height="26" fill="#1B4B6F"/>
+    <rect x="320" y="150" width="450" height="26" fill="#5A8F7B"/>
+    <text x="175" y="168" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">x_S（U 帧，q=+1）</text>
+    <text x="545" y="168" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">x_L（T−U 帧倾听尾，q=−1）</text>
+    <text x="30" y="204" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">m_prev = speak 时拼为 x_S ∥ x_L，否则 x_L ∥ x_S ——「保持时序连续性」，之后翻转 m_prev</text>
+    <text x="30" y="238" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">情形 C：U = 0 —— 纯倾听模式</text>
+    <rect x="30" y="252" width="740" height="26" fill="#5A8F7B"/>
+    <text x="400" y="270" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">a = SliceTail(Q_L, T)，q ← −1_T（整窗倾听）</text>
+    <rect x="30" y="296" width="740" height="30" rx="6" fill="#F2EDE4" stroke="#C9A86C"/>
+    <text x="400" y="316" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" text-anchor="middle">Q_L：麦克风滚动缓冲（倾听）｜Q_S：单调消耗队列（LLM 说话）｜每次 tick 调度开销 0.029 ms（论文表述）</text>
+  </svg><div class="figcap"><b>图 4</b> · 调度器时间线：把「无缝轮替」具象化为三个分支的窗口合成问题——说话优先、缺口由最新倾听上下文补齐、拼接顺序尊重上一窗口尾模式以减小边界跳变。</div></div>
+  <p>论文对 Algorithm 1 的逐行逻辑是：先看说话队列未消耗长度 U；U ≥ T 则整窗说话；0 &lt; U &lt; T 则按 m_prev 决定 x_S 与 x_L 的拼接次序并用 <code>LabelBySource</code> 逐帧打 q 标签；U = 0 则整窗倾听。<strong>q 与 a 一起被发射</strong>，模型侧永远拿到模式已知的窗口——倾听阶段的嘴部幻觉因此被抑制，而切换点不需要任何未来信息。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「显式状态」是对生成模型不确定性的一种外置化</h4>
+    <p>让网络从声学特征里猜「我现在该听还是该说」，本质是把一个<strong>系统级已知信息</strong>（音频是 LLM 产出的还是麦克风采集的）降级成统计推断。LS-state 的设计哲学与可控生成中的 classifier-free guidance、结构化控制信号一脉相承：凡是系统层面确定的事实，就不要让模型重新推断。消融数据支撑了这个判断：去掉 LS-state 后 MOD 从 1.99 升到 2.43，模型会把弱语音误判为倾听态并在不确定时张嘴；只加输入端状态 MOD 降到 2.10，再加 FiLM 才到 1.99——<strong>模式信号需要贯穿网络深度才能稳定行为</strong>。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 两阶段训练：用图像域证据纠正 3D 跟踪偏差</h2>
+  <p>单目视频估计出的 FLAME 参数<strong>不可避免地带噪有偏</strong>：遮挡、运动模糊、极端姿态下跟踪置信度低，纯系数空间监督会强迫模型拟合不可靠、甚至与图像证据矛盾的目标。EmbodiedHead 的应对是两阶段：Stage I 在系数空间用 flow matching 学稳定动力学（带分组加权与位姿平滑），Stage II 解冻渲染器、用图像域损失联合精调 DiT 与 GAGAvatar，让渲染器与生成动作分布互相适配。</p>
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="eh-arrow5" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#2C3E50"/></marker></defs>
+    <text x="30" y="34" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#1B4B6F" font-weight="bold">两阶段训练：从「跟踪伪真值」到「图像证据」</text>
+    <rect x="30" y="56" width="350" height="110" rx="10" fill="#F2EDE4" stroke="#1B4B6F"/>
+    <text x="205" y="82" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#1B4B6F" text-anchor="middle" font-weight="bold">Stage I · 系数空间预训练</text>
+    <text x="205" y="106" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">flow matching + 5 组加权（λexpr=0.6，其余各 0.1）</text>
+    <text x="205" y="126" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">λsmooth=0.1 仅作用于旋转/平移</text>
+    <text x="205" y="146" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">lr 6e-4，batch 64，80K 迭代，warmup 2,000</text>
+    <rect x="420" y="56" width="350" height="110" rx="10" fill="#F2EDE4" stroke="#E85D4E"/>
+    <text x="595" y="82" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#E85D4E" text-anchor="middle" font-weight="bold">Stage II · 端到端图像域精调</text>
+    <text x="595" y="106" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">解冻 GAGAvatar，联合优化 DiT + 渲染器</text>
+    <text x="595" y="126" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">ℒ_II = 0.2·ℒ_I + λimg(0.2·L1 + 0.2·LPIPS)</text>
+    <text x="595" y="146" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">lr 8e-5（渲染器 ×0.5），batch 4，150K，256×256</text>
+    <line x1="382" y1="111" x2="416" y2="111" stroke="#2C3E50" stroke-width="2.5" marker-end="url(#eh-arrow5)"/>
+    <rect x="30" y="196" width="740" height="46" rx="8" fill="#1B4B6F"/>
+    <text x="400" y="216" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">直路径关键性质：x̂₁ ≈ x_t + (1−t)·v_θ —— t=0 的单步推断端点 ≙ 被渲染、被采样的输出</text>
+    <text x="400" y="234" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9A86C" text-anchor="middle">⇒ 图像损失监督的不是「训练中间态」，而是「推理真实输出」（对比 DDPM 单步误差大、图像监督悬空）</text>
+    <line x1="595" y1="168" x2="595" y2="192" stroke="#2C3E50" stroke-width="2" marker-end="url(#eh-arrow5)"/>
+    <rect x="30" y="266" width="740" height="46" rx="8" fill="#F2EDE4" stroke="#5A8F7B"/>
+    <text x="400" y="286" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" text-anchor="middle">证据：优化后的几何能捕捉跟踪伪 GT 都丢失的细微自然张嘴（Fig.6a）</text>
+    <text x="400" y="304" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">⇒ 2D 监督可以反向纠正 3D 跟踪器偏差（论文结论）</text>
+  </svg><div class="figcap"><b>图 5</b> · 两阶段因果链：Stage I 学「动起来像人」，Stage II 用渲染图像证据把「看起来像真的」拉回来，而 Rectified Flow 的直线路径是让这两者能对接的数学前提。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>Stage II 的真正含义：把「伪真值」从监督目标降级为初始化</h4>
+    <p>FLAME 跟踪参数是伪真值——它在遮挡与模糊帧上系统性偏离图像证据。Stage I 用它学动力学先验（它是合理的运动流形），Stage II 则让图像损失覆盖它：<strong>伪真值负责「像人」，像素证据负责「像这段视频里的这个人」</strong>。Fig. 6(a) 里优化后的网格比跟踪伪 GT 更接近真实张嘴细节，是一个反直觉但重要的结论：可微渲染 + 少步流匹配让生成模型有机会「超越」自己的监督标签。这也解释了为何 Stage II 后 PSNR 从 17.53 → 18.28、LPIPS 从 0.199 → 0.184（Tab.1 上半），而动作指标基本持平——它修的是渲染保真而非动力学。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 实验与证据：附录里藏着的三个细节</h2>
+  <p>主表之外，附录 C 的三组数据最值得精读。<strong>第一，推理步数表 S1 的「1†」设置</strong>：用与训练分布一致的随机时间步做单步生成，LVE 4.45 / FDD 0.85 / LPIPS 0.193，几乎全面优于固定 4 步（5.76 / 1.55 / 0.202）甚至 25 步——说明训练–推断时间步一致性比步数本身更关键，也直接验证了 Stage II 图像域精调的数学立足点。<strong>第二，运动幅度表 S2 的部分解耦</strong>：把 m_r 从 0.1 调到 0.9（m_t=0.1 时）实际旋转幅值从 0.50 升到 1.77、平移仅 0.88→1.07；反之亦然；GT 锚点为旋转 0.61、平移 0.81。<strong>第三，运行时分解</strong>：每个 100 帧窗口（25 FPS 下约 4 秒）音频特征 7.8 ms、4 步 DiT 动作生成 83 ms、GAGAvatar 渲染 1.69 s，调度器每 tick 0.029 ms。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>设定（DualTalk 测试集）</th><th>LVE↓</th><th>FDD↓</th><th>MOD↓</th><th>BA↑</th><th>SID↑</th></tr></thead>
+    <tbody>
+      <tr><td class="route">DualTalk（双流）</td><td>7.94</td><td>1.95</td><td>2.84</td><td>0.42</td><td>2.47</td></tr>
+      <tr><td class="route">UniLS（双流音频）</td><td>12.73</td><td>3.04</td><td>4.83</td><td>0.36</td><td>1.57</td></tr>
+      <tr><td class="route">TIMAR（视觉条件）</td><td>8.02</td><td>1.94</td><td>2.98</td><td>0.41</td><td>2.57</td></tr>
+      <tr><td class="route">EmbodiedHead（单流+LS-state）</td><td><strong>7.18</strong></td><td><strong>1.74</strong></td><td><strong>2.57</strong></td><td>0.39</td><td><strong>2.67</strong></td></tr>
+    </tbody></table></div>
+  <p>在公共 DualTalk 测试集上（各方法在 DualTalk 训练集上重训，论文表述），单流 + 显式状态在 LVE/FDD/MOD/SID 上超过所有双音频基线；唯独 BA（节拍对齐）0.39 略低于 DualTalk 0.42 与 TIMAR 0.41，论文归因于后者利用了对方视觉线索来捕捉对话节奏。在自建说话测试集上，Stage 2 版本拿全指标最优（LVE 5.71、FDD 1.58、SID 2.64、PSNR 18.28、SSIM 0.617、LPIPS 0.184），并且是<strong>唯一同时报渲染域指标</strong>的 3D 方法——所有基线统一走 GAGAvatar 渲染后再评。用户研究（22 人 × 48 组两两比较，四准则）中相对 DualTalk 89.1%/81.8%/85.5%/85.0%、TIMAR 91.8%/90.9%/86.8%/87.7%、UniLS 76.8%/72.7%/69.5%/68.6%——对 UniLS 的优势最小，侧面承认 UniLS 是最强的前代对手。</p>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="eh-arrow6" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><polygon points="0 0, 9 4.5, 0 9" fill="#2C3E50"/></marker></defs>
+    <text x="30" y="32" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#1B4B6F" font-weight="bold">推理步数消融（Tab. S1，示意）</text>
+    <line x1="80" y1="250" x2="760" y2="250" stroke="#2C3E50" stroke-width="2"/>
+    <line x1="80" y1="60" x2="80" y2="250" stroke="#2C3E50" stroke-width="2"/>
+    <text x="40" y="66" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">LVE</text>
+    <text x="40" y="250" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">高</text>
+    <text x="40" y="80" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">低</text>
+    <rect x="110" y="92" width="70" height="158" fill="#E85D4E"/>
+    <text x="145" y="272" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">1†</text>
+    <text x="145" y="86" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E" text-anchor="middle">4.45</text>
+    <rect x="230" y="132" width="70" height="118" fill="#1B4B6F"/>
+    <text x="265" y="272" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">1 步</text>
+    <text x="265" y="126" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F" text-anchor="middle">5.80</text>
+    <rect x="350" y="130" width="70" height="120" fill="#1B4B6F"/>
+    <text x="385" y="272" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">2 步</text>
+    <text x="385" y="124" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F" text-anchor="middle">5.79</text>
+    <rect x="470" y="131" width="70" height="119" fill="#5A8F7B"/>
+    <text x="505" y="272" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">4 步（默认）</text>
+    <text x="505" y="125" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#5A8F7B" text-anchor="middle">5.76</text>
+    <rect x="590" y="135" width="70" height="115" fill="#C9A86C"/>
+    <text x="625" y="272" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">10 步</text>
+    <text x="625" y="129" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">5.99</text>
+    <rect x="700" y="139" width="60" height="111" fill="#C9A86C"/>
+    <text x="730" y="272" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">25 步</text>
+    <text x="730" y="133" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" text-anchor="middle">6.18</text>
+    <text x="400" y="296" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E" text-anchor="middle">1† = 训练一致随机时间步的单步生成：步数越多并不越准，时间步一致性才是关键（论文表述）</text>
+  </svg><div class="figcap"><b>图 6</b> · 步数消融示意：LVE 随采样步数不降反升，而训练一致的单步（1†）大幅领先——把「少步生成」从工程妥协升格为与训练目标对齐的正确推断方式。</div></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>59 FPS 是「吞吐量」而非「响应延迟」</h4>
+    <p>运行时分解揭示了瓶颈的真实位置：渲染 1.69 s / 100 帧 ≈ 59 FPS 的吞吐确实实时，但 100 帧窗口在 25 FPS 下约 4 秒——<strong>窗口化扩散天然带来时延下界</strong>，论文在附录 E 也自认「不像因果自回归架构，window-based 处理引入理论时延下界」。对对话式应用，用户感知的是「我话音落下到数字人开始回应」的延迟，而非 FPS。59 FPS 保证的是不掉帧，不保证低首响应时间。</div></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>跨论文数字不可比：UniLS 在两篇论文里的两副面孔</h4>
+    <p>EmbodiedHead 的表 1 里 UniLS 只有 LVE 12.73 / SID 1.57，而 UniLS 原论文在其自建 Seamless Interaction 测试集上报 LVE 5.83。原因是两者<strong>测试集、训练数据与渲染管线均不同</strong>（EmbodiedHead 在 DualTalk 训练集上重训各基线并统一过 GAGAvatar）。这提醒我们：talking-head 领域缺乏统一 benchmark 时，「SOTA」声明高度依赖评测口径，读者应以同表内相对差距而非绝对数值做判断。</div></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>监听标签的天花板：ASD 二值化损失了多少信息？</h4>
+    <p>训练期 LS-state 来自 TalkNet-ASD 置信度二值化，把倾听反应切成 {−1,+1} 两个挡位。但人类对话里「附和的嗯嗯声」「笑声」「抢话重叠」处于听与说的连续谱上，二值标签会在这些帧给出非此即彼的监督。论文的用户研究偏好率对 UniLS 最低（68.6% 起），或许正说明<strong>状态边界上的行为</strong>仍有提升空间。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s9" ><span class="num">09</span> 深度洞察：三个设计哲学的交汇</h2>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>评价口径对齐：让指标说「用户看到的话」</h4>
+    <p>EmbodiedHead 反复强调的一个元问题是<strong>评价口径</strong>：3D 方法在系数空间报速度与精度，但用户消费的是渲染图像。论文的解法不只是「加了 PSNR/SSIM/LPIPS」，而是把渲染器纳入训练回路、并把所有基线统一过同一渲染管线再评——这让「画质」第一次成为 3D talking-head 路线内部可比的维度。对整个领域而言，这是一次从「动作像」到「画面像」的评测重心迁移。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>三难问题的三角互换：少步生成换来了什么</h4>
+    <p>实时、统一、高画质三者的耦合点其实是<strong>采样步数</strong>：DDPM 多步则不实时，单步则误差大到图像监督失效（MANGO 的困境）；双流需要未来信息则不因果。Rectified Flow 在这里不是「更快的扩散」，而是<strong>让「单步输出 = 推理输出 = 被监督的输出」三者重合</strong>的数学机制——只有这个重合成立，端到端图像域精调才不是自欺。可以说：直路径 → 单步端点可靠 → 图像域可监督 → 渲染质量可优化 → 少步可行 → 实时可行。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>跨论文连接：与 UniLS 的「先验 + 调制」殊途同归</h4>
+    <p>UniLS 把倾听行为分解为「内部运动先验 + 外部音频调制」，EmbodiedHead 则用「LS-state 模式门控 + 声学驱动」管理听-说切换。两者的共同直觉是：<strong>倾听不是音频的直接函数</strong>。UniLS 从生成分布角度把自由度还给先验，EmbodiedHead 从条件接口角度把模式外置。若把两者叠加——先验式倾听 + 显式状态门控 + 语义条件——可能是下一代听-说数字人的形态（详见第 10 章 Q3）。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s10" ><span class="num">10</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>窗口化扩散的时延下界能否被「因果流式 Rectified Flow」打破？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>论文自认 window-based 扩散存在理论时延下界（附录 E），但没有量化它。若能把直路径流匹配改造成逐帧因果的形式（如缓存历史速度场、块级自回归采样），实时数字人的首响应时间可从秒级降到百毫秒级，直接决定「对话感」。</p>
+      <p><strong>理论分析：</strong>Rectified Flow 的单步端点估计依赖整窗 x_t 的联合去噪；把窗口切成因果块后，块间速度场是否仍近似直线、误差如何累积，是一个可分析的稳定性问题。可以形式化为块级 Lipschitz 常数与累积漂移的界。</p>
+      <p><strong>连接：</strong>与 UniLS 的 chunk-based 自回归（其局限恰是「chunk 间细微不连续」）互为镜像：扩散有窗口延迟，自回归有块边界跳变——两者缺陷指向同一个「连续因果生成」空白。</p>
+      <p><strong>探究方向：</strong>设计 AR–diffusion 混合结构（论文 future work 明确提到），在块内用少步流匹配保质量、块间用因果状态传递保连续；用「端点误差随块数累积曲线」作为核心评测。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>LS-state 的二值边界能否推广为连续「听-说混合度」？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>q ∈ {−1,+1} 无法表达附和声、笑声、抢话重叠等中间态；训练标签由 TalkNet-ASD 二值化而来，天花板受制于 ASD 模型本身。一个连续的「说话置信度 / 参与度」信号可能显著改善轮替边界的行为自然度。</p>
+      <p><strong>理论分析：</strong>FiLM 调制 Â = A⊙(1+α(q)) + β(q) 对连续 q 天然兼容（α、β 是 q 的函数），形式上只需把离散嵌入换成连续标量嵌入；关键是损失如何约束连续标签的语义一致性，避免退化为无意义的灰度。</p>
+      <p><strong>连接：</strong>这与语音合成中的 V/UV（浊音/清音）连续化、以及情感计算里的唤醒度–效价连续空间同构：从分类到回归往往带来行为细腻度的跃迁。</p>
+      <p><strong>探究方向：</strong>用说话人分离 + 语音活动检测的软概率作为连续监督，对照二值 q 做消融，观测 MOD 与用户研究「轮替平滑度」偏好率的变化。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>语义条件如何进入倾听反应，而不破坏实时因果性？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>论文明确承认当前倾听行为由声学线索驱动、缺乏语义级对话理解（附录 E），无法做「点头表示同意」这类意图性反应。但 LLM 侧其实持有文本语义——如何在不引入未来信息的前提下把它注入倾听分支，是具身数字人从「会动」到「会意」的关键一步。</p>
+      <p><strong>理论分析：</strong>语义 token 的更新频率（句级/轮次级）远低于动作帧率，适合走 AdaLN 全局条件通路做慢变调制，而声学走 cross-attention 做快变绑定；两者的时序尺度分离可避免语义信号污染逐帧口型。</p>
+      <p><strong>连接：</strong>UniLS 的「先验 + 调制」框架同样缺语义（其局限表述几乎一致）；MM-Head 的文本条件、以及 LLM 的 token 流式输出（首个 token 到达即携带语义）提供了现成接口。</p>
+      <p><strong>探究方向：</strong>构建「声学条件 vs 声学+语义条件」的对照实验，用语义恰当性人工标注（是否与对话内容匹配）作为新指标；探索 LLM 流式 token 的因果注入时刻对反应时延的影响。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>图像域监督纠正跟踪偏差的机理边界在哪里？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>Fig. 6(a) 显示 Stage II 后几何比跟踪伪 GT 更真实，说明 2D 监督能反向修正 3D 跟踪器偏差。但这种「超越标签」何时有效、何时会引入渲染器自身的伪影偏好，目前没有理论刻画——GAGAvatar 渲染细节本就少于高保真 avatar 管线（论文自述）。</p>
+      <p><strong>理论分析：</strong>可把问题看成带系统性噪声标签的回归：伪真值 = 真值 + 跟踪偏差 b(x)，图像损失提供对 b(x) 的间接观测。当渲染器表达能力受限时，联合优化可能收敛到「渲染器擅长的几何」而非真实几何——这是一个可构造反例的双优化偏差问题。</p>
+      <p><strong>连接：</strong>与半监督/弱监督学习中「用教师伪标签初始化、用真实信号精调」的范式相通；也呼应 Neural Rendering 中 appearance-geometry 歧义的经典难题。</p>
+      <p><strong>探究方向：</strong>在合成数据（已知真值几何）上量化 Stage II 前后几何误差，扫描渲染器容量与 λ_coef 权重，画出「何时修正、何时过拟合渲染器」的相图。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s11" ><span class="num">11</span> 代码附录</h2>
+  <p>以下代码依据论文 Algorithm 1 与 Sec. 3 的公式结构重写为可读伪代码，用于说明机制；<strong>非官方实现</strong>，超参以原文为准。</p>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Streaming Audio Scheduler（依 Algorithm 1 重写；T=100 帧 @25FPS）</span>
+<span class="kw">def</span> <span class="fn">schedule_window</span>(Q_L, Q_S, c_L, c_S, m_prev, T):
+    <span class="cm"># Q_L: 麦克风滚动缓冲（倾听）; Q_S: LLM 说话单调消耗队列</span>
+    U = <span class="fn">get_unconsumed_length</span>(Q_S, c_S)
+    <span class="kw">if</span> U &gt;= T:                        <span class="cm"># 说话队列单独填满窗口</span>
+        a = <span class="fn">slice_head</span>(Q_S, c_S, T)
+        q = +ones(T)                  <span class="cm"># 整窗 q=+1（说）</span>
+        c_S += T; m_prev = <span class="str">"speak"</span>
+    <span class="kw">elif</span> U &gt; 0:                       <span class="cm"># 部分说话：用倾听尾部补齐</span>
+        x_S = <span class="fn">slice_head</span>(Q_S, c_S, U)
+        x_L = <span class="fn">slice_tail</span>(Q_L, T - U)
+        a = (x_S + x_L) <span class="kw">if</span> m_prev == <span class="str">"speak"</span> <span class="kw">else</span> (x_L + x_S)  <span class="cm"># 保时序连续</span>
+        q = <span class="fn">label_by_source</span>(a)        <span class="cm"># 按来源逐帧打 ±1</span>
+        c_S += U
+        m_prev = <span class="str">"listen"</span> <span class="kw">if</span> m_prev == <span class="str">"speak"</span> <span class="kw">else</span> <span class="str">"speak"</span>
+    <span class="kw">else</span>:                             <span class="cm"># 纯倾听</span>
+        a = <span class="fn">slice_tail</span>(Q_L, T)
+        q = -ones(T)
+        m_prev = <span class="str">"listen"</span>
+    <span class="kw">return</span> a, q                      <span class="cm"># 波形 a 与 LS-state q 一起发射</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Rectified-Flow DiT 少步采样 + Stage-II 单步端点图像监督（依 Eq.2/5/7/8 重写）</span>
+<span class="kw">def</span> <span class="fn">rf_sample</span>(cond, steps=4):
+    x = <span class="fn">randn</span>(T, 115)                              <span class="cm"># x0 ~ N(0, I)</span>
+    ts = <span class="fn">linspace</span>(1.0, 0.0, steps + 1)
+    <span class="kw">for</span> t, t_next <span class="kw">in</span> <span class="fn">pairs</span>(ts):
+        v = <span class="fn">dit</span>(x, t, <span class="fn">film_audio</span>(cond.audio, cond.q))  <span class="cm"># Eq.5: A*(1+alpha(q))+beta(q)</span>
+        x = x + (t_next - t) * v                     <span class="cm"># Euler 沿直路径积分</span>
+    <span class="kw">return</span> x                                        <span class="cm"># 4 步默认配置</span>
+
+<span class="kw">def</span> <span class="fn">stage2_loss</span>(x_t, t, cond, gt_img):
+    <span class="cm"># 直路径性质：单步端点即推理输出，图像损失锚定真实采样结果</span>
+    v = <span class="fn">dit</span>(x_t, t, cond)
+    x1_hat = x_t + (1.0 - t) * v                     <span class="cm"># Eq.7</span>
+    img_hat = <span class="fn">gagavatar_render</span>(x1_hat, cond.shape)   <span class="cm"># R(x̂1, s), 256x256</span>
+    L_I = <span class="fn">grouped_flow_matching</span>(v, cond.x1, cond.x0)  <span class="cm"># Eq.6: lambda_expr=0.6 等</span>
+    L = 0.2 * L_I + lambda_img * (
+        0.2 * <span class="fn">l1</span>(img_hat, gt_img) +
+        0.2 * <span class="fn">lpips</span>(img_hat, gt_img))                <span class="cm"># Eq.8 权重（附录 B.1）</span>
+    <span class="kw">return</span> L</pre>
+  <p>关键细节对照：per-token 输入 116 维（115 动作 + 1 个 LS-state 通道）；self-attention 序列 120 token（20 打包历史 + 100 当前）；FiLM 与 AdaLN 调制层均零初始化，保证训练从恒等映射起步；推理默认 4 步 Euler、运动幅度引导 0.3。</p>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

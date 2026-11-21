@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AVC-Reward · 论文解读</title>
+<meta name="description" content="提出事件中心的音视频一致性评测范式与 AVC-Reward，并验证其与人类感知的一致性及作为生成侧 reward 的潜力。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2026 · 评测 &amp; Reward</div>
+    <h1>AVC-Reward</h1>
+    <p class="hero-tagline">从帧级到事件级：音视频一致性怎么才算评对了</p>
+    <p class="hero-desc">提出事件中心的音视频一致性评测范式与 AVC-Reward，并验证其与人类感知的一致性及作为生成侧 reward 的潜力。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AVC-Reward"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><circle cx="150" cy="130" r="13" fill="#1B4B6F"/><circle cx="150" cy="250" r="13" fill="#5A8F7B"/><line x1="150" y1="146" x2="150" y2="234" stroke="#C9A86C" stroke-width="2.5"/><circle cx="250" cy="160" r="13" fill="#1B4B6F"/><circle cx="250" cy="270" r="13" fill="#5A8F7B"/><line x1="250" y1="176" x2="250" y2="254" stroke="#C9A86C" stroke-width="2.5"/><circle cx="350" cy="190" r="13" fill="#1B4B6F"/><circle cx="350" cy="290" r="13" fill="#5A8F7B"/><line x1="350" y1="206" x2="350" y2="274" stroke="#C9A86C" stroke-width="2.5"/><circle cx="450" cy="220" r="13" fill="#1B4B6F"/><circle cx="450" cy="310" r="13" fill="#5A8F7B"/><line x1="450" y1="236" x2="450" y2="294" stroke="#C9A86C" stroke-width="2.5"/><circle cx="550" cy="250" r="13" fill="#1B4B6F"/><circle cx="550" cy="330" r="13" fill="#5A8F7B"/><line x1="550" y1="266" x2="550" y2="314" stroke="#C9A86C" stroke-width="2.5"/><circle cx="650" cy="280" r="13" fill="#1B4B6F"/><circle cx="650" cy="350" r="13" fill="#5A8F7B"/><line x1="650" y1="296" x2="650" y2="334" stroke="#C9A86C" stroke-width="2.5"/><text x="410" y="410" text-anchor="middle" font-family="Noto Sans SC" font-size="17" font-weight="700" fill="#2C3E50">Latent 对齐 · 共享语义坐标</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：事件级音视频一致性评测 / Reward</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#av-foundation">av-foundation</a><span class="sep">/</span>AVC-Reward</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂：音画一致性，该在「事件」层评，也能当 reward 用</a></li><li><a href="#s2">02 现有度量的不足：为什么帧级/整体打分不够</a></li><li><a href="#s3">03 事件中心框架：解耦 → 独立分析 → 交叉验证 → 聚合</a></li><li><a href="#s4">04 AVC-Reward：可训练的奖励模型</a></li><li><a href="#s5">05 AVC-Benchmark：跨范式、跨关系复杂度的人类一致性验证</a></li><li><a href="#s6">06 关键公式（示意性形式化）</a></li><li><a href="#s7">07 批判评估</a></li><li><a href="#s8">08 自主科研问题</a></li><li><a href="#s9">09 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂：音画一致性，该在「事件」层评，也能当 reward 用</h2>
+  <p class="lead">音视频一致性怎么才算评对了？AVC-Reward 的回答是：<strong>在事件层评</strong>。现有指标要么看时间对齐（timing-based），要么看嵌入相似（embedding-based），都难以应对日益复杂的场景。它提出<strong>事件中心评测框架</strong>：在事件层把音频事件与视觉事件<strong>解耦</strong>，逐个独立分析，再<strong>跨模态交叉验证</strong>关系，最后聚合。并把这个度量实例化为 <strong>AVC-Reward</strong>——一个<strong>可训练的音视频奖励模型</strong>。</p>
+  <p>这是本门户白板要点里 <strong>「metrics / benchmark / user study」</strong> 与 <strong>「loss function / reward」</strong> 两支的直接落点：它既把评测做对（与人类感知对齐、可解释、定位失败），又把评测变成训练信号（作为 online reward 提升生成一致性）。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「评测」与「奖励」是同一个度量的两种用法</h4>
+    <p>好的一致性度量，既能<strong>事后评分</strong>（benchmark），也能<strong>在线优化</strong>（reward）。AVC-Reward 把两者打通：同一个「事件级一致性」判据，先验证与人类感知的对齐，再用作 reward 反哺生成。这比「先造指标再另造 reward」更严谨——因为它们本来就在优化同一个目标。这也是白板把 metrics 与 reward 并列的原因。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 现有度量的不足：为什么帧级/整体打分不够</h2>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">三类现有度量的局限</text>
+    <rect x="30" y="58" width="235" height="140" rx="11" fill="#95A5A6" opacity="0.12" stroke="#95A5A6" stroke-width="1.5"/>
+    <text x="147" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#5D6D7E" font-family="Noto Sans SC">timing-based</text>
+    <text x="48" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">AV-Align、DeSync</text>
+    <text x="48" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">只看时间对齐</text>
+    <text x="48" y="170" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 忽略「对上了什么」</text>
+    <rect x="282" y="58" width="235" height="140" rx="11" fill="#C9A86C" opacity="0.12" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="399" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">embedding-based</text>
+    <text x="300" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">ImageBind、JavisScore</text>
+    <text x="300" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">整体嵌入相似</text>
+    <text x="300" y="170" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 复杂场景里混淆多个事件</text>
+    <rect x="534" y="58" width="235" height="140" rx="11" fill="#E85D4E" opacity="0.1" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="651" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">整体/帧级打分</text>
+    <text x="552" y="114" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">单一总分</text>
+    <text x="552" y="138" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">无法定位失败</text>
+    <text x="552" y="170" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">→ 不可解释</text>
+    <text x="30" y="234" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">复杂场景里，一段音视频包含<strong>多个事件</strong>。整体打分把它们平均掉，恰恰抹掉了不一致的来源。</text>
+    <text x="30" y="264" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">→ 需要在事件层解耦，逐个分析。</text>
+  </svg><div class="figcap"><b>图 1</b> · 三类现有度量的局限，指向「事件层解耦」</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 事件中心框架：解耦 → 独立分析 → 交叉验证 → 聚合</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">① 事件解耦</div><div class="dd">在<strong>事件层</strong>把音频事件与视觉事件拆开。<span class="alt">避免整体打分的「平均掉」问题。</span></div></div>
+    <div class="def-item"><div class="dt">② 独立分析</div><div class="dd">每个事件<strong>独立</strong>评判其自身质量。<span class="alt">先把「单个事件对不对」弄清楚，再谈关系。</span></div></div>
+    <div class="def-item"><div class="dt">③ 跨模态交叉验证</div><div class="dd">分析事件之间的<strong>关系</strong>（谁对应谁、何时对应）。<span class="alt">一致性本质上是「关系」的正确性，而非单事件质量。</span></div></div>
+    <div class="def-item"><div class="dt">④ 聚合</div><div class="dd">把各事件与关系的评判<strong>聚合</strong>为整体一致性。<span class="alt">聚合保留了「哪个事件失败」的信息（可解释）。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">事件中心评测流程</text>
+    <!-- events -->
+    <rect x="30" y="60" width="160" height="46" rx="9" fill="#1B4B6F"/><text x="110" y="88" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">视觉事件 V1</text>
+    <rect x="30" y="120" width="160" height="46" rx="9" fill="#5A8F7B"/><text x="110" y="148" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">音频事件 A1</text>
+    <rect x="30" y="180" width="160" height="46" rx="9" fill="#1B4B6F" opacity="0.7"/><text x="110" y="208" text-anchor="middle" font-size="11" fill="#fff" font-family="Noto Sans SC">视觉事件 V2</text>
+    <!-- disentangle -->
+    <rect x="230" y="88" width="150" height="80" rx="11" fill="#C9A86C" opacity="0.14" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="305" y="120" text-anchor="middle" font-size="11" fill="#A67C3D" font-family="Noto Sans SC">解耦</text>
+    <text x="305" y="142" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">逐事件</text>
+    <!-- cross validate -->
+    <rect x="420" y="88" width="160" height="80" rx="11" fill="#E85D4E" opacity="0.12" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="500" y="118" text-anchor="middle" font-size="11" fill="#E85D4E" font-family="Noto Sans SC">交叉验证关系</text>
+    <text x="500" y="140" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">V1↔A1？ V2↔？</text>
+    <!-- aggregate -->
+    <rect x="620" y="88" width="150" height="80" rx="11" fill="#1B4B6F" opacity="0.12" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="695" y="120" text-anchor="middle" font-size="11" fill="#1B4B6F" font-family="Noto Sans SC">聚合评分</text>
+    <text x="695" y="142" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">+ 失败定位</text>
+    <g stroke="#95A5A6" stroke-width="2" marker-end="url(#v1)">
+      <line x1="192" y1="128" x2="226" y2="128"/><line x1="382" y1="128" x2="416" y2="128"/><line x1="582" y1="128" x2="616" y2="128"/>
+    </g>
+    <text x="30" y="264" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">关键差异：聚合结果保留了「哪个事件/关系失败」的可解释信息，而非只有一个总分。</text>
+    <defs><marker id="v1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#95A5A6"/></marker></defs>
+  </svg><div class="figcap"><b>图 2</b> · 解耦 → 独立分析 → 交叉验证 → 聚合（含失败定位）</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「一致性」是关系属性，不是个体属性</h4>
+    <p>一个音频事件本身无所谓「一致」，只有当它与某个视觉事件<strong>对应</strong>时，一致性才产生。所以一致性度量必须建模<strong>关系</strong>（cross-validate relations）。现有 embedding 度量隐含地假设「整体相似 = 一致」，但在多事件场景里这不成立——V1 与 A1 各自都对，但<em>错配</em>时整体相似度仍可能高。事件层的交叉验证正是针对这一点。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> AVC-Reward：可训练的奖励模型</h2>
+  <p>把度量实例化为<strong>可训练的 reward 模型</strong>，是这篇的关键跃迁。它使得「评测」变成「训练信号」。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>能力</th><th>结论（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">人类对齐</td><td>在自动方法中达到与人类判断的<strong>最先进对齐</strong></td></tr>
+      <tr><td class="route">可解释性</td><td>提供<strong>可解释的失败定位</strong>（localize failures）</td></tr>
+      <tr><td class="route">作为 reward</td><td>用作 <strong>online reward</strong> 时提升联合生成模型的音画一致性</td></tr>
+      <tr><td class="route">对比基线</td><td>timing（AV-Align、DeSync）、embedding（ImageBind、JavisScore）、模型判别（Gemini、Qwen3-Omni）、其他 evaluator</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 270" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="270" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">度量的两种用法：评测（事后）与奖励（在线）</text>
+    <!-- metric core -->
+    <rect x="300" y="60" width="200" height="60" rx="11" fill="#1B4B6F" opacity="0.14" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="400" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">事件级一致性度量</text>
+    <text x="400" y="106" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">（同一核心判据）</text>
+    <!-- use 1: benchmark -->
+    <rect x="40" y="180" width="280" height="60" rx="11" fill="#5A8F7B" opacity="0.12" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="180" y="206" text-anchor="middle" font-size="11.5" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">评测 · AVC-Benchmark</text>
+    <text x="180" y="228" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">与人类感知对齐、定位失败</text>
+    <!-- use 2: reward -->
+    <rect x="480" y="180" width="280" height="60" rx="11" fill="#E85D4E" opacity="0.1" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="620" y="206" text-anchor="middle" font-size="11.5" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">奖励 · AVC-Reward</text>
+    <text x="620" y="228" text-anchor="middle" font-size="10" fill="#5D6D7E" font-family="Noto Sans SC">online reward 反哺生成</text>
+    <line x1="345" y1="120" x2="185" y2="176" stroke="#5A8F7B" stroke-width="2" marker-end="url(#w1)"/>
+    <line x1="455" y1="120" x2="615" y2="176" stroke="#E85D4E" stroke-width="2" marker-end="url(#w1)"/>
+    <defs><marker id="w1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#95A5A6"/></marker></defs>
+  </svg><div class="figcap"><b>图 3</b> · 同一事件级度量：评测用（benchmark）与训练用（reward）</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>online reward 是把「评测可信度」变现为「生成质量」</h4>
+    <p>一个 reward 模型若不可信，优化它只会 reward hacking。AVC-Reward 先证明自己与人类对齐（可信），再用作 reward——<strong>顺序很重要</strong>。这与本门户里 Hallo-Live 的人类中心偏好蒸馏、JoyStreamer 的 DMD 目标是同一战场：<em>用可靠的判据引导生成，而不是用一个自造的损失硬推</em>。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> AVC-Benchmark：跨范式、跨关系复杂度的人类一致性验证</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">构建方式</div><div class="dd">主要由<strong>多种生成模型</strong>产出的正/负样本构成。<span class="alt">正负样本对照，使「一致 vs 不一致」可判别。</span></div></div>
+    <div class="def-item"><div class="dt">评测维度</div><div class="dd">跨<strong>生成范式</strong>（级联/联合等）与<strong>关系复杂度</strong>。<span class="alt">检验度量在不同难度下的稳定性。</span></div></div>
+    <div class="def-item"><div class="dt">人类上界</div><div class="dd">以<strong>标注者间一致性</strong>作为人类上界（human upper bound）。<span class="alt">这是严谨之处：给出「人类能做到多少」的参照，而非要求自动方法完美。</span></div></div>
+    <div class="def-item"><div class="dt">对比基线</div><div class="dd">timing / embedding / 大模型判别（Gemini、Qwen3-Omni）/ 各类 evaluator。<span class="alt">覆盖面广，对比充分。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="250" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">人类一致性验证的严谨做法</text>
+    <rect x="30" y="60" width="355" height="110" rx="11" fill="#C9A86C" opacity="0.14" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="207" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">人类上界</text>
+    <text x="48" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">标注者间一致性 = 人类能做到的上限</text>
+    <text x="48" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">自动方法接近它即「合格」</text>
+    <rect x="415" y="60" width="355" height="110" rx="11" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="592" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">pairwise accuracy</text>
+    <text x="433" y="116" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">按 margin 阈值 Δ 比较成对样本</text>
+    <text x="433" y="140" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">Δ 越大，只留「明显有差异」的对</text>
+    <text x="30" y="212" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">给出人类上界，是「不苛求自动方法完美」的成熟做法 —— 值得所有评测工作学习。</text>
+  </svg><div class="figcap"><b>图 4</b> · 人类上界 + pairwise accuracy 的严谨评测设计</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 关键公式（示意性形式化）</h2>
+  <div class="formula-card"><div class="f-label">Eq.1 · 事件级一致性聚合（示意）</div>
+    <div>$$ S_{\text{AVC}} = \underbrace{\sum_{e} q(e)}_{\text{单事件质量}} + \underbrace{\sum_{(e_i,e_j)} r(e_i,e_j)}_{\text{跨模态关系}} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>一致性 = 各事件自身质量 q 之和 + 各跨模态关系 r 之和。<strong>关系项</strong>是关键创新——它编码「谁对应谁」。<br>
+    <strong>注意：</strong>此式为按「解耦-独立分析-交叉验证-聚合」思路的<em>示意性形式化</em>；原文的具体形式需查原文。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.2 · 作为 reward 的用法（示意）</div>
+    <div>$$ \max_{\theta}\; \mathbb{E}_{x\sim p_\theta}\big[\,S_{\text{AVC}}(x)\,\big] $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>把 AVC 评分作为 reward，优化生成模型参数 θ，使生成样本的一致性评分最大化。<span class="kbd-term">online</span> 表示在生成过程中实时反馈。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 「可解释」需看它是否真的定位到<em>关系</em>错误</h4>
+    <p>原文称提供「interpretable rationales that localize failures」。但定位「哪个事件差」与定位「哪对关系错」不同。若只定位事件，未触及关系错误，可解释性打了折扣。需看 rationales 的具体形式。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. reward 优化可能被 hack</h4>
+    <p>用作 online reward 时，生成模型可能学会「骗过 AVC-Reward」而非真正提升一致性。原文报告了提升，但需给出防 hack 的证据（如人评复核、reward 与人评的相关性在优化后仍保持）。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 事件解耦本身依赖检测/分离的质量</h4>
+    <p>框架要求先解耦事件。若事件检测/分离有误（漏检、错分），后续分析皆受影响。需报告事件解耦模块的准确率，或对解耦误差的鲁棒性。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 跨生成范式的泛化范围需明确</h4>
+    <p>AVC-Benchmark 由「多种生成模型」的样本构成，但生成模型的分布有限。对新范式（如流式、少步）的一致性判别能力需验证。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>事件级 reward 能否替代人类偏好（RLHF）？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>若 AVC-Reward 已接近人类上界，是否可免去昂贵的人类偏好标注？</p>
+      <p><strong>理论分析：</strong>可比较「AVC-Reward 优化」与「人类偏好优化」在最终人评上的差距。若差距小于标注者间一致性，即可替代。</p>
+      <p><strong>连接：</strong>Hallo-Live 的人类中心偏好蒸馏、JoyStreamer 的 DMD，是不同的优化信号来源；三者可比较「信号可靠性 vs 成本」。</p>
+      <p><strong>探究方向：</strong>在同生成模型上分别用 AVC-Reward 与人类偏好优化，比较最终人评与成本。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>关系复杂度如何量化，并指导评测难度分级？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>AVC-Benchmark 提到「关系复杂度」，但未给出量化定义。量化它，才能系统评测不同难度。</p>
+      <p><strong>理论分析：</strong>可把关系复杂度定义为「事件图的规模与耦合度」：事件数、跨模态边数、边的歧义度。复杂度越高，一致性越难判别。</p>
+      <p><strong>连接：</strong>JavisDiT 的复杂场景、OmniHuman 的多层交互，都涉及复杂度分级。</p>
+      <p><strong>探究方向：</strong>构造复杂度分级子集，测各度量（含 AVC-Reward）的判别难度曲线。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>事件解耦能否端到端可微，从而联合训练？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>若事件解耦是独立模块且不可微，就无法端到端优化；若可微，生成与评测可联合训练。</p>
+      <p><strong>理论分析：</strong>把解耦写成软注意力（可微），使「检测事件」与「评判一致性」联合优化。但这可能引入循环依赖，需设计稳定目标。</p>
+      <p><strong>连接：</strong>OmniVAE 的表示层对齐、JavisDiT 的先验估计，都是「可微对齐」的尝试。</p>
+      <p><strong>探究方向：</strong>实现可微事件解耦，比较端到端与分步训练的一致性判别效果。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s9" ><span class="num">09</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 事件中心一致性度量（示意，非官方实现）</span>
+<span class="kw">def</span> <span class="fn">avc_score</span>(video_events, audio_events):
+    <span class="cm"># ① 解耦（假设已由检测/分离得到事件）</span>
+    <span class="cm"># ② 独立分析各事件质量</span>
+    q = {e.id: self.quality(e) <span class="kw">for</span> e <span class="kw">in</span> video_events + audio_events}
+    <span class="cm"># ③ 跨模态关系交叉验证</span>
+    r = {}
+    <span class="kw">for</span> v <span class="kw">in</span> video_events:
+        <span class="kw">for</span> a <span class="kw">in</span> audio_events:
+            r[(v.id, a.id)] = self.relation(v, a)   <span class="cm"># 谁对应谁、何时对应</span>
+    <span class="cm"># ④ 聚合 + 失败定位</span>
+    total = sum(q.values()) + sum(r.values())
+    failures = [k <span class="kw">for</span> k, v <span class="kw">in</span> r.items() <span class="kw">if</span> v &lt; THRESH]
+    <span class="kw">return</span> total, failures</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 作为 online reward 反哺生成（示意）</span>
+<span class="kw">def</span> <span class="fn">train_with_avc_reward</span>(generator, avc_reward, prompts):
+    <span class="kw">for</span> p <span class="kw">in</span> prompts:
+        sample = generator.generate(p)
+        score, _ = avc_reward.score(sample)
+        loss = -score                      <span class="cm"># 最大化一致性评分</span>
+        loss.backward(); optimizer.step()
+    <span class="kw">return</span> generator
+
+<span class="cm"># 基线对比（原文）：timing / embedding / 大模型判别 / 各类 evaluator</span>
+BASELINES = [<span class="st">"AV-Align"</span>, <span class="st">"DeSync"</span>, <span class="st">"ImageBind"</span>, <span class="st">"JavisScore"</span>,
+             <span class="st">"Gemini-3.1-Pro"</span>, <span class="st">"Qwen3-Omni"</span>, <span class="st">"AGAV-Rater"</span>]</pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>AVC-Reward 把「评测方法学」提升为「生成能力」</h4>
+    <p>过去我们把评测当<em>事后检查</em>；AVC-Reward 证明了评测可以成为<em>生成的驱动力</em>。这一步的关键前提是「评测可信」——它先用人类上界与 pairwise accuracy 证明了可信度，才敢拿去当 reward。这个「先验证可信、再用于优化」的次序，是所有「用指标当损失」工作的范本。在白板的框架里，它正是把 <strong>metrics</strong> 与 <strong>reward</strong> 两个要点连成了一个闭环。</p>
+  </div>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

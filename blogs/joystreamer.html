@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JoyStreamer · 论文解读</title>
+<meta name="description" content="通过协调文本与音频条件，生成高表现力（表情/情绪）的说话/唱歌数字人。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2025 · Preprint</div>
+    <h1>JoyStreamer</h1>
+    <p class="hero-tagline">文本-音频和谐条件注入，解锁高表现力说话人生成</p>
+    <p class="hero-desc">通过协调文本与音频条件，生成高表现力（表情/情绪）的说话/唱歌数字人。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="JoyStreamer"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><circle cx="410" cy="215" r="120" fill="#E85D4E" opacity="0.12"/><rect x="340.0" y="332.0" width="140" height="66" rx="12" fill="#1B4B6F" stroke="#1B4B6F" stroke-width="2"/><text x="410.0" y="371.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Tone</text><line x1="410.0" y1="323.0" x2="410.0" y2="275.0" stroke="#C9A86C" stroke-width="3" marker-end="url(#ah)"/><rect x="210.0961894323342" y="107.0" width="140" height="66" rx="12" fill="#1B4B6F" stroke="#1B4B6F" stroke-width="2"/><text x="280.0961894323342" y="146.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Text</text><line x1="316.4692563912806" y1="161.0" x2="358.0384757729337" y2="185.0" stroke="#C9A86C" stroke-width="3" marker-end="url(#ah)"/><rect x="469.9038105676657" y="106.99999999999994" width="140" height="66" rx="12" fill="#1B4B6F" stroke="#1B4B6F" stroke-width="2"/><text x="539.9038105676657" y="145.99999999999994" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Motion</text><line x1="503.53074360871926" y1="160.99999999999997" x2="461.96152422706626" y2="184.99999999999997" stroke="#C9A86C" stroke-width="3" marker-end="url(#ah)"/><circle cx="410" cy="215" r="52" fill="#C9A86C"/><text x="410" y="222" text-anchor="middle" font-family="Noto Sans SC" font-size="18" font-weight="800" fill="#fff">表现力</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：文本-音频协调条件 (expressive)</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#speech-video">speech-video</a><span class="sep">/</span>JoyStreamer</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂 JoyStreamer</a></li><li><a href="#s2">02 范式定位：两大病根——数据偏置与模态冲突</a></li><li><a href="#s3">03 系统分解：预训练流水线与架构</a></li><li><a href="#s4">04 关键公式：DMD 与 Twin-Teacher 的 score 重构</a></li><li><a href="#s5">05 动态 CFG：按去噪时间步给模态「错峰放权」</a></li><li><a href="#s6">06 免训练多人对话：用注意力掩码给音频「分座位」</a></li><li><a href="#s7">07 训练、推理与超参清单</a></li><li><a href="#s8">08 优势与证据</a></li><li><a href="#s9">09 深度洞察与批判评估</a></li><li><a href="#s10">10 自主科研问题</a></li><li><a href="#s11">11 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂 JoyStreamer</h2>
+  <p class="lead">JoyStreamer 要解决的是音频驱动数字人的「文本失语症」：模型能把口型对得很准，却做不出提示词里写的复杂动作——搬椅子、爬梯子、镜头环绕、背景转场。它的答案不是去收集更难的数据，而是<strong>把「文本可控性」当作一种可以从视频基础模型中蒸馏迁移的能力</strong>：在 DMD 后训练里同时挂上「音频教师」与「文本教师」（Twin-Teacher），再用按去噪时间步调度的动态 CFG 把音频与文本两个条件在时间轴上错峰使用。</p>
+  <p>论文出自京东科技（JD Technology），基于 Wan2.2-T2V-14B 基础模型构建，自采约 4,000 小时说话/演讲/唱歌数据，支持长时序、全身动作、运镜控制、多人对话与非人主体角色扮演。GSB 主观评测中优于 OmniHuman-1.5 与 KlingAvatar 2.0（论文表述）。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「能力迁移」取代「数据扩容」：教师模型即隐式数据集</h4>
+    <p>传统思路遇到「文本控制弱」会去造数据（Wan-S2V 式精细标注数据策展），但复杂运动/运镜数据极难收集且常被清洗流程滤掉。JoyStreamer 换了一个等价视角：视频基础模型（Wan2.2-I2V-14B）本身就「见过」海量带复杂动作标注的文本-视频对，它的 score 估计就是一个活的、无限大的复杂运动数据分布。把教师塞进 DMD 的 real score 里，等于让学生在一个「文本对齐分布」上做分布匹配——这是一种把后训练框架（DMD）当作<strong>能力移植接口</strong>的用法，而非常规的加速蒸馏用法。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 范式定位：两大病根——数据偏置与模态冲突</h2>
+  <p>论文对「文本失语症」的归因有两条主线，这两个诊断决定了后续两个技术设计的分工。<strong>其一是数据偏置（Data Bias）</strong>：训练数据绝大多数来自演讲、脱口秀、主持等相对静态的场景，缺少动态运镜与大位移肢体动作；随着训练推进，模型过拟合到「说话风格」的窄分布，文本指令中指定大动作的执行能力被逐步侵蚀。<strong>其二是模态冲突（Inter-Modality Conflicts）</strong>：模型同时被参考图、音频、文本驱动，音频主要掌控节奏性动态，参考图隐式约束运动幅度，两者共同引入竞争性归纳偏置，干扰文本对动作模式的控制。</p>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="380" fill="#F7F4EE"/>
+    <text x="400" y="32" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="18" fill="#2C3E50" font-weight="bold">文本可控性弱化的两条因果链与 JoyStreamer 的对策</text>
+    <!-- left chain -->
+    <rect x="30" y="70" width="220" height="52" fill="#1B4B6F" rx="6"/>
+    <text x="140" y="92" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">静态说话/演讲数据占主导</text>
+    <text x="140" y="112" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9D6E2">数据偏置</text>
+    <line x1="140" y1="122" x2="140" y2="158" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr1)"/>
+    <rect x="30" y="160" width="220" height="52" fill="#2C3E50" rx="6"/>
+    <text x="140" y="182" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">过拟合「说话式」窄运动分布</text>
+    <text x="140" y="202" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9D6E2">文本大动作控制退化</text>
+    <line x1="140" y1="212" x2="140" y2="248" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr1)"/>
+    <rect x="30" y="250" width="220" height="56" fill="#5A8F7B" rx="6"/>
+    <text x="140" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">对策一：Twin-Teacher DMD</text>
+    <text x="140" y="292" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E4EFE9">从基础模型迁移文本可控性</text>
+    <!-- right chain -->
+    <rect x="300" y="70" width="220" height="52" fill="#1B4B6F" rx="6"/>
+    <text x="410" y="92" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">参考图 + 音频 + 文本 三条件并存</text>
+    <text x="410" y="112" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9D6E2">模态冲突</text>
+    <line x1="410" y1="122" x2="410" y2="158" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr1)"/>
+    <rect x="300" y="160" width="220" height="52" fill="#2C3E50" rx="6"/>
+    <text x="410" y="182" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">音频管节奏、参考图管幅度</text>
+    <text x="410" y="202" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#C9D6E2">与文本动作控制竞争</text>
+    <line x1="410" y1="212" x2="410" y2="248" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr1)"/>
+    <rect x="300" y="250" width="220" height="56" fill="#5A8F7B" rx="6"/>
+    <text x="410" y="272" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#FFFFFF">对策二：Dynamic CFG</text>
+    <text x="410" y="292" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E4EFE9">按去噪时间步错峰调度模态</text>
+    <!-- right note -->
+    <rect x="560" y="70" width="210" height="236" fill="#EDE6D6" stroke="#C9A86C" stroke-width="2" rx="8"/>
+    <text x="665" y="100" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">设计哲学</text>
+    <text x="578" y="132" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">数据偏置是「分布问题」→</text>
+    <text x="578" y="152" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">用教师分布去覆盖学生分布；</text>
+    <text x="578" y="184" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">模态冲突是「时序问题」→</text>
+    <text x="578" y="204" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">在去噪时间轴上划分势力范围。</text>
+    <text x="578" y="236" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">两条对策正交，可独立消融</text>
+    <text x="578" y="256" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">（见 Fig.10 消融）。</text>
+    <defs><marker id="arr1" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 1</b> · 把「文本控制弱」这一模糊现象拆成两条可分别处方的因果链：分布层面的过拟合与条件层面的竞争（依据论文 Sec.1 归因与 Sec.3.3 对策绘制）。</div></div>
+  <p>对比同期路线可以看出定位差异：<strong>Wan-S2V</strong> 用精心标注的数据维持文本可控性，但论文指出其 reference latent 的使用严重限制了运动动态；<strong>KlingAvatar</strong> 把问题重构为首尾帧条件生成，但易产生重复运动或违反物理规律的轨迹（论文观察到行走数秒后方向突变，推测其缺少对 motion frames 的显式建模）；<strong>OmniHuman-1.5 / KlingAvatar 2.0</strong> 文本遵循较好，但在人-物交互等复杂指令上仍有明显缺口。JoyStreamer 选择在后训练阶段「借力」基础模型，而不是与数据管线较劲。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>范式之争的本质：约束放在哪里</h4>
+    <p>Wan-S2V 把文本可控性约束放在<strong>数据</strong>上，KlingAvatar 把它放在<strong>输入接口</strong>（首尾帧）上，JoyStreamer 把它放在<strong>训练信号</strong>（双教师 score）上。数据约束昂贵且不可扩展，接口约束会把运动锁死在插值先验里，而训练信号约束只需换一个教师模型就能升级——这解释了为什么 JoyStreamer 声称「不引入任何新训练数据」也能获得文本可控性，也暗示了它对教师质量的强依赖（教师换代即模型换代）。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 系统分解：预训练流水线与架构</h2>
+  <p>预训练分两阶段。第一阶段只训练 <strong>FramePack 模块</strong>与基础模型的<strong>自注意力层</strong>，目标是获得可无限时长生成的基座模型；第二阶段插入<strong>音频交叉注意力层</strong>，用预训练 Wav2Vec2 编码音频特征并注入，实现精确的音频驱动口型同步。两阶段完成后，该模型即作为 DMD 后训练阶段的<strong>音频教师</strong>。</p>
+  <div class="figure"><svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="400" fill="#F7F4EE"/>
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" fill="#2C3E50" font-weight="bold">JoyStreamer 预训练架构流（依论文 Fig.4 重绘）</text>
+    <!-- inputs -->
+    <rect x="20" y="60" width="150" height="44" fill="#1B4B6F" rx="6"/><text x="95" y="80" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">参考图 / 末帧</text><text x="95" y="97" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9D6E2">训练=Last Frame，推理=Ref</text>
+    <rect x="20" y="130" width="150" height="44" fill="#1B4B6F" rx="6"/><text x="95" y="150" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">视频帧（80 帧）</text><text x="95" y="167" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9D6E2">3D VAE 编码</text>
+    <rect x="20" y="200" width="150" height="44" fill="#1B4B6F" rx="6"/><text x="95" y="220" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">文本提示</text><text x="95" y="237" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9D6E2">T5 编码</text>
+    <rect x="20" y="270" width="150" height="44" fill="#1B4B6F" rx="6"/><text x="95" y="290" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">音频</text><text x="95" y="307" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9D6E2">Wav2Vec2 + Audio Proj.</text>
+    <!-- mid -->
+    <rect x="215" y="130" width="130" height="44" fill="#C9A86C" rx="6"/><text x="280" y="150" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">FramePack</text><text x="280" y="167" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">运动帧 9 帧 latent</text>
+    <rect x="215" y="70" width="130" height="30" fill="#EDE6D6" stroke="#C9A86C" rx="4"/><text x="280" y="90" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">末帧 latent（无噪）</text>
+    <rect x="215" y="195" width="130" height="30" fill="#EDE6D6" stroke="#C9A86C" rx="4"/><text x="280" y="215" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">加噪视频 latent（除末帧）</text>
+    <!-- concat -->
+    <rect x="385" y="120" width="90" height="120" fill="#5A8F7B" rx="6"/><text x="430" y="168" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">沿时间</text><text x="430" y="188" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">拼接 C</text>
+    <!-- DiT -->
+    <rect x="510" y="55" width="180" height="290" fill="#FFFFFF" stroke="#1B4B6F" stroke-width="2" rx="8"/>
+    <text x="600" y="78" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" font-weight="bold">DiT Blocks × N</text>
+    <rect x="525" y="92" width="150" height="30" fill="#1B4B6F" rx="4"/><text x="600" y="112" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">LayerNorm</text>
+    <rect x="525" y="130" width="150" height="30" fill="#2C3E50" rx="4"/><text x="600" y="150" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">Self Attention（阶段一训练）</text>
+    <rect x="525" y="168" width="150" height="30" fill="#2C3E50" rx="4"/><text x="600" y="188" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">Text Cross Attention</text>
+    <rect x="525" y="206" width="150" height="30" fill="#E85D4E" rx="4"/><text x="600" y="226" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">Audio Cross Attention（阶段二新增）</text>
+    <rect x="525" y="244" width="150" height="30" fill="#2C3E50" rx="4"/><text x="600" y="264" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">FFN</text>
+    <rect x="525" y="288" width="150" height="30" fill="#EDE6D6" stroke="#C9A86C" rx="4"/><text x="600" y="308" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">flow matching 目标训练</text>
+    <!-- output -->
+    <rect x="715" y="150" width="70" height="80" fill="#5A8F7B" rx="6"/><text x="750" y="182" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">3D VAE</text><text x="750" y="200" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">Dec.</text>
+    <!-- arrows -->
+    <line x1="170" y1="82" x2="213" y2="82" stroke="#2C3E50" stroke-width="2"/><line x1="170" y1="152" x2="213" y2="152" stroke="#2C3E50" stroke-width="2"/><line x1="170" y1="222" x2="383" y2="190" stroke="#2C3E50" stroke-width="2"/><line x1="170" y1="292" x2="510" y2="230" stroke="#E85D4E" stroke-width="2"/>
+    <line x1="345" y1="152" x2="383" y2="152" stroke="#2C3E50" stroke-width="2"/><line x1="345" y1="210" x2="383" y2="205" stroke="#2C3E50" stroke-width="2"/><line x1="345" y1="85" x2="383" y2="135" stroke="#2C3E50" stroke-width="2"/>
+    <line x1="475" y1="180" x2="508" y2="180" stroke="#2C3E50" stroke-width="2"/><line x1="690" y1="190" x2="713" y2="190" stroke="#2C3E50" stroke-width="2"/>
+    <text x="400" y="375" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">黄框=无噪帧，灰框=加噪帧；motion latents + 视频 latent + 末帧 latent 沿时间维拼接送入 DiT</text>
+  </svg><div class="figcap"><b>图 2</b> · 把「无限时长生成 + 口型同步 + 文本控制」三个目标折进一条 latent 流水线：FramePack 负责段间连续，音频交叉注意力负责口型，而文本控制留待后训练阶段强化。</div></div>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">Latent 与解码</div>
+      <div class="dd">3D VAE（来自 Wan2.2）把视频映射到紧凑 latent 空间；除末帧外加噪。推理时把参考图当<strong>伪末帧</strong>注入，位置索引在原索引上<strong>+10</strong>，防止模型严格回退到末帧、换取更丰富的运动动态；完成后丢弃 motion frames 与伪末帧的 latent，单次推理产出 <strong>76 个可用视频帧</strong>（论文表述）。<span class="alt">替代方案：首帧锚定（易 attention sink、身份漂移）或纯 reference latent（如 Wan-S2V，论文认为其限制运动动态）。</span></div></div>
+    <div class="def-item"><div class="dt">训练与前置</div>
+      <div class="dd">基础模型 Wan2.2-T2V-14B；motion frames 长 9、video frames 长 80；预训练 AdamW、学习率 2e-5、全局 batch 64，分别基于 Wan2.2 的 high-expert 与 low-expert 派生模型训练（论文表述）；数据为自采约 4,000 小时（真人与卡通角色的说话/演讲/唱歌）。<span class="alt">替代方案：从头训练音频条件模块；论文选择冻结大部分、仅插入音频交叉注意力。</span></div></div>
+    <div class="def-item"><div class="dt">Prompt Engineering 模块</div>
+      <div class="dd">基于 Qwen3-VL-32B 优化的 PE 模块，按音频时长自适应产出文本片段：<strong>每 3.24 秒输入音频多产一个片段，最多 5 个</strong>，按时序语义分配到不同生成段，避免跨段重复动作（论文表述）。<span class="alt">替代方案：整段共用同一 prompt（会诱发段间动作重复）。</span></div></div>
+    <div class="def-item"><div class="dt">免训练多人对话</div>
+      <div class="dd">检测器出二值 mask，在音频交叉注意力里按人分区：某人的音频 token 只与该人 mask 内区域做交叉注意力，mask 为 0 的区域用<strong>静音音频</strong>做注意力。无需训练即可支持 3 人以上与多轮对话（论文表述）。</div></div>
+  </div>
+  <div class="pipeline"><span class="pipe-step">Ref / Last Frame</span><span class="pipe-arrow">→</span><span class="pipe-step">3D VAE Enc.</span><span class="pipe-arrow">→</span><span class="pipe-step alt">FramePack（9 帧运动 latent）</span><span class="pipe-arrow">→</span><span class="pipe-step">时间维拼接</span><span class="pipe-arrow">→</span><span class="pipe-step">DiT + 双 Cross-Attn</span><span class="pipe-arrow">→</span><span class="pipe-step alt">3D VAE Dec.</span></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 关键公式：DMD 与 Twin-Teacher 的 score 重构</h2>
+  <p>后训练采用 DMD（Distribution Matching Distillation）框架。DMD 的梯度把学生生成器往「real score 与 fake score 之差」的方向推：real score 来自教师、fake score 来自学生自身的 EMA 副本（论文表述）。先把公式摆清楚，再看双教师如何改写 real score。</p>
+  <div class="formula-card"><div class="f-label">Eq.1 · DMD 梯度（论文式 1）</div>
+    <div>$$ \nabla_\theta \mathcal{L}_{\mathrm{DMD}} = \mathbb{E}_{z_t,\tau,\mathbf{x}_\tau}\left[ -\left( s^{\mathrm{real}}_{\mathrm{cond}}(\mathbf{x}_\tau) - s^{\mathrm{fake}}_{\mathrm{cond}}(\mathbf{x}_\tau) \right) \frac{\partial G_\theta(z_t)}{\partial \theta} \right] $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>$G_\theta$ 为 avatar 生成器，$z_t$ 是噪声级 $t$ 下的输入，$\mathbf{x}_\tau$ 是把 $G_\theta$ 的去噪输出重新加噪到噪声级 $\tau$ 的结果。梯度方向即「教师认为该往哪去 − 学生自己认为在哪」，本质是把分布匹配问题化归为 score 差驱动的回归。</div></div>
+  <p>原始 DMD 里 real score 是单教师的 CFG 组合：以预训练得到的音频基础模型 $\epsilon_{\mathrm{audio}}$ 为核，分别沿音频、文本两个条件方向做差分。</p>
+  <div class="formula-card"><div class="f-label">Eq.2 · 常规 DMD 的 real score（论文式 2）</div>
+    <div>$$ \begin{aligned} s^{\mathrm{real}}_{\mathrm{cond}}(\mathbf{x}_\tau) =\; &amp; \epsilon_{\mathrm{audio}}(\mathbf{x}_\tau,\tau,c_{\mathrm{un\text{-}text}}, c_{\mathrm{un\text{-}audio}}) \\ +\; &amp; \alpha_a \cdot \left( \epsilon_{\mathrm{audio}}(\mathbf{x}_\tau,\tau,c_{\mathrm{text}},c_{\mathrm{audio}}) - \epsilon_{\mathrm{audio}}(\mathbf{x}_\tau,\tau,c_{\mathrm{text}},c_{\mathrm{un\text{-}audio}}) \right) \\ +\; &amp; \alpha_t \cdot \left( \epsilon_{\mathrm{audio}}(\mathbf{x}_\tau,\tau,c_{\mathrm{text}},c_{\mathrm{un\text{-}audio}}) - \epsilon_{\mathrm{audio}}(\mathbf{x}_\tau,\tau,c_{\mathrm{un\text{-}text}},c_{\mathrm{un\text{-}audio}}) \right) \end{aligned} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>$c_{\mathrm{text}}, c_{\mathrm{audio}}$ 为文本/音频条件，$c_{\mathrm{un\text{-}text}}$ 为负提示条件，$c_{\mathrm{un\text{-}audio}}$ 通常为零嵌入（空音频）；$\alpha_t, \alpha_a$ 分别是文本与音频 CFG 引导尺度。结构是「无条件底 + 音频方向增量 + 文本方向增量」的两级差分。问题在于 $\epsilon_{\mathrm{audio}}$ 对文本条件生成的监督天生不准。</div></div>
+  <p>双教师的改写只动了两处：把音频方向差分的「负项」换成文本教师 $\epsilon_{\mathrm{text}}$（预训练 Wan2.2-I2V-14B），把文本方向差分的「正项」也换成 $\epsilon_{\mathrm{text}}$。论文分别命名为 <em>audio condition engine</em> 与 <em>text condition engine</em>。</p>
+  <div class="formula-card"><div class="f-label">Eq.3 · Twin-Teacher real score（论文式 3）</div>
+    <div>$$ \begin{aligned} s^{\mathrm{real}}_{\mathrm{cond}}(\mathbf{x}_\tau) =\; &amp; \epsilon_{\mathrm{audio}}(\mathbf{x}_\tau,\tau,c_{\mathrm{un\text{-}text}}, c_{\mathrm{un\text{-}audio}}) \\ +\; &amp; \alpha_a \cdot \underbrace{\left( \epsilon_{\mathrm{audio}}(\mathbf{x}_\tau,\tau,c_{\mathrm{text}},c_{\mathrm{audio}}) - \epsilon_{\mathrm{text}}(\mathbf{x}_\tau,\tau,c_{\mathrm{text}}) \right)}_{\text{audio condition engine}} \\ +\; &amp; \alpha_t \cdot \underbrace{\left( \epsilon_{\mathrm{text}}(\mathbf{x}_\tau,\tau,c_{\mathrm{text}}) - \epsilon_{\mathrm{audio}}(\mathbf{x}_\tau,\tau,c_{\mathrm{un\text{-}text}},c_{\mathrm{un\text{-}audio}}) \right)}_{\text{text condition engine}} \end{aligned} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>$\epsilon_{\mathrm{audio}}$ 是预训练基座（音频教师），$\epsilon_{\mathrm{text}}$ 是新引入的文本教师。文本方向的「监督锚点」由音频教师的空条件估计换成了文本教师的文本条件估计——文本可控性由此被显式写进 score 目标，学生在分布匹配压力下被迫继承基础模型的复杂动作先验。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>Eq.3 的几何含义：把教师分歧投影成两个模态引擎</h4>
+    <p>Eq.2 与 Eq.3 的差别可以读成向量替换：音频引擎从「同教师内的音频差分」变为「音频教师整体 − 文本教师」，即<strong>两位教师之差被定义为音频条件带来的净增量</strong>；文本引擎则是「文本教师 − 音频教师的无条件底」，即<strong>文本教师带来的净增量</strong>。这把教师间的分歧显式分解为两个正交方向的监督信号——但代价是当两位教师对同一 $\mathbf{x}_\tau$ 的 score 估计严重不一致时，两个引擎会互相放大噪声（对应论文观察到的时序稳定性下降，见第 09 章批判评估）。</p></div>
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="330" fill="#F7F4EE"/>
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" fill="#2C3E50" font-weight="bold">Twin-Teacher DMD 后训练数据流（依论文 Fig.5 重绘）</text>
+    <rect x="30" y="70" width="140" height="50" fill="#2C3E50" rx="6"/><text x="100" y="92" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">学生生成器</text><text x="100" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9D6E2">G_θ(z_t)（fake model）</text>
+    <line x1="170" y1="95" x2="230" y2="95" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr2)"/>
+    <rect x="232" y="70" width="120" height="50" fill="#C9A86C" rx="6"/><text x="292" y="92" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">重新加噪</text><text x="292" y="110" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">x_τ @ 噪声级 τ</text>
+    <line x1="352" y1="85" x2="430" y2="60" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr2)"/>
+    <line x1="352" y1="105" x2="430" y2="135" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr2)"/>
+    <rect x="432" y="38" width="180" height="52" fill="#1B4B6F" rx="6"/><text x="522" y="60" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">音频教师 ε_audio</text><text x="522" y="78" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#C9D6E2">预训练 avatar 基座</text>
+    <rect x="432" y="112" width="180" height="52" fill="#E85D4E" rx="6"/><text x="522" y="134" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">文本教师 ε_text</text><text x="522" y="152" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFE2DD">Wan2.2-I2V-14B</text>
+    <line x1="612" y1="64" x2="680" y2="105" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr2)"/>
+    <line x1="612" y1="138" x2="680" y2="115" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr2)"/>
+    <rect x="630" y="86" width="150" height="48" fill="#5A8F7B" rx="6"/><text x="705" y="106" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">s_real − s_fake</text><text x="705" y="124" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E4EFE9">→ ∇_θ L_DMD 更新学生</text>
+    <!-- engines -->
+    <rect x="60" y="185" width="330" height="60" fill="#FFFFFF" stroke="#E85D4E" stroke-width="2" rx="8"/>
+    <text x="225" y="210" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#E85D4E" font-weight="bold">audio condition engine</text>
+    <text x="225" y="232" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">ε_audio(text, audio) − ε_text(text)</text>
+    <rect x="420" y="185" width="330" height="60" fill="#FFFFFF" stroke="#1B4B6F" stroke-width="2" rx="8"/>
+    <text x="585" y="210" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" font-weight="bold">text condition engine</text>
+    <text x="585" y="232" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">ε_text(text) − ε_audio(un-text, un-audio)</text>
+    <text x="400" y="290" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">双教师之差被分解为音频/文本两个模态引擎，分别乘 α_a、α_t 后合成 real score</text>
+    <defs><marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#2C3E50"/></marker></defs>
+  </svg><div class="figcap"><b>图 3</b> · 双教师 DMD 的关键不是「多一个教师」，而是把两位教师的 score 之差定义成两个模态引擎——这使「文本可控性」成为一个可被梯度直接优化的显式目标。</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 动态 CFG：按去噪时间步给模态「错峰放权」</h2>
+  <p>模态冲突的化解思路借自 AlignHuman 的观察：<strong>全局运动结构在高噪声（早期）去噪步就已确立，细节在低噪声（后期）步精修</strong>。据此，双教师 DMD 训练中文本与音频的 CFG 尺度按时间步分段调度：当去噪时间步超过 $t_{\mathrm{spot}}$（通常设为 <strong>950</strong>）时，把音频 CFG 尺度 $\alpha_a$ 设为 <strong>0.1</strong>，让文本条件优先决定全局运动；时间步低于 $t_{\mathrm{spot}}$ 后把 $\alpha_a$ 提到 <strong>4.0</strong>，确保口型精度（以上系数均为论文表述）。</p>
+  <div class="formula-card"><div class="f-label">Eq.4 · 动态 CFG 调度（依论文 Sec.3.3 参数整理）</div>
+    <div>$$ \alpha_a(t) = \begin{cases} 0.1, &amp; t > t_{\mathrm{spot}} \approx 950 \quad \text{（高噪声段：文本优先定全局动作）} \\ 4.0, &amp; t \le t_{\mathrm{spot}} \quad \text{（低噪声段：音频优先保口型）} \end{cases} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>把「谁在生成的哪个阶段说了算」变成显式调度表。文本管宏观（动作模式、运镜、场景），音频管微观（口型、节奏）。$\alpha_t$ 的具体取值论文未给出；$t_{\mathrm{spot}}$ 论文表述为「typically set to 950」，未附敏感性分析。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="320" fill="#F7F4EE"/>
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" fill="#2C3E50" font-weight="bold">模态影响力随去噪时间步的错峰调度</text>
+    <!-- axes -->
+    <line x1="80" y1="250" x2="740" y2="250" stroke="#2C3E50" stroke-width="2"/>
+    <line x1="80" y1="250" x2="80" y2="70" stroke="#2C3E50" stroke-width="2"/>
+    <text x="410" y="285" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50">去噪时间步 t（右→左：高噪声早期 → 低噪声后期）</text>
+    <text x="55" y="160" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#2C3E50" transform="rotate(-90 55 160)">条件强度</text>
+    <!-- spot line -->
+    <line x1="420" y1="70" x2="420" y2="250" stroke="#E85D4E" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="424" y="88" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#E85D4E">t_spot ≈ 950</text>
+    <!-- text strength (high early) -->
+    <polyline points="120,110 420,110 430,150 720,150" fill="none" stroke="#1B4B6F" stroke-width="3"/>
+    <text x="200" y="102" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" font-weight="bold">文本条件主导（全局动作/运镜）</text>
+    <!-- audio strength -->
+    <polyline points="120,225 415,225 425,120 720,120" fill="none" stroke="#C9A86C" stroke-width="3"/>
+    <text x="520" y="112" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#A5854A" font-weight="bold">音频条件主导（口型/节奏）</text>
+    <!-- alpha annotations -->
+    <rect x="120" y="180" width="150" height="34" fill="#C9A86C" opacity="0.35" rx="4"/>
+    <text x="195" y="202" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">α_a = 0.1</text>
+    <rect x="470" y="180" width="150" height="34" fill="#C9A86C" opacity="0.6" rx="4"/>
+    <text x="545" y="202" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">α_a = 4.0</text>
+  </svg><div class="figcap"><b>图 4</b> · 把「模态冲突」这一静态问题重写为时间轴上的调度问题：文本与音频不必在同一去噪阶段竞争同一运动决策权。</div></div>
+  <p>此外论文报告了一个工程细节：只用 Eq.3 训练的模型文本响应显著增强，但生成视频的<strong>时序稳定性下降</strong>；为此在双教师 DMD 之后<strong>追加一轮基于 Eq.2 的 vanilla DMD 训练</strong>来恢复视觉-时序连贯性。这一「先激进后保守」的两段式后训练配方值得记住——它意味着 Eq.3 引入的分布偏移是真实存在的，需要一个稳定化回合来对冲。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>时间步调度与「粗到细生成」的深层同构</h4>
+    <p>扩散生成的「先布局后精修」特性此前多被用在结构引导（如 AlignHuman 的时间步分段偏好优化）上。JoyStreamer 把它用于<strong>多条件仲裁</strong>：既然运动模式在高噪声段定型，那么让音频在该段以 0.1 的尺度「近乎闭嘴」，就等于承认「口型同步是低频决策之后的高频修正」。这一安排与人类表现力生成的因果顺序一致——先决定「做什么动作、镜头怎么走」，再决定「哪一帧哪个口型」。反过来也解释了为什么静态说话场景不需要这么强的调度：那里文本与音频的决策本来就同频。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>$t_{\mathrm{spot}}$ 与 $\alpha$ 配置缺乏敏感性证据</h4>
+    <p>$t_{\mathrm{spot}}\approx 950$、$\alpha_a\in\{0.1, 4.0\}$ 都以「typically」口吻给出，论文没有报告分界点扫描、$\alpha_t$ 取值或不同视频长度/分辨率下的最优配置差异。考虑到这两个数直接决定「文本控制力」与「口型保真」的分配比例，缺这组消融使结论难以迁移到别的噪声调度（例如不同的 flow matching 离散化）。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 免训练多人对话：用注意力掩码给音频「分座位」</h2>
+  <p>多人对话是 JoyStreamer 的招牌应用之一，且完全<strong>免训练</strong>。机制拆开看只有两步：检测器给出各主体的二值 mask（检测区域为 1、其余为 0）；在音频交叉注意力中，查询来自视频 latent、键值来自多路音频嵌入，<strong>某人的音频 token 只与该人 mask 区域内的视频 token 计算交叉注意力</strong>，mask 为 0 的区域则用<strong>静音音频</strong>参与注意力计算。</p>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="340" fill="#F7F4EE"/>
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" fill="#2C3E50" font-weight="bold">多人音频交叉注意力的分区掩码（依论文 Fig.6 重绘）</text>
+    <!-- frame grid -->
+    <rect x="40" y="70" width="300" height="200" fill="#FFFFFF" stroke="#2C3E50" stroke-width="2"/>
+    <rect x="70" y="110" width="100" height="130" fill="#1B4B6F" opacity="0.85" rx="8"/>
+    <text x="120" y="180" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">Human 1</text>
+    <rect x="210" y="110" width="100" height="130" fill="#5A8F7B" opacity="0.85" rx="8"/>
+    <text x="260" y="180" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#FFFFFF">Human 2</text>
+    <text x="190" y="292" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">a) 检测器输出的二值参考掩码</text>
+    <!-- attention maps -->
+    <rect x="390" y="70" width="170" height="90" fill="#1B4B6F" opacity="0.2" stroke="#1B4B6F" stroke-width="2"/>
+    <rect x="420" y="95" width="60" height="45" fill="#1B4B6F" opacity="0.8"/>
+    <text x="475" y="60" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">Human 1 音频 → 视频注意力</text>
+    <rect x="580" y="70" width="170" height="90" fill="#5A8F7B" opacity="0.2" stroke="#5A8F7B" stroke-width="2"/>
+    <rect x="655" y="95" width="60" height="45" fill="#5A8F7B" opacity="0.8"/>
+    <text x="665" y="60" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">Human 2 音频 → 视频注意力</text>
+    <!-- audio tokens -->
+    <rect x="390" y="195" width="360" height="70" fill="#EDE6D6" stroke="#C9A86C" stroke-width="2" rx="8"/>
+    <rect x="410" y="212" width="80" height="36" fill="#1B4B6F" rx="4"/><text x="450" y="235" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">音频 1</text>
+    <rect x="505" y="212" width="80" height="36" fill="#5A8F7B" rx="4"/><text x="545" y="235" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">音频 2</text>
+    <rect x="600" y="212" width="130" height="36" fill="#C9A86C" rx="4"/><text x="665" y="235" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">静音音频（背景区）</text>
+    <text x="570" y="292" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">b) 键/值来自多路音频嵌入；掩码为 0 的区域由静音音频接管</text>
+    <text x="400" y="322" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">支持 3 人以上、多轮对话；无需任何多人视频训练数据</text>
+  </svg><div class="figcap"><b>图 5</b> · 「谁说话谁驱动谁」被实现为一次注意力路由手术：不改权重、不加训练，只在交叉注意力里按空间掩码分配音频源。</div></div>
+  <p>相比需要大量多人视频训练数据、训练成本高且难以扩展到更大群组、也难以处理多轮对话的既有方案（如 Let Them Talk 类方法，论文表述），这条路线把多人能力从「模型容量问题」降维成「推理时路由问题」。它的代价也直白：<strong>硬掩码边界</strong>上两个人的运动（牵手、递物、遮挡）无法交叉建模，检测器的漏检/误检会直接变成音画错配。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>注意力即路由：一种可移植的「组合式能力」范式</h4>
+    <p>这套掩码机制本质上把音频交叉注意力当成了可编程的交换机——只要基座有音频交叉注意力接口，多人能力就能即插即用（论文称其可快速适配到任意音频驱动视频生成基座）。这与 JoyStreamer 整体的设计观一致：能力不一定非要写进权重，也可以写进<strong>推理时的计算图结构</strong>。跨论文看，这与 Beyond Monologue 用注意力先验（高斯核）写入「倾听需要长程上下文」的物理直觉形成有趣对照：一个改注意力的<em>路由</em>，一个改注意力的<em>度量</em>。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 训练、推理与超参清单</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">预训练（两阶段）</div>
+      <div class="dd">阶段一：仅训 FramePack 模块 + 基础模型自注意力层，得无限时长基座；阶段二：插入音频交叉注意力（Wav2Vec2 编码），训出精确口型同步。AdamW，学习率 2e-5，全局 batch 64。</div></div>
+    <div class="def-item"><div class="dt">后训练（DMD 两段）</div>
+      <div class="dd">第一段：Twin-Teacher DMD（Eq.3 + 动态 CFG），以 LoRA 微调音频投影层、音频交叉注意力层与自注意力层，学习率 1e-5；第二段：追加一轮 vanilla DMD（Eq.2）恢复时序稳定性。</div></div>
+    <div class="def-item"><div class="dt">推理</div>
+      <div class="dd">参考图作伪末帧、位置索引 +10（简单提示词场景为 +3，以减少多余动作）；完成后丢弃 motion frames 与伪末帧 latent，单次推理 76 个可用帧；PE 模块按每 3.24 秒音频产出至多 5 个时序提示片段。</div></div>
+    <div class="def-item"><div class="dt">数据</div>
+      <div class="dd">自采约 4,000 小时，覆盖真人与卡通角色的说话、演讲、唱歌。复杂动作/运镜数据不在训练集中——这正是双教师要补的缺口。</div></div>
+  </div>
+  <div class="pipeline"><span class="pipe-step">预训练阶段一</span><span class="pipe-arrow">→</span><span class="pipe-step">预训练阶段二（+音频）</span><span class="pipe-arrow">→</span><span class="pipe-step alt">Twin-Teacher DMD + 动态 CFG</span><span class="pipe-arrow">→</span><span class="pipe-step alt">vanilla DMD 稳定化</span><span class="pipe-arrow">→</span><span class="pipe-step">推理（伪末帧 + PE）</span></div>
+  <p>一个容易被忽略的推断细节是<strong>位置索引 +10</strong>：如果参考图严格占据末帧位置，模型会倾向于「收敛回」参考图、压制运动幅度；把索引往后挪 10 位，参考图变成「时间轴上更靠后的锚」，生成窗口反而更敢动。同一旋钮在简单提示词评测里被收紧到 +3（论文表述）——同一个模型靠一个整数就能在「表现力」与「克制」之间切换，说明可控性并没有均匀地长在权重里，而是部分悬挂在接口约定上。</p>
+</section>
+
+<section class="b-section">
+  <h2 id="s8" ><span class="num">08</span> 优势与证据</h2>
+  <p>证据分两层：<strong>GSB 主观评测</strong>（96 个精心构造的测试例，覆盖表情、肢体、人-物交互、运镜、背景转场，含大量超过 30 秒的长音频；评分 $(G+S)/(B+S)$）与<strong>定量基准</strong>（90 个相对静态的说话/演讲/唱歌例，考口型与身份）。</p>
+  <div class="formula-card"><div class="f-label">Eq.5 · GSB 评分（论文 Sec.4.2）</div>
+    <div>$$ \mathrm{GSB\text{-}score} = \frac{G + S}{B + S} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>$G$ 为「本文更好」票数，$B$ 为「对手更好」票数，$S$ 为「相当」票数。分母把平局计入，故 1.0 表示与对手持平，&gt;1 表示净胜。注意该分数对 $S$ 敏感：平局越多、分数越趋近 1，不同维度的可比性会受评委宽容度影响。</div></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>vs OmniHuman-1.5（Ours / 对手）</th><th>vs KlingAvatar 2.0（Ours / 对手）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">Overall Quality</td><td>1.36 / 0.74</td><td>1.73 / 0.58</td></tr>
+      <tr><td class="route">Text Alignment</td><td>1.27 / 0.79</td><td>1.58 / 0.63</td></tr>
+      <tr><td class="route">Lip Sync.</td><td>1.33 / 0.75</td><td>1.76 / 0.57</td></tr>
+      <tr><td class="route">ID Consistency</td><td>1.26 / 0.79</td><td>1.51 / 0.66</td></tr>
+      <tr><td class="route">Visual Quality</td><td>1.39 / 0.72</td><td>1.56 / 0.64</td></tr>
+    </tbody></table></div>
+  <p class="lead" style="margin-top:12px">GSB 分数取自论文 Fig.2（论文表述）。五个维度全部领先，其中对 KlingAvatar 2.0 的口型维度差距最大（1.76 vs 0.57）。定性观察也支持这些数字：KlingAvatar 2.0 会出现行走数秒后方向突变（论文推测其缺少 motion frames 显式建模、分段独立生成）、运镜受限；OmniHuman-1.5 有可感知的「AIGC 感」与未被提示的额外运镜、跳变。</p>
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="800" height="330" fill="#F7F4EE"/>
+    <text x="400" y="30" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" fill="#2C3E50" font-weight="bold">GSB 五维对比（论文 Fig.2，分数越高越好，1.0 为持平）</text>
+    <line x1="120" y1="270" x2="760" y2="270" stroke="#2C3E50" stroke-width="2"/>
+    <line x1="360" y1="55" x2="360" y2="270" stroke="#2C3E50" stroke-dasharray="4 4" stroke-width="1"/>
+    <text x="360" y="292" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">1.0 持平线</text>
+    <!-- rows: Overall, Text, Lip, ID, Visual -->
+    <text x="112" y="82" text-anchor="end" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">Overall</text>
+    <rect x="360" y="66" width="168" height="14" fill="#1B4B6F"/><text x="536" y="78" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F">1.36（vs OmniHuman）</text>
+    <rect x="360" y="82" width="240" height="14" fill="#5A8F7B"/><text x="608" y="94" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">1.73（vs KlingAvatar 2.0）</text>
+    <text x="112" y="128" text-anchor="end" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">Text Align.</text>
+    <rect x="360" y="112" width="124" height="14" fill="#1B4B6F"/><text x="492" y="124" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F">1.27</text>
+    <rect x="360" y="128" width="202" height="14" fill="#5A8F7B"/><text x="570" y="140" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">1.58</text>
+    <text x="112" y="174" text-anchor="end" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">Lip Sync.</text>
+    <rect x="360" y="158" width="150" height="14" fill="#1B4B6F"/><text x="518" y="170" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F">1.33</text>
+    <rect x="360" y="174" width="258" height="14" fill="#5A8F7B"/><text x="626" y="186" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">1.76</text>
+    <text x="112" y="220" text-anchor="end" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">ID Consist.</text>
+    <rect x="360" y="204" width="117" height="14" fill="#1B4B6F"/><text x="485" y="216" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F">1.26</text>
+    <rect x="360" y="220" width="181" height="14" fill="#5A8F7B"/><text x="549" y="232" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B">1.51</text>
+    <text x="112" y="262" text-anchor="end" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50">Visual Qual.</text>
+    <rect x="360" y="246" width="150" height="10" fill="#1B4B6F"/><text x="518" y="256" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F">1.39</text>
+  </svg><div class="figcap"><b>图 6</b> · 证据结构图：文本对齐（1.27/1.58）并不是五维中最强的一项，真正的压倒性优势在口型与整体质量——「文本可控性」的提升并未以牺牲基础 avatar 能力为代价。</div></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>方法</th><th>Sync-D↓</th><th>Sync-C↑</th><th>IDC↑</th><th>Q-Score↑</th><th>HKC↑</th><th>HKV↑</th></tr></thead>
+    <tbody>
+      <tr><td class="route">Omnihuman-1.5</td><td>9.31</td><td>4.31</td><td>0.71</td><td>0.92</td><td>0.87</td><td>48.41</td></tr>
+      <tr><td class="route">KlingAvatar 2.0</td><td>8.97</td><td>4.39</td><td>0.77</td><td>0.92</td><td>0.87</td><td>47.65</td></tr>
+      <tr><td class="route">HeyGen</td><td>9.09</td><td>4.86</td><td>0.79</td><td>0.92</td><td>0.86</td><td>58.76</td></tr>
+      <tr><td class="route">Wan-S2V</td><td>9.34</td><td>3.96</td><td>0.71</td><td>0.91</td><td>0.87</td><td>35.24</td></tr>
+      <tr><td class="route"><b>Ours</b></td><td><b>8.09</b></td><td><b>5.57</b></td><td><b>0.79</b></td><td>0.91</td><td>0.87</td><td>32.15</td></tr>
+    </tbody></table></div>
+  <p>口型（Sync-D 8.09、Sync-C 5.57）与身份一致性（IDC 0.79）领先明显；但 <strong>HKV（手部关键点运动丰富度）32.15 是全表最低</strong>。论文的解释是：简单提示词测试时把伪末帧索引偏移收紧为 +3 以抑制多余人体动作——换言之 HKV 低是「刻意克制」的结果，而非表达力不足。这个解释合理但未被单独消融验证（见下章）。</p>
+</section>
+
+<section class="b-section">
+  <h2 id="s9" ><span class="num">09</span> 深度洞察与批判评估</h2>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「零新数据」承诺的真正含义</h4>
+    <p>论文的 headline 贡献是「without introducing any new training data」获得文本可控性。严格说这不是零成本——它把数据成本转化成了<strong>教师推理成本</strong>（每次 DMD 更新都要跑 14B 文本教师 + 音频教师的多分支前向）与<strong>教师偏差风险</strong>（学生只能学到教师分布内支持的动作）。但对工程方这是极划算的交易：不用清洗、标注、筛选海量复杂运动数据，升级只需换教师。这条「数据→教师」的成本转换路线，可能是后训练时代比模型架构更值得关注的迁移范式。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>表现力的「可调旋钮」暴露了能力的外置</h4>
+    <p>伪末帧索引偏移（+10 / +3）与 PE 模块（每 3.24 秒一个片段、上限 5 个）都是推理期旋钮，且显著影响结果（运动幅度、动作重复率）。这说明 JoyStreamer 的「高表现力」并非完全内化于权重，而是权重 × 接口约定的联合产物。对复现者来说这是双刃剑：文档化充分则易用，文档缺失则效果不可复现。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>Eq.3 换来的时序稳定性损失需要「二次治疗」</h4>
+    <p>论文自述：只用 Eq.3 训练会「显著提升文本响应但降低时序稳定性」，须追加一轮 vanilla DMD（Eq.2）恢复连贯性。这暴露双教师差分目标并非无偏——当 $\epsilon_{\mathrm{audio}}$ 与 $\epsilon_{\mathrm{text}}$ 对同一 $\mathbf{x}_\tau$ 的 score 估计分歧大时，两个模态引擎的方向噪声会污染梯度。追加稳定轮次是有效的工程补丁，但也意味着最终模型的文本可控性被部分「回吐」，论文未量化回吐幅度。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>证据体系的三处软肋</h4>
+    <p>其一，GSB 主观评测的两个对手（OmniHuman-1.5、KlingAvatar 2.0）均为闭源模型，无法控制采样参数与版本，对比可复现性弱；其二，96/90 个测试例为自建集合，文本提示由作者构造，与 PE 模块的训练分布可能同源，存在评测偏置风险；其三，HKV 全表最低（32.15 vs 48.41/47.65/58.76），论文以「索引 +3 抑制动作」解释但未做同一模型 ±索引的对照实验——若该解释成立，应能看到 +10 时 HKV 回升，这组数据缺席。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>复现成本与适用边界</h4>
+    <p>14B 级基础模型 + 双教师 DMD + LoRA 后训练 + 4,000 小时自采数据，普通实验室难以复现；免训练多人对话虽轻量，但依赖检测器质量，硬掩码无法建模人物间交互动作（递物、接触）；此外「非人主体角色扮演」「多人对话」等能力主要以定性样例展示（论文表述），缺乏定量基准。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s10" ><span class="num">10</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>双教师 score 分歧何时有害？模态引擎的梯度冲突度能否自适应调节 $\alpha_a,\alpha_t$？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>Eq.3 把音频引擎定义为 $\epsilon_{\mathrm{audio}}(\cdot,\mathrm{text},\mathrm{audio}) - \epsilon_{\mathrm{text}}(\cdot,\mathrm{text})$。当两位教师对同一 $\mathbf{x}_\tau$ 的 score 估计方向相反时，引擎项会放大噪声——论文观察到的时序稳定性下降是否正源于此？若能量化分歧，就能在训练中动态调权。</p>
+      <p><strong>理论分析：</strong>可把梯度写成 $g = \alpha_a g_{\mathrm{aud}} + \alpha_t g_{\mathrm{text}}$，其协方差 $\mathrm{Var}(g) = \alpha_a^2\mathrm{Var}(g_{\mathrm{aud}}) + \alpha_t^2\mathrm{Var}(g_{\mathrm{text}}) + 2\alpha_a\alpha_t\mathrm{Cov}$。若 $\mathrm{Cov}<0$（教师分歧），增大任一 $\alpha$ 都会同时引入偏差-方差此消彼长；最优 $\alpha$ 应与 $\mathrm{Cov}$ 成反比。</p>
+      <p><strong>连接：</strong>与 Decoupled DMD（论文引文 [22]，「CFG 增强为矛、分布匹配为盾」）直接相关；也连接 model merging / teacher ensemble 中的冲突消解文献。</p>
+      <p><strong>探究方向：</strong>训练全程记录两教师 score 的余弦相似度分布，按时间步分桶；以此设计 $\alpha(t) = f(\mathrm{sim}(t))$ 的自适应调度，替代固定 0.1/4.0，验证时序稳定性与文本对齐能否同时不降。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>$t_{\mathrm{spot}}$ 的最优位置由什么决定？它与噪声调度、动作频谱是否有一般化关系？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>950 这个分界只是经验值（论文表述「typically」）。如果「全局动作在高噪声步定型」是普遍规律，那么 $t_{\mathrm{spot}}$ 应与动作复杂度、视频长度、CFG 离散化存在可推导关系，而非逐任务手调。</p>
+      <p><strong>理论分析：</strong>扩散模型各时间步对应不同空间频率带（低频结构先成形）。若把动作轨迹做频谱分解，$t_{\mathrm{spot}}$ 应对应「动作主频带完成」的时刻；视频越长、动作越快，主频带越宽，$t_{\mathrm{spot}}$ 理应越低。可从频谱截止的角度给出先验估计。</p>
+      <p><strong>连接：</strong>与 AlignHuman 的时间步分段偏好优化、以及「coarse-to-fine 生成」的频率分析工作相连；也呼应 Beyond Monologue 的「说话-倾听时间尺度差异」——两篇都在给模态/行为分配时间尺度。</p>
+      <p><strong>探究方向：</strong>在若干动作复杂度分档的数据上扫 $t_{\mathrm{spot}}$，拟合最优分界与动作频谱带宽的关系曲线，验证是否可用「先估计动作频谱、再定分界」的一般化公式替代手工调参。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>免训练多人掩码注意力的边界伪影能否用软路由消除？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>硬二值掩码使两个人物的运动在边界处互不可见，递物、握手等交互必然失败；检测抖动还会造成音画错配。软化路由是否能在不训练的前提下改善？</p>
+      <p><strong>理论分析：</strong>硬掩码相当于把注意力核限制在分块对角结构上，其假设是「人物运动互不耦合」。真实多人场景的运动是弱耦合的（接触、遮挡、共同物体），对应注意力矩阵的非对角低秩成分。用距离衰减或检测置信度加权的软掩码，等价于给非对角块一个先验小权重而非零权重。</p>
+      <p><strong>连接：</strong>与 InteractHuman 类布局对齐音频条件工作（论文引文 [39]）、以及图像分割中硬/软掩码的讨论相连。</p>
+      <p><strong>探究方向：</strong>构造含人物接触动作的测试集，比较硬掩码、检测置信度软掩码、以及高斯距离衰减掩码下的交互动作成功率与口型错配率。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>HKV 与文本可控性之间是否存在真实的能力张力？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>本文 HKV 最低（32.15）但文本对齐最强。论文归因于推理索引 +3 的抑制策略，但未验证。如果张力真实存在，「高表现力」与「听话」可能不可兼得，这对产品选型意义重大。</p>
+      <p><strong>理论分析：</strong>文本条件在双教师目标中被强化，可能使生成分布向「文本可描述的动作」收缩——而手部微动作（HKV 度量的运动丰富度）恰恰是文本提示几乎不描述的自由度。分布收缩牺牲的正是这些未被条件覆盖的维度，类似正则化中「强条件 → 低方差」的取舍。</p>
+      <p><strong>连接：</strong>与条件生成中「条件强度 vs 样本多样性」的经典权衡、以及音频驱动手势生成（CyberHost 的 HKC/HKV 指标体系）相连。</p>
+      <p><strong>探究方向：</strong>对同一模型扫伪末帧索引偏移（+3、+6、+10）与 $\alpha_t$，画出 HKV–文本对齐 Pareto 曲线；若曲线退化为单调取舍，张力成立；若存在平台区，则 +3 只是保守配置。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s11" ><span class="num">11</span> 代码附录</h2>
+  <p>以下代码把论文公式翻译为可读伪实现，帮助理解模块间的数值关系；变量命名沿用论文符号。</p>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># Twin-Teacher DMD 的 real score（对应论文 Eq.3）+ 动态 CFG 调度</span>
+<span class="kw">def</span> <span class="fn">twin_teacher_real_score</span>(x_tau, tau, c_text, c_audio, eps_audio, eps_text, t_spot=<span class="fn">950</span>):
+    c_un_text  = negative_prompt_embed      <span class="cm"># 负提示条件</span>
+    c_un_audio = zero_audio_embed           <span class="cm"># 空音频条件（零嵌入）</span>
+
+    <span class="cm"># 动态 CFG：高噪声步让文本优先，低噪声步让音频保口型</span>
+    alpha_a = <span class="fn">0.1</span> <span class="kw">if</span> tau > t_spot <span class="kw">else</span> <span class="fn">4.0</span>
+    alpha_t = TEXT_CFG_SCALE                  <span class="cm"># 论文未给出具体取值</span>
+
+    base   = eps_audio(x_tau, tau, c_un_text, c_un_audio)
+    e_a    = eps_audio(x_tau, tau, c_text, c_audio)   <span class="cm"># 音频教师：全条件</span>
+    e_t    = eps_text (x_tau, tau, c_text)            <span class="cm"># 文本教师：Wan2.2-I2V-14B</span>
+
+    audio_engine = e_a - e_t                  <span class="cm"># audio condition engine</span>
+    text_engine  = e_t - base                 <span class="cm"># text condition engine</span>
+    <span class="kw">return</span> base + alpha_a * audio_engine + alpha_t * text_engine
+
+<span class="kw">def</span> <span class="fn">dmd_step</span>(G_theta, z_t, tau):
+    x_hat = G_theta(z_t)                      <span class="cm"># 学生去噪输出</span>
+    x_tau = re_noise(x_hat, tau)              <span class="cm"># 重新加噪到噪声级 tau</span>
+    s_real  = twin_teacher_real_score(x_tau, tau, ...)
+    s_fake  = fake_model(x_tau, tau, ...)     <span class="cm"># 学生 EMA 副本的 score</span>
+    <span class="kw">return</span> -(s_real - s_fake) * grad(G_theta, z_t)   <span class="cm"># Eq.1 的梯度方向</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 免训练多人对话：按检测掩码给音频交叉注意力「分座位」（对应论文 Fig.6）</span>
+<span class="kw">def</span> <span class="fn">multi_person_audio_cross_attention</span>(video_latent, audio_streams, masks, silent_audio):
+    <span class="cm"># video_latent: [B, HW*T, D]；audio_streams[k]: 第 k 个人的音频嵌入</span>
+    <span class="cm"># masks[k]: 检测器给出的二值掩码（该人区域=1，其余=0）</span>
+    Q = video_proj(video_latent)              <span class="cm"># 查询来自视频 latent</span>
+    out = zeros_like(video_latent)
+    <span class="kw">for</span> k, audio_k <span class="kw">in</span> enumerate(audio_streams):
+        K_k, V_k = audio_kv(audio_k)          <span class="cm"># 键/值来自多路音频嵌入</span>
+        attn_k = softmax(Q @ K_k.T / sqrt(d)) @ V_k
+        out = out + masks[k] * attn_k         <span class="cm"># 该人音频只作用于其掩码区域</span>
+    bg = <span class="fn">1.0</span> - sum(masks)                      <span class="cm"># 掩码为 0 的区域</span>
+    K_s, V_s = audio_kv(silent_audio)         <span class="cm"># 静音音频接管背景区域</span>
+    out = out + bg * (softmax(Q @ K_s.T / sqrt(d)) @ V_s)
+    <span class="kw">return</span> out                                <span class="cm"># 全程零训练，支持 3 人以上/多轮对话</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># PE 模块：按时长切分文本片段，避免跨段动作重复（Qwen3-VL-32B 之上优化）</span>
+<span class="kw">def</span> <span class="fn">plan_prompt_fragments</span>(user_prompt, audio_duration_s):
+    n = min(<span class="fn">5</span>, int(audio_duration_s / <span class="fn">3.24</span>) + <span class="fn">1</span>)   <span class="cm"># 每 3.24s 一个片段，上限 5</span>
+    plan = mllm_agent.decompose(user_prompt, n)        <span class="cm"># 语义按时序拆解</span>
+    <span class="kw">return</span> [plan.assign_to_segment(i) <span class="kw">for</span> i <span class="kw">in</span> range(n)]</pre>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

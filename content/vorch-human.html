@@ -1,0 +1,400 @@
+<section class="b-section">
+  <h2><span class="num">01</span> 一句话读懂：当人类音视觉生成「各说各话」</h2>
+  <p class="lead">Vorch-Human 的核心主张可以压缩成一句话：<strong>把「目标 token 与条件 token 如何组织」这件事本身抽象成一个统一的任务表示</strong>（unified target–condition representation），用角色嵌入（role embeddings）、时间位置类型（temporal position types）和干净 token 掩码（clean-token masks）三重标注，把文本/图像条件生成、音频驱动人物动画、外观–音色参考联合生成、以及时序长视频续写，全部收进同一个双流音视频扩散 Transformer。在此之上，<strong>跨任务条件组合</strong>把持久化的外观/音色参考与滚动的生成历史拼成同一套条件接口，从而在不换骨干网络的前提下支持 5 分钟长时程续写。</p>
+  <p>论文的出发点是一个观察：以人为中心的音视觉生成任务其实共享同一类场景——同一个人、同一段话、同一段声画——但现有系统的<strong>条件接口是碎片化的</strong>：驱动音频直接控运动，参考波形或图像指定音色/外观，长视频续写又单独开一个时序条件接口。接口碎片化的直接代价是监督信号无法跨任务共享、跨生成模式的一致控制无法保证。论文明确写道，一个能接受异质条件并保持其语义的单一模型，「would reduce this fragmentation and allow supervision to be shared across tasks」。</p>
+  <p>值得先立住的方法论立场：Vorch-Human 不提出新的生成骨干，而是继承 LTX-2.3（基于 LTX-2 的双流音视频扩散架构）做初始化，把创新点全部押在<strong>「怎么把条件喂进去」的表示层</strong>上。这与「堆更大模型」的路线形成对照——它赌的是：条件接口的统一会带来监督共享与控制一致性，其收益足以抵消不做架构创新的保守。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「表示层统一」比「架构统一」更容易被低估</h4>
+    <p>联合音视频生成领域近两年的主线是架构之争（双流 vs 单塔 vs 专家拼接），但 Vorch-Human 把赌注下在一个更朴素的层面：<strong>任务差异被编码进 token 的元数据（角色、位置、掩码），而不是模型结构</strong>。这使得「新增一种任务」从「新增一条条件通路/一个专家」退化为「新增一组 token 编排配置」。其代价是模型必须学会解读这些元数据——论文用消融（Table 5）证明角色嵌入、主体索引、独立参考位置三者缺一都会显著劣化，说明这套元数据不是免费的语法糖，而是承担了真实的信息分工。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">02</span> 范式定位：任务专用接口 vs 统一任务表示</h2>
+  <p>论文在相关工作里给自己划定了清晰的坐标。联合音视频生成一侧：LaVie/SEINE 奠定视频扩散基础，Latte、CogVideoX、HunyuanVideo、Wan、Seedance 推进视觉合成，LTX-2 用双流 Transformer、Ovi 用耦合扩散骨干、ALIVE/MagiHuman 探索联合场景与人物生成。条件人物生成一侧：HunyuanVideo-Avatar、SkyReels-Audio、Wan-S2V、InfiniteTalk 做音频驱动控制，MultiTalk/AnyTalker/OmniHuman-1.5 做对话或表现力生成，OmniShow/HuMo/Phantom/DreamID-Omni 做参考控制。长视频一侧：LongCat-Avatar1.5、KlingAvatar 2.0、LiveAvatar、StreamChar、HalloLive、LPM 1.0 用流式/因果/分窗设计延长生成。</p>
+  <p>Vorch-Human 的差异化主张不在这三列任何一列里，而在<strong>三列的交点</strong>：「a common conditioning interface that distinguishes driving speech, voice identity, appearance, and temporal context」——把「驱动语音」「音色身份」「外观」「时序上下文」这四种语义完全不同的条件，用同一套 token 级标注区分并组合。</p>
+  <div class="figure"><svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="28" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="16" fill="#2C3E50" font-weight="bold">范式对比：任务专用条件接口 vs 统一目标–条件表示</text>
+    <rect x="30" y="52" width="360" height="300" rx="10" fill="#F4F7FA" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="210" y="80" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#2C3E50" font-weight="bold">任务专用接口（现状）</text>
+    <rect x="55" y="100" width="140" height="52" rx="6" fill="#1B4B6F"/><text x="125" y="122" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">音频驱动动画</text><text x="125" y="140" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">驱动音频 → 运动</text>
+    <rect x="225" y="100" width="140" height="52" rx="6" fill="#5A8F7B"/><text x="295" y="122" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">参考式生成</text><text x="295" y="140" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">图像/波形 → 身份</text>
+    <rect x="55" y="172" width="140" height="52" rx="6" fill="#C9A86C"/><text x="125" y="194" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">长视频续写</text><text x="125" y="212" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">专用时序条件口</text>
+    <rect x="225" y="172" width="140" height="52" rx="6" fill="#E85D4E"/><text x="295" y="194" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">文本/图像生成</text><text x="295" y="212" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">各自的条件通路</text>
+    <text x="210" y="262" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">每种任务一条条件通路</text>
+    <text x="210" y="282" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">监督无法共享 · 跨模式控制不一致</text>
+    <path d="M210 300 l0 34" stroke="#2C3E50" stroke-width="2"/><path d="M210 340 l-8 -12 l16 0 z" fill="#2C3E50"/>
+    <text x="210" y="332" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">口径不一</text>
+    <rect x="420" y="52" width="350" height="300" rx="10" fill="#F4F7FA" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="595" y="80" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="14" fill="#1B4B6F" font-weight="bold">统一任务表示（Vorch-Human）</text>
+    <rect x="445" y="98" width="300" height="44" rx="6" fill="#1B4B6F"/><text x="595" y="118" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">目标 token：Xv（视频）· Xa（音频）</text><text x="595" y="134" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">条件 token：Cv · Ca</text>
+    <rect x="445" y="158" width="94" height="60" rx="6" fill="#5A8F7B"/><text x="492" y="182" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">角色 ID</text><text x="492" y="200" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FFFFFF">语义功能</text>
+    <rect x="548" y="158" width="94" height="60" rx="6" fill="#C9A86C"/><text x="595" y="182" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">位置类型</text><text x="595" y="200" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FFFFFF">−1/0/1</text>
+    <rect x="651" y="158" width="94" height="60" rx="6" fill="#E85D4E"/><text x="698" y="182" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">干净掩码</text><text x="698" y="200" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#FFFFFF">1 条件 / 0 目标</text>
+    <rect x="445" y="236" width="300" height="42" rx="6" fill="#FFFFFF" stroke="#1B4B6F" stroke-width="1.5"/><text x="595" y="254" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">共享音视频扩散 Transformer</text><text x="595" y="270" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">同一 masked flow-matching 目标</text>
+    <text x="595" y="306" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">六种任务 = 六种 token 编排配置</text>
+    <text x="595" y="326" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">条件组合可跨任务复用 → 长时续写</text>
+    <path d="M395 200 l22 0" stroke="#2C3E50" stroke-width="2"/><path d="M421 200 l-12 -7 l0 14 z" fill="#2C3E50"/>
+    <text x="406" y="188" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">统一</text>
+  </svg><div class="figcap"><b>图 1</b> · 把「碎片化的任务专用条件接口」与「统一目标–条件表示」并置：左图每个任务一条条件通路，右图所有任务共用一套 token 元数据（角色、位置、掩码）+ 同一骨干与同一训练目标——抽象的「接口统一」由此具象化为「token 编排配置」。</div></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>任务专用路线（论文综述所列）</th><th>Vorch-Human 的选择</th></tr></thead>
+    <tbody>
+      <tr><td class="route">条件语义</td><td>驱动音频/参考波形/参考图像/历史各走各的接口</td><td>统一编码为 Cv/Ca 条件组，用角色 ID 区分语义</td></tr>
+      <tr><td class="route">任务扩展</td><td>新增任务 ≈ 新增条件通路或专家</td><td>新增任务 ≈ 新增 (Gτ, Rτ, Qτ, Bτ) 配置</td></tr>
+      <tr><td class="route">长视频</td><td>专用时序条件接口 / 流式、因果、分窗骨干</td><td>把生成历史当「额外固定条件」，与短片共用接口</td></tr>
+      <tr><td class="route">监督共享</td><td>各任务独立训练，监督割裂</td><td>多任务混合训练，任务采样比 3:3:3:2:2:2</td></tr>
+    </tbody>
+  </table></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>统一表示的本质是「把任务差异移出模型、移入数据」</h4>
+    <p>经典多任务学习的难题是任务间梯度冲突；Vorch-Human 的解法是让所有任务共享<strong>同一个条件生成目标</strong>（只有目标 token 参与损失），任务差异被压缩为输入端的编排。这在信息论上是一个有趣的交换：模型容量不再用于记忆「这是哪种任务的条件通路」，而是用于学习「条件 token 与目标 token 的语义关系」。其隐含前提是元数据（角色/位置/掩码）的编码带宽足以无歧义地区分所有任务——消融中「SI merged（所有主体共用同一参考索引）导致多人身份相似度最大跌幅（ID-Sim 多人从 0.5814 跌到 0.2951）」正说明：一旦元数据的区分度被削弱，统一表示就会退化成「条件糊成一团」。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">03</span> 统一任务表示：四类 token 组 × 三重标注</h2>
+  <p>先把对象定义清楚。给定文本提示 p 与可选的视觉/声学条件，模态专用 VAE 编码观测与目标，patchify 之后 latent token 被组织成四组：<strong>视频目标 Xv、视觉条件 Cv、音频目标 Xa、声学条件 Ca</strong>；任务规格 τ 决定哪些组活跃、每个组的角色、时间位置类型与干净掩码：</p>
+  <div class="formula-card"><div class="f-label">Eq.1–2 · 统一 token 组织与任务规格（原文式 (1)(2)）</div>
+    <div>$$ X = \{X_v,\, C_v,\, X_a,\, C_a\}, \qquad \tau = (G_\tau,\, R_\tau,\, Q_\tau,\, B_\tau) $$</div>
+    <div>$$ p_\theta\big(\{X_m\}_{m \in T_\tau} \,\big|\, p,\, C_\tau;\, \tau\big), \qquad T_\tau \subseteq \{v, a\} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>Gτ 是活跃 token 组集合（缺失组直接省略），Rτ 是角色 ID，Qτ 是时间位置类型，Bτ 是干净 token 掩码；Tτ ⊆ {v, a} 决定预测哪些模态——音频驱动任务只预测视频（Tτ={v}），联合生成任务同时预测音频与视频（Tτ={v,a}）。整个「任务」被写成一个可序列化的元组，这正是「统一」的数学落点。</div></div>
+  <p>第二重标注是<strong>角色嵌入</strong>。对模态 m 的 token z<sub>i</sub><sup>m</sup>，Proj<sub>m</sub> 把 latent 特征映射到 Transformer 隐维，再加上该组角色 ID 选出的角色嵌入（r<sub>i</sub> = 0 时不上加，用指示函数控制）：</p>
+  <div class="formula-card"><div class="f-label">Eq.3 · 角色嵌入注入（原文式 (3)，系数已核对）</div>
+    <div>$$ eh_i^m = \mathrm{Proj}_m(z_i^m) + \mathbb{1}[r_i \neq 0]\, E^m(r_i), \qquad m \in \{v, a\} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>指示函数 𝕂[r_i ≠ 0]（原文写作 𝕀）保证「普通目标与首帧条件」（角色 0）不注入角色嵌入，只有条件组携带语义标签。视频与音频<strong>各自使用独立的嵌入表</strong>；驱动音频与独立音色参考拿到互不相同的角色索引；成对的外观–音色参考在各自模态表里使用 1…K 的对应主体索引，从而把「这张脸配这段声音」绑定到同一个主体编号上。</div></div>
+  <p>第三重标注由<strong>时间位置类型 q ∈ {−1, 0, 1}</strong>与<strong>干净 token 掩码 B<sub>i</sub><sup>m</sup></strong>共同承担：q = −1 表示独立参考（保留自身坐标），q = 0 表示目标之前的上下文，q = 1 表示目标（后两者被放到生成时间轴上）；B = 1 表示固定条件、0 表示待生成。两个容易被忽略的细节：<strong>坐标只编码时间摆放，语义功能由角色嵌入负责</strong>；独立编码的驱动音频仍能通过<strong>物理时间坐标</strong>与目标视频对齐。另外论文明确强调：掩码标注的是「预测状态」而非注意力可见性——所有 token 之间照常互相可见，这与「只看条件不看目标」的遮罩式训练是两回事。</p>
+  <div class="figure"><svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="26" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">角色感知装配：同一 token 流里的三重标注</text>
+    <rect x="40" y="50" width="720" height="46" rx="6" fill="#1B4B6F"/>
+    <text x="60" y="70" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">Cv 条件组（首帧 / 外观参考 1…K）</text>
+    <text x="60" y="87" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#BFD3E0">角色 r=0 或 1…K · 位置 q=−1 或 0 · 掩码 B=1</text>
+    <rect x="40" y="106" width="720" height="46" rx="6" fill="#5A8F7B"/>
+    <text x="60" y="126" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">Xv 视频目标（含上下文窗口与新片段）</text>
+    <text x="60" y="143" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#D8E8E0">角色 r=0 · 位置 q=1（目标）或 0（历史）· 掩码 B=0 / 1</text>
+    <rect x="40" y="162" width="720" height="46" rx="6" fill="#C9A86C"/>
+    <text x="60" y="182" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">Ca 声学条件组（驱动音频 r_drive / 音色参考 r_voice）</text>
+    <text x="60" y="199" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FBF3E2">驱动与音色参考角色互异 · 独立参考保留自身坐标（q=−1）· 掩码 B=1</text>
+    <rect x="40" y="218" width="720" height="46" rx="6" fill="#E85D4E"/>
+    <text x="60" y="238" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">Xa 音频目标（联合生成时参与预测）</text>
+    <text x="60" y="255" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FBE3DF">角色 r=0 · 位置 q=1 · 掩码 B=0 · 与视频共用采样的流时间 σ</text>
+    <rect x="40" y="282" width="720" height="52" rx="8" fill="#FFFFFF" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="400" y="303" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">共享音视频扩散 Transformer：全 token 互相可见；掩码只决定「谁参与损失」</text>
+    <text x="400" y="322" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">同一目标：target-only masked flow matching（音频驱动仅视频损失，联合生成双模态损失）</text>
+  </svg><div class="figcap"><b>图 2</b> · 「角色感知装配」把抽象的 (R, Q, B) 三元组画成横贯四类 token 组的标注带：颜色即模态/语义分工，行内小字即三重标注的取值——统一表示在这里从公式变成可检查的数据结构。</div></div>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">角色嵌入（Role IDs）</div>
+      <div class="dd">编码语义功能与主体关联：驱动音频 r<sub>drive</sub> 与音色参考 r<sub>voice</sub> 互异；成对参考用 1…K 主体索引分别落在视频/音频各自的嵌入表。<span class="alt">替代方案：用文本标签描述条件类型——但文本经 VLM 编码后语义粒度不受控，消融 w/o RE（去掉角色嵌入）直接损失身份保持与语音准确度（WER 0.0234 → 0.1064）。</span></div></div>
+    <div class="def-item"><div class="dt">时间位置类型（q ∈ {−1,0,1}）</div>
+      <div class="dd">−1 独立参考 / 0 目标前上下文 / 1 目标；独立组保留自身坐标，时间组放到生成时间轴。<span class="alt">替代方案：把参考一律放在目标之前（消融 w/o RP）——同步与语音准确度双双最差（Sync-C 从 5.47 跌到 1.01）。</span></div></div>
+    <div class="def-item"><div class="dt">干净 token 掩码（B）</div>
+      <div class="dd">1 = 固定条件（保持给定值、流时间为 0），0 = 待生成；只标注预测状态、不限制注意力。<span class="alt">替代方案：显式注意力遮罩——会破坏「条件与目标互相参考」的联合去噪信息流。</span></div></div>
+    <div class="def-item"><div class="dt">结构化文本提示</div>
+      <div class="dd">VLM 提示按 [SUBJECTS]/[BACKGROUND_AUDIO]/[SHOTS]/[NARRATION] 四块组织，主体 ID 把参考资产、动作与台词轮次串起来（附录 B/D）。<span class="alt">替代方案：自由文本 caption——MLLM 纠错与说话人归属就没有可对齐的锚点。</span></div></div>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">04</span> 六种任务配置：一个表示，六种编排</h2>
+  <p>统一表示的第一张考卷是任务覆盖度。论文用一张配置表（原文 Table 1）列出六种任务：<strong>T2AV</strong>（文本→音视频）、<strong>TI2AV</strong>（文本+首帧→音视频）、<strong>TIA2V</strong>（文本+首帧+驱动音频→仅视频）、<strong>TRA2AV</strong>（文本+音色参考→音视频）、<strong>TIRA2AV</strong>（文本+首帧+音色参考→音视频）、<strong>TR2AV</strong>（文本+K 对外观–音色参考→音视频）。其中 T2AV 与 TI2AV 是 LTX-2.3 骨干继承的基础能力。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>任务</th><th>预测 token</th><th>条件 token</th><th>语义要点</th></tr></thead>
+    <tbody>
+      <tr><td class="route">T2AV</td><td>Xv, Xa</td><td>p</td><td>纯文本生成音视频（骨干继承能力）</td></tr>
+      <tr><td class="route">TI2AV</td><td>Xv, Xa</td><td>p, 首帧 C<sup>first</sup><sub>v</sub></td><td>首帧约束初始场景</td></tr>
+      <tr><td class="route">TIA2V</td><td>Xv</td><td>p, 首帧, 驱动音频 C<sup>drive</sup><sub>a</sub></td><td>驱动音频给内容与节奏，只预测视频</td></tr>
+      <tr><td class="route">TRA2AV</td><td>Xv, Xa</td><td>p, 音色参考 C<sup>voice</sup><sub>a</sub></td><td>参考音频只供音色，不供内容</td></tr>
+      <tr><td class="route">TIRA2AV</td><td>Xv, Xa</td><td>p, 首帧, 音色参考</td><td>首帧 + 音色的联合生成</td></tr>
+      <tr><td class="route">TR2AV</td><td>Xv, Xa</td><td>p, K 对参考 {C<sup>id</sup><sub>v,k</sub>, C<sup>voice</sup><sub>a,k</sub>}</td><td>角色索引把每对参考绑定到主体 k</td></tr>
+    </tbody>
+  </table></div>
+  <p>读这张表时最值得咀嚼的是<strong>「驱动音频」与「音色参考」的角色分家</strong>：两者都是音频条件，但前者是「观测到的目标话语」（内容+节奏被显式给定，因此目标里没有 Xa），后者是「新语音的身份证据」（内容由文本生成、音色由参考约束）。统一表示用两个互异的角色索引把这一语义差别写进了 token 流，而不是留给模型猜。这直接解释了为什么同一个骨干既能做口型驱动动画、又能做零样式的「声音克隆式」联合生成。</p>
+  <div class="figure"><svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="26" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">跨任务条件组合：从短片配置到长时续写</text>
+    <rect x="30" y="52" width="170" height="76" rx="8" fill="#1B4B6F"/><text x="115" y="80" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">TIA2V</text><text x="115" y="100" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">首帧 + 驱动音频</text><text x="115" y="116" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">→ 视频</text>
+    <rect x="30" y="150" width="170" height="76" rx="8" fill="#5A8F7B"/><text x="115" y="178" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">TIRA2AV</text><text x="115" y="198" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">首帧 + 音色参考</text><text x="115" y="214" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">→ 音视频</text>
+    <rect x="30" y="248" width="170" height="76" rx="8" fill="#C9A86C"/><text x="115" y="276" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">TR2AV</text><text x="115" y="296" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">K 对外观–音色参考</text><text x="115" y="312" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">→ 多主体音视频</text>
+    <path d="M210 90 l60 0 l40 60" stroke="#E85D4E" stroke-width="2" fill="none"/><path d="M310 150 l-4 -14 l12 4 z" fill="#E85D4E"/>
+    <path d="M210 188 l60 0 l40 -38" stroke="#E85D4E" stroke-width="2" fill="none"/>
+    <path d="M210 286 l40 0 l60 -96" stroke="#E85D4E" stroke-width="2" fill="none" stroke-dasharray="6 4"/>
+    <text x="248" y="120" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">注入外观参考组</text>
+    <text x="248" y="172" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#E85D4E">注入外观参考组</text>
+    <rect x="320" y="120" width="210" height="120" rx="10" fill="#FFFFFF" stroke="#2C3E50" stroke-width="2"/>
+    <text x="425" y="146" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#2C3E50" font-weight="bold">组合后的续写配置</text>
+    <text x="336" y="170" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">C_id：持久外观参考（跨窗口固定）</text>
+    <text x="336" y="190" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">H_{j−1}：滚动历史（视频 / 视频+音频）</text>
+    <text x="336" y="210" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">U_j：当前文本 p_j（+ 驱动波形段）</text>
+    <text x="336" y="230" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">→ 生成第 j 窗口的 Xv（或 Xv+Xa）</text>
+    <path d="M540 180 l70 0" stroke="#2C3E50" stroke-width="2"/><path d="M614 180 l-12 -7 l0 14 z" fill="#2C3E50"/>
+    <rect x="620" y="120" width="150" height="120" rx="10" fill="#F4F7FA" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="695" y="150" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#1B4B6F">同一条件接口</text>
+    <text x="695" y="172" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">短片 ↔ 分窗续写</text>
+    <text x="695" y="192" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">无需长视频专用骨干</text>
+    <text x="695" y="216" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">两种续写模式并存</text>
+  </svg><div class="figcap"><b>图 3</b> · 跨任务条件组合的因果链：短片任务配置（左）通过「追加外观参考组」演化为续写配置（中），而配置之于模型仍是同一套 (Gτ,Rτ,Qτ,Bτ)——「长时能力从短片能力中长出来」这一抽象论断被画成了一条可追踪的装配流水线。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「驱动音频」与「音色参考」的分离是整个表示的枢纽</h4>
+    <p>人类语音条件天然有两层：<strong>说了什么/怎么说</strong>（内容与韵律）与<strong>谁在说</strong>（音色身份）。碎片化接口把两者绑在同一条「音频输入」里，导致「换个音色说指定台词」这类组合需求无法表达。Vorch-Human 用 r<sub>drive</sub>/r<sub>voice</sub> 两个角色把两层拆开后，「外观参考 + 驱动音频」与「外观参考 + 音色参考」的组合就自然浮现为两种长时续写模式（式 5/6）。可以说：<strong>统一表示的收益不是来自「统一」本身，而是来自先「解耦」再「统一」。</strong></p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">05</span> 长时续写机制：持久引用 × 滚动上下文</h2>
+  <p>长视频续写被 Vorch-Human 处理成一个条件组合问题，而不是一个新架构问题。对第 j 个生成窗口，条件被分解为三段并集：<strong>固定身份集 C<sub>id</sub></strong>（外观参考，联合生成时再加音色参考）、<strong>滚动历史 H<sub>j−1</sub></strong>（上一段的视频 latent H<sub>v,j−1</sub>，联合生成时还有音频 latent H<sub>a,j−1</sub>）、<strong>当前输入 U<sub>j</sub></strong>（文本 p<sub>j</sub> 与音频驱动时的波形段 C<sup>drive</sup><sub>a,j</sub>）：</p>
+  <div class="formula-card"><div class="f-label">Eq.4 · 窗口条件分解（原文式 (4)）</div>
+    <div>$$ C_j = C_{id} \cup H_{j-1} \cup U_j $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>三类条件在时间轴上的「寿命」不同：C_id 全程不变（身份证据），H 每窗口滚动更新（时序连续性证据），U 每窗口换新（当前指令与驱动）。长时一致性问题被分解为「身份不漂移」与「接缝不跳变」两个可分别消融的机制——原文 Table 6 恰好对应做了这两个消融（w/o PAR 与 w/o CA）。</div></div>
+  <div class="formula-card"><div class="f-label">Eq.5–6 · 两种续写模式（原文式 (5)(6)）</div>
+    <div>$$ X_{v,j} \sim p_\theta\big(X_{v,j} \,\big|\, H_{v,j-1},\, C_{app},\, C^{drive}_{a,j},\, p_j\big) $$</div>
+    <div>$$ (X_{v,j}, X_{a,j}) \sim p_\theta\big(X_{v,j}, X_{a,j} \,\big|\, H_{v,j-1},\, H_{a,j-1},\, C_{app},\, C_{voice},\, p_j\big) $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>式 (5) 是音频驱动续写：滚动上下文只有视频，驱动波形段是观测条件，只预测视频；式 (6) 是音色参考式联合续写：音视频历史都滚动，音色参考持久，双模态联合预测。两式共享同一个条件接口，差异只是「哪些组活跃、谁进掩码」——这正是统一任务表示在长时维度上的兑现。</div></div>
+  <p>推理侧的机制（附录 C.4）给这套抽象补上了可复现的细节：<strong>16 秒生成窗口 + 15.2 秒步长 = 0.8 秒重叠</strong>；第一个窗口用首帧确立初始场景，其后的窗口<strong>不再输入时序首帧</strong>，只保留持久外观参考（联合模式再加音色参考）；每个窗口的上下文在该窗口去噪期间<strong>保持固定</strong>，新片段生成后去重重叠 token、拼接、裁剪到目标时长、再经时空分块解码。论文特别指出：生成是「chunk 间自回归、chunk 内扩散」，<strong>不需要窗口内逐 token 因果生成</strong>——长时能力因此不需要牺牲扩散模型的并行生成效率。</p>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="26" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">分窗自回归续写：固定上下文去噪 + 重叠去重</text>
+    <rect x="40" y="70" width="220" height="70" rx="8" fill="#1B4B6F"/><text x="150" y="98" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">窗口 j−1（16 s）</text><text x="150" y="120" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#BFD3E0">已生成，latent 进入历史</text>
+    <rect x="236" y="70" width="24" height="70" fill="#C9A86C"/><text x="248" y="200" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#C9A86C">0.8 s 重叠</text>
+    <rect x="252" y="70" width="220" height="70" rx="8" fill="#5A8F7B"/><text x="362" y="98" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">窗口 j（16 s，步长 15.2 s）</text><text x="362" y="120" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#D8E8E0">上下文固定 → 去噪 → 去重拼接</text>
+    <rect x="448" y="70" width="220" height="70" rx="8" fill="#E85D4E" stroke-dasharray="6 4"/><text x="558" y="98" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#FFFFFF">窗口 j+1（待生成）</text><text x="558" y="120" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FBE3DF">历史更新后再开窗</text>
+    <path d="M362 145 l0 40" stroke="#2C3E50" stroke-width="1.5"/><path d="M362 190 l-6 -10 l12 0 z" fill="#2C3E50"/>
+    <rect x="40" y="212" width="720" height="100" rx="10" fill="#F4F7FA" stroke="#2C3E50" stroke-width="1.5"/>
+    <rect x="60" y="232" width="180" height="60" rx="6" fill="#1B4B6F"/><text x="150" y="256" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">持久参考 C_id（全程固定）</text><text x="150" y="276" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#BFD3E0">外观（+ 音色）</text>
+    <path d="M250 262 l50 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M302 262 l-10 -6 l0 12 z" fill="#2C3E50"/>
+    <rect x="310" y="232" width="180" height="60" rx="6" fill="#5A8F7B"/><text x="400" y="256" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">滚动历史 H_{j−1}</text><text x="400" y="276" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#D8E8E0">视频（+ 音频）latent</text>
+    <path d="M500 262 l50 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M552 262 l-10 -6 l0 12 z" fill="#2C3E50"/>
+    <rect x="560" y="232" width="180" height="60" rx="6" fill="#C9A86C"/><text x="650" y="256" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">当前输入 U_j</text><text x="650" y="276" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FBF3E2">文本 p_j（+ 驱动段）</text>
+    <text x="400" y="330" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">去重重复重叠 token → 拼接 → 裁剪到时长 → 视频用时空分块解码</text>
+  </svg><div class="figcap"><b>图 4</b> · 把式 (4) 的三段条件并集画成时间轴上的三种「寿命」：持久参考（长青）、滚动历史（每窗换）、当前输入（一次一换）。长时一致性 = 身份锚点 + 接缝管理，两个抽象机制各自有了位置。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「上下文固定」是被低估的去噪纪律</h4>
+    <p>很多分窗续写方案让历史 latent 与新片段一起参与去噪（或持续刷新），结果历史本身被「改写」，误差随窗口累积。Vorch-Human 的规则是：<strong>历史在窗口内是常量，只在窗口之间更新</strong>——它把历史变成「带噪声标注 B=1 的条件」，与首帧、参考图在损失与去噪中地位完全相同。这一设计与统一表示天然契合：续写窗口与短片训练样本在数据结构上同构，第二阶段的「上下文适应」只需教模型「把历史当条件读」，而不需要新的建模范式。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>0.8 秒重叠与「5 分钟稳定」之间的因果链并非无缝</h4>
+    <p>重叠去重只解决 token 级重复，不解决窗口边界处的<strong>语义跳变</strong>（光照、姿态分布突变）。原文消融显示去掉上下文适应训练后出现「头部与衣物局部畸变、chunk 间光照突变」（w/o CA），说明这些跳变主要靠第二阶段训练压住，而非机制上被消除。此外 AV-Sync 一项（26.915 ms）明显落后于 InfiniteTalk（8.537 ms），提示窗口化滚动在<strong>音画对齐的连续性</strong>上仍有系统性代价——「稳定 5 分钟」的身份/外观结论不能直接外推为「5 分钟全程同步最优」。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">06</span> 训练策略：target-only masked flow matching + 两阶段</h2>
+  <p>训练目标是<strong>线性流匹配</strong>：把每个干净目标 token x<sup>m</sup><sub>0,i</sub> 与高斯噪声 ε<sup>m</sup><sub>i</sub> 在流时间 σ 处插值，目标速度 u<sup>m</sup><sub>i</sub> = ε<sup>m</sup><sub>i</sub> − x<sup>m</sup><sub>0,i</sub>；条件 token 保持给定值、<strong>流时间取 0</strong>；生成的音频与视频<strong>共用同一个采样 σ</strong>（这是双模态同步在训练侧的关键约束）。损失只落在掩码为 0 的待生成 token 上：</p>
+  <div class="formula-card"><div class="f-label">Eq.7 · 目标限定的掩码流匹配损失（原文式 (7)，分母已核对）</div>
+    <div>$$ \mathcal{L} = \mathbb{E}_{\tau \sim \pi,\, x \sim D_\tau,\, \sigma,\, \epsilon} \Big[ \sum_{m \in T_\tau} \mathcal{L}^m \Big], \qquad \mathcal{L}^m = \frac{\sum_i (1 - B_i^m)\, \big\| f^m_\theta(X_\sigma, p; \tau)_i - u_i^m \big\|_2^2}{d^m \sum_i (1 - B_i^m)} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>分子是仅在 (1−B) 选中的预测 token 上的速度场平方误差；分母用「预测 token 数 × latent 特征维 d<sup>m</sup>」归一化，使不同模态、不同条件数量下的损失量纲可比——这对多任务混合至关重要，否则「条件多、目标少」的任务会天然压低损失权重。模态无预测 token 时整项排除：音频驱动只算视频损失，联合生成双损失相加。</div></div>
+  <p>两阶段训练是这篇论文的节奏设计：<strong>第一阶段</strong>按 π(τ) 混合采样六种任务（采样比 T2AV : TI2AV : TIA2V : TRA2AV : TIRA2AV : TR2AV = <strong>3 : 3 : 3 : 2 : 2 : 2</strong>）建立共享生成能力；<strong>第二阶段</strong>做上下文适应：历史视频/音频 latent 作为已知条件（B=1），新片段 B=0，训练模型续写后续片段。联合生成里音视频上下文 token 都置 B=1；音频驱动则保留视频上下文、驱动波形保持观测。两阶段都用式 (7) 同一个目标。</p>
+  <div class="figure"><svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="26" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">两阶段训练：多任务混合 → 上下文适应</text>
+    <rect x="40" y="60" width="330" height="120" rx="10" fill="#F4F7FA" stroke="#1B4B6F" stroke-width="2"/>
+    <text x="205" y="86" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#1B4B6F" font-weight="bold">阶段一 · 多任务混合训练</text>
+    <text x="60" y="112" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">T2AV:TI2AV:TIA2V:TRA2AV:TIRA2AV:TR2AV</text>
+    <text x="60" y="130" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">= 3 : 3 : 3 : 2 : 2 : 2</text>
+    <text x="60" y="152" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">目的：共享生成能力 + 学会解读元数据</text>
+    <text x="60" y="170" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">64×H200 · AdamW · lr 1e-5 · EMA 0.999</text>
+    <path d="M380 120 l50 0" stroke="#2C3E50" stroke-width="2"/><path d="M432 120 l-12 -7 l0 14 z" fill="#2C3E50"/>
+    <rect x="440" y="60" width="320" height="120" rx="10" fill="#F4F7FA" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="600" y="86" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="13" fill="#5A8F7B" font-weight="bold">阶段二 · 上下文适应</text>
+    <text x="460" y="112" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">200,000 样本；历史 latent 作条件（B=1）</text>
+    <text x="460" y="130" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">音/视频上下文各跨 0.8 秒</text>
+    <text x="460" y="152" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">目的：学会「把历史当条件读」并续写</text>
+    <text x="460" y="170" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">同一 masked flow-matching 目标（式 7）</text>
+    <rect x="40" y="206" width="720" height="102" rx="10" fill="#FFFFFF" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="400" y="232" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50" font-weight="bold">不变量：目标限定损失 · 条件流时间 0 · 音视频共享 σ · CFG 语义条件 0.1 概率丢弃</text>
+    <rect x="70" y="250" width="180" height="42" rx="6" fill="#C9A86C"/><text x="160" y="276" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">条件 token：B=1，保持给定值</text>
+    <rect x="290" y="250" width="180" height="42" rx="6" fill="#E85D4E"/><text x="380" y="276" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">目标 token：B=0，回传速度误差</text>
+    <rect x="510" y="250" width="220" height="42" rx="6" fill="#1B4B6F"/><text x="620" y="276" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">Tτ 决定算哪些模态的损失</text>
+    <text x="400" y="332" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">推理：蒸馏版 LTX-2.3 噪声调度，8 步去噪</text>
+  </svg><div class="figcap"><b>图 5</b> · 两阶段训练的「变与不变」：阶段切换改变的是数据里上下文条件的出现方式，不变的是损失口径（式 7）——训练流程图由此把「续写能力从哪来」讲成了一条可核查的因果链。</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>条件流时间取 0，是一个优雅的「不学也罢」设计</h4>
+    <p>条件 token 被给定流时间 0（即永远处于干净端点），等价于告诉流匹配目标：<strong>这些 token 不需要被「去噪」，它们是坐标系而非运动物体</strong>。配合目标限定归一化损失，模型的全部学习压力都被引向「条件 → 目标」的映射本身。音视频共用采样 σ 则是同步性的训练侧锚点：两个模态在同一噪声时刻被联合求解，使跨模态注意力学到的是同一时刻的耦合，而不是两段各自去噪后的后期对齐。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>采样比 3:3:3:2:2:2 暴露了「基础能力」与「扩展能力」的分层</h4>
+    <p>基础生成任务（T2AV/TI2AV/TIA2V）采样权重高于三类参考式任务（2 而非 3）。这暗示作者把「基本画质与同步」视为共享底座、把「参考条件解读」视为其上的增量能力——底座任务权重过低会让参考任务在「画质没学会」的模型上空转。<strong>但论文没有给出采样比的消融</strong>，这条设计依据目前只是论文表述层面的推断。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">07</span> 附录里的硬细节：数据管线与结构化提示</h2>
+  <p>统一表示要成立，训练数据必须把「谁在说话、长什么样、什么音色」精确标注出来。附录 B 的数据管线分两级：<strong>片内标注</strong>（clip annotation）与<strong>跨片参考挖掘</strong>（cross-clip reference mining）。片内阶段做音轨分解（人声分离）、ASR（句/词时间戳）、人脸检测与跟踪、片内身份聚类、主动说话人检测（ASD）关联语音与人脸轨迹、SyncNet 提供唇音同步信号；音频说话人嵌入独立聚类后与视觉/联合聚类<strong>三路调和</strong>，把每句话归属到可见主体。信号式分离在画外音、快切、轨迹碎片下会失败，因此再把转写、采样帧、人脸轨迹证据交给 MLLM（Gemini/Qwen 系）做说话人–主体纠错。</p>
+  <p>跨片阶段按源视频分组、每秒采样一帧做人脸嵌入与头姿估计，层次聚类把片内 ID 升格为源级身份索引——<strong>参考图只从同一源视频的其他片段里挑</strong>，不从无关网图挑。候选再过 QAlign 图像质量、DWPose 躯干可见性、服装/发型一致性检查（清晰对用嵌入相似度裁决、模糊对交 VLM 裁决），最终以有效成对链接的连通分量形成「身份–着装组」。这条约束的用意写得很直白：参考图与目标在姿态、构图、背景上可以不同，<strong>模型必须学身份而不是抄像素</strong>。最终得到约<strong>一百万条</strong>外观–音色参考式训练记录。</p>
+  <div class="formula-card"><div class="f-label">Eq.8 · 结构化 caption 格式（原文式 (8)）</div>
+    <div>$$ C = \{\,\text{SUBJECTS},\ \text{BACKGROUND AUDIO},\ \text{SHOTS},\ \text{NARRATION}\,\} $$</div>
+    <div class="f-intuition"><strong>直觉：</strong>SUBJECTS 存稳定主体 ID + 外观描述 + 音色描述；SHOTS 描述构图与可见动作；NARRATION 把动作与逐字台词（&lt;W&gt;…&lt;/W&gt; 包裹的话语片段）交织并保留说话人 ID。它既是训练提示，也是通往参考资产的<strong>机器可读桥</strong>——同一主体编号同时出现在参考图、参考音频和台词轮次里，与式 (3) 的主体索引一一对应。</div></div>
+  <div class="figure"><svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="26" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">数据管线（附录 B）：片内标注 + 跨片参考挖掘</text>
+    <rect x="30" y="56" width="180" height="58" rx="8" fill="#1B4B6F"/><text x="120" y="80" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">原始人类视频</text><text x="120" y="100" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#BFD3E0">转码恒定帧率 · 16 kHz 音频</text>
+    <rect x="30" y="132" width="180" height="58" rx="8" fill="#2C3E50"/><text x="120" y="156" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#FFFFFF">廉价预过滤</text><text x="120" y="176" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#D5DDE3">姿态/人脸/画质/字幕遮挡</text>
+    <path d="M120 120 l0 10" stroke="#2C3E50" stroke-width="1.5"/>
+    <rect x="250" y="56" width="230" height="134" rx="8" fill="#F4F7FA" stroke="#5A8F7B" stroke-width="2"/>
+    <text x="365" y="80" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#5A8F7B" font-weight="bold">片内标注</text>
+    <text x="264" y="102" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">人声分离 · ASR 词时间戳</text>
+    <text x="264" y="120" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">人脸跟踪/识别 · 片内聚类</text>
+    <text x="264" y="138" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">ASD + SyncNet 唇音证据</text>
+    <text x="264" y="156" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">MLLM 纠错说话人归属</text>
+    <text x="264" y="174" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">→ 主体 ID/外观/音色/台词</text>
+    <path d="M220 150 l22 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M276 150 l-12 -7 l0 14 z" fill="#2C3E50" transform="translate(-44,0)"/>
+    <rect x="520" y="56" width="250" height="134" rx="8" fill="#F4F7FA" stroke="#C9A86C" stroke-width="2"/>
+    <text x="645" y="80" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#8A6D2F" font-weight="bold">跨片参考挖掘</text>
+    <text x="534" y="102" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">按源视频分组 · 1 fps 采样</text>
+    <text x="534" y="120" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">层次聚类 → 源级身份索引</text>
+    <text x="534" y="138" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">QAlign 质量 · DWPose 躯干</text>
+    <text x="534" y="156" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">服装/发型一致性（嵌入+VLM）</text>
+    <text x="534" y="174" font-family="Noto Sans SC,sans-serif" font-size="9" fill="#2C3E50">→ 跨片身份–着装组参考</text>
+    <path d="M490 150 l22 0" stroke="#2C3E50" stroke-width="1.5"/><path d="M536 150 l-12 -7 l0 14 z" fill="#2C3E50" transform="translate(-24,0)"/>
+    <rect x="30" y="212" width="740" height="66" rx="8" fill="#FFFFFF" stroke="#2C3E50" stroke-width="1.5"/>
+    <text x="400" y="238" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#2C3E50">统一训练记录：目标音视频 + 结构化 caption + 任务名 + 条件图/音列表 + 角色 ID + 位置类型（+ 说话人时序/框）</text>
+    <text x="400" y="262" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">同一 schema 承载：驱动音频样本 · 音色克隆样本 · 单/多主体成对图–音参考样本（约 100 万条）</text>
+    <rect x="30" y="296" width="740" height="44" rx="8" fill="#E85D4E"/>
+    <text x="400" y="316" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">评估记录标注源视频/主体身份与训练集的重叠度，以及参考与目标话语的语音内容重叠</text>
+    <text x="400" y="332" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#FFFFFF">→ 区分「身份迁移」与「重建」、排查内容泄漏</text>
+  </svg><div class="figcap"><b>图 6</b> · 附录 B 的数据管线：把「人声分离→说话人归属→跨片身份挖掘」的流水线画成两级漏斗，末端的统一训练记录正是式 (1) 的 (X, τ) 在数据侧的物理形态。</div></div>
+  <p>提示工程侧（附录 D）同样有可复用的细节：VLM 提示分三套布局——DEFAULT（T2AV/TI2AV/TRA2AV）、IMAGE_AUDIO_CONDITIONED（TIA2V/TIRA2AV 及其长版，是<strong>归一化共享布局</strong>：用「driving audio / reference audio」「video / audio-video」占位区分成对任务）、SUBJECT_REFERENCE（TR2AV，{num_refs} 上限 10 张图）。TR2AV 的完整示例显示：SUBJECTS 块里每个主体写「[Visual]…(Reference images: Image-k) [Audio]…(Reference audio: Audio-k)」，NARRATION 里用 &lt;W&gt;…&lt;/W&gt; 标出逐字台词并写明「她的嘴唇在他说话时保持闭合」这类<strong>反同时说话约束</strong>——这正是消融里「同时说话」失败模式的文本侧对冲。</p>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">说话人归属：信号 → 语义</div>
+      <div class="dd">ASD+SyncNet+音频聚类先给证据，MLLM 只做纠错与主体映射（「correct speaker–subject associations」），不替代测量。<span class="alt">替代方案：纯 MLLM 标注——转写与时间戳精度会被牺牲，而它们是同步监督的根。</span></div></div>
+    <div class="def-item"><div class="dt">参考独立性设计</div>
+      <div class="dd">参考图允许与目标姿态/构图/背景不同；图像质量处理与音色提取相互独立——图全被刷掉时主体仍可保留可用音色资产。<span class="alt">替代方案：同片段截参考图——模型会退化为像素复制，身份泛化无法验证。</span></div></div>
+    <div class="def-item"><div class="dt">提示即数据结构</div>
+      <div class="dd">四块式 caption + 主体索引把「参考资产 ↔ 台词轮次 ↔ 角色 ID」锁在同一编号体系里。<span class="alt">替代方案：自由文本 + 事后对齐——多主体场景的指代消解会在训练里以「张冠李戴」的形式反复出现。</span></div></div>
+    <div class="def-item"><div class="dt">评估泄漏防护</div>
+      <div class="dd">评估记录显式登记与训练集的源/身份重叠与语音内容重叠（附录 B.6）。<span class="alt">替代方案：只报聚合分数——无法区分身份迁移能力与「见过这个人」的重建能力。</span></div></div>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">08</span> 实验证据：短片、参考式、五分钟，以及两组消融</h2>
+  <p>评测分三条线。<strong>其一，VorchBench 音频驱动</strong>（自建，60 个分布外用例：50 短 + 10 长；短协议 15 秒、长协议 5 分钟驱动音频；首帧含真实照片/合成图/动画图，驱动音频含真实录音与克隆语音）。短片上 Vorch-Human 在十项指标里领先六项：Face-Sim 0.7887、Sync-C 5.1885、BG-Cons 0.9775、AES 0.5663、Flicker 0.9907、Motion 0.9931；DINO-S（0.9206）与 IQA（0.6846）略逊 InfiniteTalk，Sync-D（8.5502）也非最优。</p>
+  <p><strong>其二，IDBench-Omni 参考式生成</strong>（对照 DreamID-Omni 与 Wan2.7）：Vorch-Human 拿到最优 AES 0.5952、WER 0.0234、Sync-C 5.4664、Sync-D 8.3790；Wan2.7 在身份/音色相似度更高（ID-Sim 0.7718/0.7261、T-Sim 0.7431/0.6229 vs Vorch 0.6833/0.5814、0.6395/0.5424），DreamID-Omni 的 ViCLIP 最高（13.9792）。单片段最大时长 Vorch 15 秒 &gt; Wan2.7 10 秒 &gt; DreamID-Omni 5 秒。</p>
+  <p><strong>其三，五分钟音频驱动</strong>：Vorch-Human 拿到最优 Face-Sim 0.7814、DINO-S 0.9834、IQA 0.9736，且是表中唯一同时具备「音频驱动 + 音频克隆」双能力的方法；但 InfiniteTalk 的同步最强（Sync-C 7.8269、AV-Sync 8.537 ms vs Vorch 6.4119 / 26.915 ms）。</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>消融（原文 Table 5/6）</th><th>关键指标变化</th><th>结论</th></tr></thead>
+    <tbody>
+      <tr><td class="route">w/o RE（去角色嵌入）</td><td>ID-Sim 0.6833/0.5814 → 0.5762/0.3145；WER 0.0234 → 0.1064</td><td>语义标注承担身份与说话人区分</td></tr>
+      <tr><td class="route">SI merged（主体索引合并）</td><td>多人 ID-Sim 跌至 0.2951（最大跌幅）</td><td>独立主体索引是外观控制的必需品</td></tr>
+      <tr><td class="route">w/o RP（参考改前置摆放）</td><td>Sync-C 5.4664 → 1.0086；WER → 0.1430</td><td>独立参考位置对同步/语音准确度关键</td></tr>
+      <tr><td class="route">w/o CA（无上下文适应）</td><td>Face-Sim 0.7814 → 0.6716；IQA 0.9736 → 0.8919</td><td>续写能力需要第二阶段显式训练</td></tr>
+      <tr><td class="route">w/o PAR（去持久参考）</td><td>Face-Sim → 0.5223；DINO-S → 0.8227；IQA → 0.6632</td><td>持久身份锚点比滚动上下文更不可替代</td></tr>
+    </tbody>
+  </table></div>
+  <p>人评（附录 F，Good–Same–Bad，100 名评审）补上了自动指标之外的图景：对 LongCat-Avatar1.5，单人音频驱动净偏好 +27.1%（运动自然度 +46.9%、唇部准确度 +47.5%），但<strong>画质一项净 −13.1%</strong>；多人净 +3.9%（画质 −9.2%）。对 Wan2.7，音频驱动整体相当（净 +2.0%，其中音画同步 +30.9%），参考式生成净 −5.7%（运动质量、视觉提示遵循、参考对齐被偏好，音频质量、音频提示遵循、同步被偏好为 Vorch）。</p>
+  <div class="figure"><svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+    <text x="400" y="26" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="15" fill="#2C3E50" font-weight="bold">证据地图：能力 × 指标 × 公认代价</text>
+    <rect x="40" y="56" width="230" height="220" rx="10" fill="#F4F7FA" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="155" y="82" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#1B4B6F" font-weight="bold">短片音频驱动</text>
+    <text x="56" y="108" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">领先 6/10 指标：</text>
+    <text x="56" y="126" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">Face-Sim 0.7887 · Sync-C 5.19</text>
+    <text x="56" y="144" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">BG/AES/Flicker/Motion</text>
+    <text x="56" y="170" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">非最优：DINO-S · IQA · Sync-D</text>
+    <text x="56" y="196" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">人评：运动/唇准大幅胜</text>
+    <text x="56" y="214" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">画质净 −13.1%（vs LongCat）</text>
+    <rect x="295" y="56" width="230" height="220" rx="10" fill="#F4F7FA" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="410" y="82" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#5A8F7B" font-weight="bold">参考式联合生成</text>
+    <text x="311" y="108" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">AES 0.5952 · WER 0.0234</text>
+    <text x="311" y="126" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">Sync-C 5.47 · Sync-D 8.38</text>
+    <text x="311" y="144" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">单片段上限 15 s（最长）</text>
+    <text x="311" y="170" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">ID/T-Sim 落后 Wan2.7</text>
+    <text x="311" y="196" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">ViCLIP 落后 DreamID-Omni</text>
+    <text x="311" y="214" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">人评参考式净 −5.7%（vs Wan2.7）</text>
+    <rect x="550" y="56" width="210" height="220" rx="10" fill="#F4F7FA" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="655" y="82" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="12" fill="#8A6D2F" font-weight="bold">五分钟续写</text>
+    <text x="566" y="108" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">Face-Sim 0.7814 最优</text>
+    <text x="566" y="126" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">DINO-S 0.9834 最优</text>
+    <text x="566" y="144" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">IQA 0.9736 最优</text>
+    <text x="566" y="170" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#E85D4E">Sync-C/AV-Sync 非最优</text>
+    <text x="566" y="196" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">唯一双能力（驱动+克隆）</text>
+    <text x="566" y="214" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#2C3E50">时序曲线身份/外观稳定</text>
+  </svg><div class="figcap"><b>图 7</b> · 把三条评测线画成「收益—代价」三联画：每栏上半是领先项、下半是公认短板。证据不是均匀的胜利，而是一张有取舍的成绩单——这正是批判性阅读所需的形状。</div></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>「竞争性」而非「压倒性」：多处指标是险胜或互有胜负</h4>
+    <p>短片 Face-Sim 0.7887 对 InfiniteTalk 0.7881 只差 0.0006，Sync-C 5.1885 对 LongCat 5.1829 差 0.0056——这类差距在评测噪声内几乎无意义；参考式生成里身份/音色相似度被 Wan2.7 明确超越；人评里画质维度稳定为负偏好。论文自身措辞是「competitive」，读者应把它读成<strong>「用一个接口换来接近专用系统的全面表现」</strong>，而不是「各项 SOTA」。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>评测覆盖与统计口径的三处软肋</h4>
+    <p>（1）长视频只有 <strong>10 个用例</strong>，五分钟结论的统计功效存疑，且论文以窗口均值 + 95% 置信带呈现（附录 Figure 10）而非显著性检验；（2）VorchBench/IDBench-Omni 均非作者之外广泛校准的标准集，跨论文可比性有限；（3）人评部分维度的判断数悬殊（如 vs Wan2.7 音频驱动的 Spatial persistence 一项 401 个 Same 对 23/43 个两侧偏好），净偏好对样本构成敏感。此外<strong>无任何训练量/推理成本对照</strong>：统一训练是否比分别训练六个专用模型更省算力，论文没有给出证据。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">09</span> 深度洞察与批判评估：统一的代价与边界</h2>
+  <p>把前面的证据收拢，Vorch-Human 的贡献结构可以概括为：<strong>一个表示（统一目标–条件表示）、一个组合机制（跨任务条件组合）、一套训练节奏（两阶段）</strong>。它真正回答的问题是「异质条件如何在同一生成目标下互不干扰」，而不是「如何生成得更好」。下面两组思考分别指向它的设计哲学与它的代价清单。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>统一表示是「任务语法」，长时续写是「语法的递归」</h4>
+    <p>观察式 (4)–(6) 会发现：续写窗口的条件构成（持久参考 + 历史 + 当前输入）与短片任务的条件构成（参考 + 首帧 + 驱动/文本）<strong>在语法上同构</strong>——历史不过是又一组「B=1 的条件 token」。这意味着长时能力不是外挂模块，而是统一表示的<strong>递归调用</strong>：把上一步的输出重新编排为下一步的条件组。递归的稳定性由两个锚点保证：不动的 C_id（身份）与第二阶段训练出的「读历史」能力。这条「语法 → 递归」的视角，也解释了为什么消融去任一锚点都会崩塌。</p></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>与 DreamID-Omni / UniAVGen 的差异：接口哲学而非能力清单</h4>
+    <p>UniAVGen 支持音频驱动、音色条件与续写，DreamID-Omni 统一参考生成/编辑/动画——从能力清单看 Vorch-Human 并不更「全能」。差异在于条件的<strong>语义账本</strong>：Vorch-Human 显式区分 driving speech / voice identity / appearance / temporal context 四类语义并给每类独立角色，使「能力组合」（如外观参考 × 音色参考 × 滚动历史）可以在配置层自由拼装；这与 MM-SONATE 一类工作用「指令-音素 + 说话人注入」在文本/嵌入层解决可控性，恰好构成同一问题的两条互补技术路线（元数据编排 vs 条件嵌入注入）。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>统一表示的成本清单</h4>
+    <p>（1）<strong>元数据即新负担</strong>：角色表、位置约定、掩码语义需要人工设计与维护，附录 C 的角色约定（角色 0 与首帧共用、数值角色随任务布局变化，「the numerical voice-role convention depends on the task layout」）已经显出约定的复杂性；（2）<strong>依赖 LTX-2.3 蒸馏调度</strong>（8 步去噪），换骨干即换整套隐变量约定，可迁移性未验证；（3）<strong>数据管线深度绑定</strong>：百万级跨片参考挖掘 + MLLM 纠错是不小的数据工程门槛，复现成本高；（4）<strong>同步性天花板</strong>：五分钟 AV-Sync 26.915 ms 与短片 Sync-D 非最优，提示统一接口没有同时优化到所有维度。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>安全与滥用面：论文自陈但机制仍在探索</h4>
+    <p>外观+音色参考的组合正是深度伪造的理想工具链，论文在伦理声明中明确列出 impersonation、误导性合成媒体、非同意身份复制风险，倡导水印与来源标注——但正文没有任何已实现的防护机制描述（与 MM-SONATE 给出水印、API 分级访问、高风险人物限制相比更像立场声明）。「参考图必须来自同一源视频」的数据约束是训练期的，不构成推理期防护。</p></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">10</span> 自主科研问题</h2>
+  <p>以下问题从论文的机制与证据缺口出发，每条给到理论分析、与既有脉络的连接、以及可操作的探究方向。</p>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>统一任务表示的「元数据带宽」下界在哪里？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>角色 ID、位置类型、掩码三重标注的取值容量，与可无歧义支持的任务/主体数量之间应存在约束关系。SI merged 消融表明主体索引一旦合并多人身份立即混淆，但「K 主体的表征容量上限」「角色数与嵌入表容量的缩放律」未知。</p>
+    <p><strong>理论分析：</strong>可把条件组视为一种受约束的通信信道：模型需从元数据 m 恢复任务语义 t，混淆矩阵由嵌入几何决定。若角色嵌入近似正交可容纳 O(d) 个可分角色，则 K 增大时主体索引与角色索引的纠缠将先于模型容量成为瓶颈。</p>
+    <p><strong>连接：</strong>与提示调制（prompt tuning）、slot attention 的「对象绑定」问题同构；也呼应 NLP 中指令 token 化的容量研究。</p>
+    <p><strong>探究方向：</strong>固定骨干，扫描 K = 1…8 主体与角色数，测 ID-Sim/说话人混淆矩阵；对角色嵌入做谱分析（正交性 vs 任务干扰）；尝试把角色嵌入替换为可学习「角色查询」以测量容量上限。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>「上下文固定 + 重叠去重」的长时误差传播可以被形式化吗？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>分窗递归生成的漂移被实证缓解（w/o PAR 崩塌、Figure 10 曲线平缓），但缺乏误差随窗口数增长的定量模型——5 分钟之外（10 分钟、1 小时）会发生什么未知。</p>
+    <p><strong>理论分析：</strong>可建模为带固定锚点的迭代映射 x_j = F(x_{j−1}, C_id) + ε_j：若 F 的雅可比谱半径 ρ &lt; 1（压缩映射），误差有界；若 ρ ≥ 1 则漂移指数累积。持久参考的作用可理解为每步注入一个收缩项，锚点越强 ρ 越小。</p>
+    <p><strong>连接：</strong>与自回归语言模型的 exposure bias、视频预测中的 compounding error、控制论中的滚动时域稳定性同源。</p>
+    <p><strong>探究方向：</strong>人为扰动第 j 窗口输出，测后续 Face-Sim 的冲击响应曲线；扫描窗口/重叠长度拟合经验 ρ；对比「上下文固定」与「上下文共同去噪」两种策略的漂移率。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>统一训练的监督共享到底带来多少正迁移，又有多深的任务干扰？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>论文主张统一表示使「supervision to be shared across tasks」，但没有对照实验（六个任务分开训练 vs 混合训练）量化共享收益，采样比 3:3:3:2:2:2 也未做敏感性分析。</p>
+    <p><strong>理论分析：</strong>多任务学习中任务梯度的余弦相似度决定正/负迁移；统一表示把任务差异移入输入端，理论上提高梯度一致性，但条件编排的分布差异仍可能造成隐性冲突（如 TIA2V 只算视频损失 vs 联合任务双损失）。</p>
+    <p><strong>连接：</strong>多任务学习的梯度手术（GradNorm/PCGrad）、混合专家的路由失衡研究、课程学习中的任务配比文献。</p>
+    <p><strong>探究方向：</strong>训练中记录各任务梯度余弦；固定总算力做「分训 vs 合训」对照；对采样比做贝叶斯寻优，观察参考式任务是否被基础任务淹没。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q4</span>
+    <h4>「身份迁移」与「记忆重建」的可分性边界能被自动度量吗？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>附录 B.6 要求记录评估与训练的源/身份/语音内容重叠以区分身份迁移和重建，但没有给出自动化的判别指标；Face-Sim 高既可能是真迁移，也可能是「见过此人」。</p>
+    <p><strong>理论分析：</strong>若生成分布对参考的姿态/背景变化具备不变性，则在参考域外扰动下身份相似度应保持；反之以像素捷径取胜的模型在跨域参考上会显著退化。这是一个可构造的反事实检验。</p>
+    <p><strong>连接：</strong>与成员推断（membership inference）、机器学习中的捷径学习（shortcut learning）、因果表征的不变性理论相连。</p>
+    <p><strong>探究方向：</strong>构造「同身份新姿态/新服装」的反事实参考集，测 ID-Sim 掉幅；用成员推断攻击测量训练重叠泄露度；把「参考域外退化率」作为新的基准维度。</p></div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q5</span>
+    <h4>窗口内扩散、窗口间自回归的混合同步极限是什么？</h4>
+    <div class="rq-body"><p><strong>未知与意义：</strong>五分钟实验里同步指标（Sync-C 6.4119、AV-Sync 26.915 ms）明显落后 InfiniteTalk，提示分窗滚动对音画对齐存在系统性代价，但机理不明：是重叠去重、历史压缩（0.8 s 上下文）还是跨窗口驱动音频切分造成？</p>
+    <p><strong>理论分析：</strong>音画同步要求跨模态相位差在毫秒级稳定；窗口边界的重采样与去重会引入离散跳变，0.8 秒上下文对韵律连贯（语调/停顿跨窗）可能过短，相当于对长程相关性做了强截断。</p>
+    <p><strong>连接：</strong>与流式 TTS 的跨块韵律建模、视频插值的边界伪影、信号处理的块效应（blocking artifact）文献互通。</p>
+    <p><strong>探究方向：</strong>消融窗口/重叠/上下文长度对 SyncFormer 时间对齐误差的影响；在窗口边界做相位连续性显式约束；评估把驱动音频以整句（而非固定切分）对齐窗口的方案。</p></div></div>
+</section>
+
+<section class="b-section">
+  <h2><span class="num">11</span> 代码附录</h2>
+  <p>以下代码为<strong>依据论文公式与附录约定复原的示意性实现</strong>，用于说明机制的数据流，非官方开源代码；命名尽量沿用原文符号（τ = (G, R, Q, B)、式 (3)(4)(7)）。</p>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 角色感知装配：把四类 token 组编排成 (X, τ) —— 复原自式 (1)(3) 与附录 C.1</span>
+<span class="kw">def</span> <span class="fn">role_aware_assemble</span>(groups, task_cfg):
+    <span class="cm"># groups: {Xv, Cv, Xa, Ca} 的 latent token；task_cfg: (G_tau, R_tau, Q_tau, B_tau)</span>
+    X, taus = [], []
+    <span class="kw">for</span> m, name <span class="kw">in</span> ((<span class="fn">"v"</span>, <span class="fn">"video"</span>), (<span class="fn">"a"</span>, <span class="fn">"audio"</span>)):
+        <span class="kw">for</span> g <span class="kw">in</span> task_cfg.groups_for(m):          <span class="cm"># 缺失组直接省略</span>
+            z = groups[g.name]                    <span class="cm"># VAE latent, patchify 后</span>
+            r = task_cfg.role_id[g.name]          <span class="cm"># r=0: 目标/首帧; r_drive/r_voice; 1..K 主体</span>
+            q = task_cfg.pos_type[g.name]         <span class="cm"># -1 独立参考 / 0 前文 / 1 目标</span>
+            b = task_cfg.clean_mask[g.name]       <span class="cm"># 1 固定条件 / 0 待生成</span>
+            emb = proj[m](z)
+            <span class="kw">if</span> r != 0:                             <span class="cm"># 式 (3) 的指示函数项</span>
+                emb = emb + role_table[m][r]      <span class="cm"># 视频/音频各用独立嵌入表</span>
+            pos = own_coords(g) <span class="kw">if</span> q == -1 <span class="kw">else</span> timeline_pos(g, q)
+            X.append(TokenGroup(emb, modality=m, pos=pos, clean=b))
+    <span class="kw">return</span> <span class="fn">stack</span>(X), taus</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 分窗自回归续写：持久参考 + 滚动历史 + 当前输入 —— 复原自式 (4)-(7) 与附录 C.4</span>
+<span class="kw">def</span> <span class="fn">long_horizon_continue</span>(model, C_id, first_frame, driving_audio, prompt, total=300.0):
+    WIN, STRIDE, OVERLAP = 16.0, 15.2, 0.8      <span class="cm"># 窗口 16s，步长 15.2s，重叠 0.8s</span>
+    latents, H_v, H_a = [], first_frame_latent, <span class="kw">None</span>
+    t0, first = 0.0, <span class="kw">True</span>
+    <span class="kw">while</span> t0 &lt; total:
+        U = {<span class="fn">"text"</span>: prompt}
+        <span class="kw">if</span> driving_audio <span class="kw">is not</span> <span class="kw">None</span>:
+            U[<span class="fn">"drive"</span>] = driving_audio.slice(t0, t0 + WIN)     <span class="cm"># 波形段 C^drive_a,j</span>
+        C = C_id ∪ {<span class="fn">"v"</span>: H_v} ∪ ({} <span class="kw">if</span> H_a <span class="kw">is</span> <span class="kw">None</span> <span class="kw">else</span> {<span class="fn">"a"</span>: H_a}) ∪ U
+        cfg = task_cfg_for(mode, first=first)   <span class="cm"># 首窗带首帧；后续窗仅持久参考 + 历史</span>
+        cond = role_aware_assemble(C, cfg)      <span class="cm"># 历史/参考 token: B=1, 流时间 0</span>
+        seg = denoise(model, cond, steps=8, schedule=<span class="fn">"ltx23-distilled"</span>)  <span class="cm"># 窗内扩散</span>
+        latents.append(dedup_overlap(seg, OVERLAP))          <span class="cm"># 去重重复重叠 token</span>
+        H_v = seg.video_latent                                <span class="cm"># 上下文窗口内保持固定</span>
+        <span class="kw">if</span> joint_mode: H_a = seg.audio_latent                  <span class="cm"># 联合模式滚动音视频上下文</span>
+        t0, first = t0 + STRIDE, <span class="kw">False</span>                        <span class="cm"># chunk 间自回归</span>
+    <span class="kw">return</span> decode_tiled(concat(latents).trim(total))          <span class="cm"># 时空分块解码</span></pre>
+  <p class="lead">如果只记住三件事：<strong>① 统一目标–条件表示用 (角色, 位置, 掩码) 三重元数据把六种人类 AV 任务压进同一目标；② 长时续写 = 持久身份锚点 × 滚动上下文 ×「历史即条件」的递归编排，窗口内扩散、窗口间自回归；③ 证据整体是「竞争性」而非全面 SOTA——统一接口的溢价换来的是监督共享与组合自由，代价是元数据工程、同步短板与画质追赶。</strong></p>
+</section>

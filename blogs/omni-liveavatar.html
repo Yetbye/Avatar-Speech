@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Omni-LiveAvatar · 论文解读</title>
+<meta name="description" content="针对双向注意力+多步去噪只能出短片的瓶颈，实现分钟级、实时的流式联合音视频数字人生成。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2026 · Preprint</div>
+    <h1>Omni-LiveAvatar</h1>
+    <p class="hero-tagline">分钟级 × 实时：把数字人从短片推进到持续交互</p>
+    <p class="hero-desc">针对双向注意力+多步去噪只能出短片的瓶颈，实现分钟级、实时的流式联合音视频数字人生成。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Omni-LiveAvatar"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="70" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="105" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="140" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="175" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="210" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="245" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="280" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="315" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="350" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="385" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="420" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="455" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="490" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="525" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="560" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="595" y="195.0" width="16" height="30" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="630" y="187.0" width="16" height="46" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="665" y="179.0" width="16" height="62" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="700" y="171.0" width="16" height="78" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="735" y="163.0" width="16" height="94" rx="4" fill="#5A8F7B" opacity="0.85"/><rect x="72" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="130" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="188" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="246" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="304" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="362" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="420" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="478" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="536" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="594" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="652" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><rect x="710" y="255" width="46" height="34" rx="6" fill="#1B4B6F" opacity="0.85"/><line x1="70" y1="120" x2="750" y2="120" stroke="#E85D4E" stroke-width="2" marker-end="url(#ah)"/><text x="410" y="105" text-anchor="middle" font-family="Noto Sans SC" font-size="16" font-weight="700" fill="#E85D4E">异步双流 · 流式时间轴</text></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：分钟级实时流式联合音视频数字人</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#speech-video">speech-video</a><span class="sep">/</span>Omni-LiveAvatar</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 一句话读懂：把数字人从「5 秒短片」推进到「分钟级直播」</a></li><li><a href="#s2">02 瓶颈诊断：为什么双向 + 多步做不到长时实时</a></li><li><a href="#s3">03 方法要点：因果化 + 少步 + 长时状态</a></li><li><a href="#s4">04 优势与证据：5 秒 vs 分钟级的双表对照</a></li><li><a href="#s5">05 批判评估</a></li><li><a href="#s6">06 自主科研问题</a></li><li><a href="#s7">07 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 一句话读懂：把数字人从「5 秒短片」推进到「分钟级直播」</h2>
+  <p class="lead">现有联合音视频模型几乎都卡在同一个瓶颈：<strong>双向注意力 + 多步去噪</strong>，只能生成短片段，且延迟高，不适合「持续交互」。Omni-LiveAvatar 的目标直白——<strong>分钟级、实时、流式</strong>的联合音视频数字人生成。它的结果也很硬：在<strong>分钟级</strong>生成的所有评测指标上都最优，尤其在速度与美学质量上突出。</p>
+  <p>论文的 Table 1（5 秒数字人）与 Table 2（分钟级数字人）构成一组有趣对照：短片上各家差距有限，<strong>一旦拉到分钟级，方法差距被迅速放大</strong>。这正是「长时一致性」作为独立能力维度的直接证据。</p>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「5 秒」是数字人领域最危险的评测长度</h4>
+    <p>5 秒内身份漂移、音画失同步、场景崩溃都来不及显现，几乎所有方法都能拿高分。真正的分水岭在<strong>30 秒以上</strong>——那时误差累积、身份漂移、记忆失配才会暴露。Omni-LiveAvatar 同时报 Table 1（5s）与 Table 2（分钟级）的诚实之处在于：它让你看到差距是<em>何时</em>拉开的。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 瓶颈诊断：为什么双向 + 多步做不到长时实时</h2>
+  <div class="figure"><svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="300" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">三个互相叠加的限制</text>
+    <rect x="30" y="60" width="235" height="160" rx="11" fill="#E85D4E" opacity="0.1" stroke="#E85D4E" stroke-width="1.5"/>
+    <text x="147" y="90" text-anchor="middle" font-size="12.5" font-weight="700" fill="#E85D4E" font-family="Noto Sans SC">① 双向注意力</text>
+    <text x="48" y="120" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">生成第 t 帧需看第 t+1 帧</text>
+    <text x="48" y="144" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">→ 不能边生成边输出</text>
+    <text x="48" y="176" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">结构上就不实时</text>
+
+    <rect x="282" y="60" width="235" height="160" rx="11" fill="#C9A86C" opacity="0.12" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="399" y="90" text-anchor="middle" font-size="12.5" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">② 多步去噪</text>
+    <text x="300" y="120" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">每帧要 N 次前向</text>
+    <text x="300" y="144" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">→ 累计延迟随帧数增长</text>
+    <text x="300" y="176" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">算力上就不实时</text>
+
+    <rect x="534" y="60" width="235" height="160" rx="11" fill="#1B4B6F" opacity="0.1" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="651" y="90" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">③ 无长时记忆</text>
+    <text x="552" y="120" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">超出训练窗口后</text>
+    <text x="552" y="144" font-size="11" fill="#2C3E50" font-family="Noto Sans SC">身份/场景漂移</text>
+    <text x="552" y="176" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">长度上就不长时</text>
+
+    <text x="20" y="262" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">三者同时解决，才有「分钟级实时流式」—— 这是 Omni-LiveAvatar 的问题定义。</text>
+  </svg><div class="figcap"><b>图 1</b> · 双向 + 多步 + 无记忆的三重限制</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 方法要点：因果化 + 少步 + 长时状态</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">因果化</div><div class="dd">把生成改成<strong>因果/流式</strong>：第 t 帧只依赖过去，因此可边生成边输出。<span class="alt">与 OmniForcing 的蒸馏思路相通，但本文侧重端到端流式结构。</span></div></div>
+    <div class="def-item"><div class="dt">少步推理</div><div class="dd">压缩去噪步数以满足实时帧率。<span class="alt">代价：少步易塌模态，需配套训练策略。</span></div></div>
+    <div class="def-item"><div class="dt">长时状态</div><div class="dd">维护跨窗口的<strong>状态</strong>（身份/场景/音色），避免窗口切换处漂移。<span class="alt">这直接对应「分钟级」而非「5 秒」的能力。</span></div></div>
+    <div class="def-item"><div class="dt">联合生成</div><div class="dd">音视频<strong>联合</strong>生成，非级联配音。<span class="alt">同步是内生的，而非事后对齐。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="280" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">流式生成的时间线：窗口 + 状态传递</text>
+    <!-- windows -->
+    <g font-family="JetBrains Mono,monospace" font-size="10">
+      <rect x="40" y="80" width="180" height="52" rx="8" fill="#1B4B6F"/><text x="130" y="104" text-anchor="middle" fill="#fff">窗口 W1</text><text x="130" y="122" text-anchor="middle" fill="#cdd6df" font-size="9">生成 + 输出</text>
+      <rect x="238" y="80" width="180" height="52" rx="8" fill="#1B4B6F" opacity="0.85"/><text x="328" y="104" text-anchor="middle" fill="#fff">窗口 W2</text><text x="328" y="122" text-anchor="middle" fill="#cdd6df" font-size="9">生成 + 输出</text>
+      <rect x="436" y="80" width="180" height="52" rx="8" fill="#1B4B6F" opacity="0.7"/><text x="526" y="104" text-anchor="middle" fill="#fff">窗口 W3</text><text x="526" y="122" text-anchor="middle" fill="#cdd6df" font-size="9">生成 + 输出</text>
+      <rect x="634" y="80" width="130" height="52" rx="8" fill="#1B4B6F" opacity="0.55"/><text x="699" y="110" text-anchor="middle" fill="#fff">…</text>
+    </g>
+    <!-- state transfer -->
+    <rect x="40" y="168" width="724" height="34" rx="8" fill="#5A8F7B" opacity="0.25" stroke="#5A8F7B" stroke-width="1.5"/>
+    <text x="400" y="190" text-anchor="middle" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">持续维护的长时状态（身份 / 场景 / 音色）</text>
+    <g stroke="#5A8F7B" stroke-width="1.5" stroke-dasharray="4 3">
+      <line x1="130" y1="132" x2="130" y2="168"/><line x1="328" y1="132" x2="328" y2="168"/>
+      <line x1="526" y1="132" x2="526" y2="168"/>
+    </g>
+    <text x="40" y="238" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">关键：窗口切换处必须「无感」，否则每 5 秒就一次跳变。</text>
+    <text x="40" y="262" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：此图为机制示意，具体窗口/状态结构以原文为准。</text>
+  </svg><div class="figcap"><b>图 2</b> · 窗口化流式生成与长时状态传递</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 优势与证据：5 秒 vs 分钟级的双表对照</h2>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>评测长度</th><th>结论（原文表述）</th></tr></thead>
+    <tbody>
+      <tr><td class="route">5 秒（Table 1）</td><td>实时自回归模型中领先；与非实时方法差距有限</td></tr>
+      <tr><td class="route">分钟级（Table 2）</td><td><strong>所有评测指标最优</strong>，速度与美学质量尤其突出</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="250" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">差距在「长时」被放大（定性示意）</text>
+    <g>
+      <text x="30" y="80" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">5 秒：各家接近</text>
+      <rect x="230" y="64" width="240" height="20" rx="4" fill="#95A5A6"/>
+      <rect x="230" y="90" width="232" height="20" rx="4" fill="#5A8F7B"/>
+      <rect x="230" y="116" width="236" height="20" rx="4" fill="#C9A86C"/>
+      <text x="30" y="176" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">分钟级：差距拉开</text>
+      <rect x="230" y="160" width="150" height="20" rx="4" fill="#95A5A6"/>
+      <rect x="230" y="186" width="280" height="20" rx="4" fill="#5A8F7B"/>
+      <rect x="230" y="212" width="120" height="20" rx="4" fill="#C9A86C"/>
+    </g>
+    <text x="540" y="182" font-size="11" fill="#5A8F7B" font-family="Noto Sans SC">Omni-LiveAvatar 领先幅度增大</text>
+    <text x="30" y="240" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">条形为示意，非原文具体数值；实际数字见原文 Table 1 / Table 2。</text>
+  </svg><div class="figcap"><b>图 3</b> · 长时一致性是分水岭：差距在分钟级被放大</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>「分钟级」的真正难点不是生成更久，而是「不跳变」</h4>
+    <p>很多人以为长时生成难在「算得久」。真正的难点是<strong>窗口边界的连续性</strong>：每 5 秒一次的拼接若处理不好，用户看到的是「每 5 秒换一个人」。Omni-LiveAvatar 的长时状态传递正是针对这一点。这与 FlowLong 的滑窗 + Tweedie 融合、VDN 的边界锚点是同一类问题的三种解法。</p>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 240" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="240" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">实时的两个门槛：TTFC 与 FPS</text>
+    <g>
+      <rect x="40" y="70" width="330" height="60" rx="10" fill="#1B4B6F" opacity="0.12" stroke="#1B4B6F" stroke-width="1.5"/>
+      <text x="205" y="96" text-anchor="middle" font-size="12" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">TTFC（首帧时间）</text>
+      <text x="205" y="118" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">决定「开口说话前等多久」</text>
+
+      <rect x="430" y="70" width="330" height="60" rx="10" fill="#5A8F7B" opacity="0.14" stroke="#5A8F7B" stroke-width="1.5"/>
+      <text x="595" y="96" text-anchor="middle" font-size="12" font-weight="700" fill="#5A8F7B" font-family="Noto Sans SC">FPS（生成帧率）</text>
+      <text x="595" y="118" text-anchor="middle" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">决定「画面/声音跟不跟得上」</text>
+    </g>
+    <text x="40" y="170" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">直播数字人需两者同时满足：TTFC 低（秒级以内）、FPS 高于播放帧率。</text>
+    <text x="40" y="196" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">只报 FPS 而不报 TTFC，会掩盖「启动慢」的问题；只报 TTFC 则掩盖「跟不上」的问题。</text>
+    <text x="40" y="222" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：本图为评测口径的说明性示意，具体数值见原文 Table 1 / Table 2。</text>
+  </svg><div class="figcap"><b>图 4</b> · 实时数字人的两个评测门槛：TTFC 与 FPS</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 批判评估</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 「所有指标最优」需看指标选择是否偏向本文优势</h4>
+    <p>若指标以速度与美学为主，则优势明显；若加入强同步或长时身份一致性指标，结论可能变化。论文列了多个指标（Table 2 中十余列），但各指标的权重与人类感知的相关性未讨论。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 「分钟级」具体是多少分钟？上限未明确</h4>
+    <p>「Minute-Level」是量级描述，但 1 分钟与 10 分钟的难度差一个数量级。若没有给出上限（如 5 分钟仍稳定），这个宣称不够具体。对直播应用，这决定了可用性边界。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 与 OmniForcing / Salt++ 的对比需要更细</h4>
+    <p>同为实时流式工作，OmniForcing（蒸馏路线）、Salt++（后训练路线）、Omni-LiveAvatar（结构路线）解决的是同一问题。论文若只与「非实时」方法对比，会掩盖真正的竞品比较。这是本领域常见的对比口径问题。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>长时状态应该存什么？多少维就够？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>「维护状态」是通用说法，但存全部帧的 KV cache 代价高，存太少又丢身份。最优状态表示是压缩到什么？</p>
+      <p><strong>理论分析：</strong>把身份/场景建模为低维流形上的点。若状态只需覆盖该流形的切空间，则维度可远低于原始 KV。可用主成分分析估计「身份流形」的有效维度。</p>
+      <p><strong>连接：</strong>VDN 的线性记忆是同一问题的另一种解法；两者可比较「状态维度–长时质量」的帕累托前沿。</p>
+      <p><strong>探究方向：</strong>扫描状态维度（16/64/256/1024），测 3 分钟处的身份一致性。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>窗口边界能否被「重叠 + 融合」彻底消除？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>若窗口切换处仍有可察觉的跳变，则长时体验受损。重叠区融合能否做到完全无感？</p>
+      <p><strong>理论分析：</strong>可把边界处的不连续建模为「分布跳变」。融合的目标是让相邻窗口在重叠区的输出分布相同——这给出一个可优化的一致性损失。</p>
+      <p><strong>连接：</strong>FlowLong 的 Tweedie matching 正是把重叠区的干净样本估计对齐；这是现成的可借鉴技术。</p>
+      <p><strong>探究方向：</strong>在边界处做「人评可察觉度」测试，量化不同融合策略的跳变感知阈值。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>「分钟级」的上限由什么决定？状态、算力还是数据？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>论文声称分钟级，但未给出上限。若不知道瓶颈在哪，就无法判断能否到小时级。</p>
+      <p><strong>理论分析：</strong>可把上限分解为三项：状态表示的信息瓶颈、每窗算力预算、训练数据的最大长度。三者分别对应「学不到更长」「算不动更长」「没见过更长」，可通过针对性实验分离。</p>
+      <p><strong>连接：</strong>VDN 关注算力轴（长时效率），FlowLong 关注拼接轴（长时一致），OmniHuman 关注数据轴（长时标注）——三条轴恰好对应三个瓶颈。</p>
+      <p><strong>探究方向：</strong>在固定算力下逐步增加生成时长（1/2/5/10 分钟），观察质量衰减的拐点，定位主导瓶颈。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 流式生成：窗口 + 长时状态传递（示意，非官方实现）</span>
+<span class="kw">def</span> <span class="fn">stream_generate</span>(model, prompt, total_frames, win_size, state):
+    outs = []
+    <span class="kw">for</span> start <span class="kw">in</span> range(<span class="st">0</span>, total_frames, win_size):
+        window = model.generate(
+            prompt=prompt,
+            state=state,                <span class="cm"># 传入上一窗的长时状态</span>
+            n_frames=win_size,
+            causal=<span class="kw">True</span>,               <span class="cm"># 因果注意力 → 可流式</span>
+        )
+        outs.append(window)
+        state = update_state(state, window)   <span class="cm"># 更新身份/场景/音色</span>
+        <span class="cm"># 边界融合：重叠区与上一窗输出对齐</span>
+        <span class="kw">if</span> start &gt; <span class="st">0</span>:
+            outs[-<span class="st">1</span>] = blend_overlap(outs[-<span class="st">1</span>], outs[-<span class="st">2</span>])
+    <span class="kw">return</span> torch.cat(outs, dim=<span class="st">1</span>)</pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 长时状态更新：低维压缩 + 非扩张（示意）</span>
+<span class="kw">def</span> <span class="fn">update_state</span>(state, window, decay=<span class="st">0.95</span>):
+    feat = extract_identity(window)          <span class="cm"># 提取本窗身份/场景特征</span>
+    new_state = decay * state + (<span class="st">1</span> - decay) * feat
+    <span class="kw">return</span> new_state                        <span class="cm"># 指数平滑 → 非扩张转移</span></pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>长时数字人的评价轴该换到「分钟级」上</h4>
+    <p>本领域习惯在 5–10 秒上报告指标，但真实应用（直播、客服、陪伴）需要分钟级。Omni-LiveAvatar 的 Table 2 提供了一个示范：<strong>报告分钟级结果，才看得出谁真的解决长时问题</strong>。这应当成为数字人工作的标准评测长度——否则「实时流式」只是把短片生成加速了，而不是把数字人做长了。</p>
+  </div>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

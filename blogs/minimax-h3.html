@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MiniMax-H3 · 论文解读</title>
+<meta name="description" content="把 MiniMax-H3 作为「多模态理解 + 联合音视频生成共享潜空间」的代表，系统评测其对物理世界的推理能力。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Ma+Shan+Zheng&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/venus.css">
+<link rel="stylesheet" href="../css/blog.css">
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']],displayMath:[['$$','$$']]}};</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="../index.html">Avatar<span class="dot">·</span>Speech</a>
+    <nav class="nav-links" id="navLinks">
+      <a class="nav-link" href="../index.html#taxonomy">分类地图</a>
+      <a class="nav-link" href="../index.html#av-foundation">基础模型</a>
+      <a class="nav-link" href="../index.html#speech-video">语音-视频</a>
+      <a class="nav-link" href="../index.html#whiteboard">白板要点</a>
+      <a class="nav-link" href="../index.html#routes">路线对照</a>
+      <a class="nav-cta" href="../index.html#library">全部博客</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="menu">☰</button>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-wrap">
+    <div class="hero-badge">arXiv 2026 · 评测论文</div>
+    <h1>MiniMax-H3</h1>
+    <p class="hero-tagline">统一潜空间能否理解物理世界？对 MiniMax-H3 的评测</p>
+    <p class="hero-desc">把 MiniMax-H3 作为「多模态理解 + 联合音视频生成共享潜空间」的代表，系统评测其对物理世界的推理能力。</p>
+    <div class="hero-art"><svg viewBox="0 0 820 430" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MiniMax-H3"><rect width="820" height="430" fill="url(#gbg)"/><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,0 L8,5 L0,10 z" fill="#E85D4E"/></marker><linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F5F0"/><stop offset="1" stop-color="#FAF9F6"/></linearGradient></defs><rect x="70" y="100" width="170" height="66" rx="12" fill="#1B4B6F" stroke="#1B4B6F" stroke-width="2"/><text x="155.0" y="139.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Video</text><rect x="70" y="250" width="170" height="66" rx="12" fill="#5A8F7B" stroke="#5A8F7B" stroke-width="2"/><text x="155.0" y="289.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Audio</text><rect x="325" y="175" width="175" height="66" rx="12" fill="#C9A86C" stroke="#C9A86C" stroke-width="2"/><text x="412.5" y="214.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Codebook</text><rect x="585" y="100" width="165" height="66" rx="12" fill="#1B4B6F" stroke="#1B4B6F" stroke-width="2"/><text x="667.5" y="139.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Videô</text><rect x="585" y="250" width="165" height="66" rx="12" fill="#5A8F7B" stroke="#5A8F7B" stroke-width="2"/><text x="667.5" y="289.0" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="17" font-weight="700" fill="#fff">Audiô</text><line x1="245" y1="133" x2="325" y2="205" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><line x1="245" y1="283" x2="325" y2="215" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><line x1="505" y1="205" x2="585" y2="133" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/><line x1="505" y1="215" x2="585" y2="283" stroke="#E85D4E" stroke-width="3" marker-end="url(#ah)"/></svg><p class="hero-caption">封面语义图 · 范式隐喻（自绘 SVG）：统一潜空间框架的物理世界推理评测</p></div>
+  </div>
+  <div class="scroll-hint"><span>↓</span> Scroll to Read</div>
+</section>
+<div class="blog-body">
+  <div class="blog-container">
+    <div class="breadcrumb"><a href="../index.html">阅读门户</a><span class="sep">/</span><a href="../index.html#av-foundation">av-foundation</a><span class="sep">/</span>MiniMax-H3</div>
+    <div class="toc"><div class="toc-title">本文目录</div><ol><li><a href="#s1">01 先做一次定位纠偏：这是「评测论文」，不是 MiniMax-H3 的模型卡</a></li><li><a href="#s2">02 为什么必须换一种基准：渲染一个事件 ≠ 推断一个事件</a></li><li><a href="#s3">03 基准构造：517 实例 / 4 场景 / 29 子类</a></li><li><a href="#s4">04 结果：41.97% 的总体成功率，音频侧最弱</a></li><li><a href="#s5">05 批判评估：一份好评测，但仍有四处要小心</a></li><li><a href="#s6">06 自主科研问题</a></li><li><a href="#s7">07 代码附录</a></li></ol></div>
+    <section class="b-section">
+  <h2 id="s1" ><span class="num">01</span> 先做一次定位纠偏：这是「评测论文」，不是 MiniMax-H3 的模型卡</h2>
+  <p class="lead">在音视频基础模型的讨论里，MiniMax-H3 常被当成又一个「基座模型」列进名单。但这篇 arXiv 论文（2609.18323）<strong>不是</strong> MiniMax-H3 的技术报告或模型卡，而是<strong>对该模型的第三方评测</strong>：它把 MiniMax-H3 当作「统一潜空间 + 全模态输入」这一范式的代表，去问一个更锋利的问题——<strong>这类模型真的理解物理世界吗？</strong></p>
+  <p>论文标题本身就是问题：「Can MiniMax-H3 Reason About the Physical World?」。它的答案是一组相当克制、也相当不客气的数字：<strong>517 个评测实例上总体成功率 41.97%</strong>。</p>
+  <div class="critique-card"><span class="cc-tag">阅读提示</span>
+    <h4>引用时的正确说法</h4>
+    <p>若在白板/综述里把 MiniMax-H3 列为「音视频基础模型」，这是恰当的——它确实是共享潜空间做联合音视频生成的模型。但要引用「41.97%」这类数字时，必须写明<strong>这是第三方评测论文的结论</strong>，而非模型官方宣称的能力指标。两者混引是本领域最常见的误引之一。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s2" ><span class="num">02</span> 为什么必须换一种基准：渲染一个事件 ≠ 推断一个事件</h2>
+  <p>论文对现有基准的批评非常精准。VBench 这类视频基准、WorldModelBench 这类世界模型基准，大多在考<strong>忠实渲染</strong>：给一段明确描述，看模型能不能把它画出来。它们回答的是「画得像不像」。</p>
+  <p>但全模态模型的真正卖点是：<strong>它能不能从分散的多模态证据里推断出一个事件</strong>。这两件事的能力要求完全不同——前者是条件生成，后者是跨模态推理。论文把后者称为「隐式提示（implicit prompt）」下的推理评测。</p>
+  <div class="figure"><svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="330" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">两类基准考的不是同一种能力</text>
+    <!-- left: explicit -->
+    <rect x="24" y="50" width="360" height="120" rx="10" fill="#95A5A6" opacity="0.16" stroke="#95A5A6" stroke-width="1.5"/>
+    <text x="44" y="76" font-size="12.5" font-weight="700" fill="#5D6D7E" font-family="Noto Sans SC">传统基准：显式指令 → 忠实渲染</text>
+    <rect x="44" y="92" width="150" height="30" rx="6" fill="#95A5A6"/><text x="119" y="112" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">"一只猫跳上桌子"</text>
+    <text x="204" y="112" font-size="14" fill="#95A5A6">→</text>
+    <rect x="224" y="92" width="140" height="30" rx="6" fill="#5D6D7E"/><text x="294" y="112" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">生成对应视频</text>
+    <text x="44" y="150" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">判据：与指令的一致性（画得像不像）</text>
+
+    <!-- right: implicit -->
+    <rect x="400" y="50" width="376" height="120" rx="10" fill="#1B4B6F" opacity="0.08" stroke="#1B4B6F" stroke-width="1.5"/>
+    <text x="420" y="76" font-size="12.5" font-weight="700" fill="#1B4B6F" font-family="Noto Sans SC">本文基准：隐式提示 → 跨模态推断</text>
+    <rect x="420" y="92" width="150" height="30" rx="6" fill="#5A8F7B"/><text x="495" y="112" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">多模态观测（图/音/视频）</text>
+    <text x="580" y="112" font-size="14" fill="#E85D4E">→</text>
+    <rect x="600" y="92" width="156" height="30" rx="6" fill="#1B4B6F"/><text x="678" y="112" text-anchor="middle" font-size="10.5" fill="#fff" font-family="Noto Sans SC">推断隐含的物理事件</text>
+    <text x="420" y="150" font-size="10.5" fill="#5D6D7E" font-family="Noto Sans SC">判据：与标注语义目标的一致性（推得对不对）</text>
+
+    <!-- bottom: what changes -->
+    <rect x="24" y="192" width="752" height="118" rx="10" fill="#C9A86C" opacity="0.12" stroke="#C9A86C" stroke-width="1.5"/>
+    <text x="44" y="218" font-size="12.5" font-weight="700" fill="#A67C3D" font-family="Noto Sans SC">关键差别</text>
+    <text x="44" y="246" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">· 提示是<em>隐式</em>的：不告诉你「要生成什么事件」，你得自己从证据里判断</text>
+    <text x="44" y="270" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">· 输入是<em>全模态</em>的：证据分散在音频/视频/图像里，需要整合</text>
+    <text x="44" y="294" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">· 评分是<em>任务特定成功准则</em>下的人类评判，而不是与提示的相似度指标</text>
+  </svg><div class="figcap"><b>图 1</b> · 显式渲染 vs 隐式推断：两类基准测量的是不同能力</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>这个批评同样适用于「音视频联合生成」的评测现状</h4>
+    <p>本领域大多数联合模型的人评问的是「这段音画同步吗、好听吗、好看吗」——本质仍是<strong>渲染质量</strong>。而真正决定可用性的是：模型能否从音频线索推断画面里没直接给出的因果（谁在说话、发生了什么）。论文把这条线画出来，等于给整个领域提了一个更难的评测方向；AVC-Reward 走的是同一路线的另一半（事件级一致性）。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s3" ><span class="num">03</span> 基准构造：517 实例 / 4 场景 / 29 子类</h2>
+  <div class="def-grid">
+    <div class="def-item"><div class="dt">规模</div><div class="dd"><strong>517 个评测实例</strong>，分布在 <strong>4 个推理场景</strong>、<strong>29 个子类</strong>中。<span class="alt">这一规模对「细粒度人工评测」是合理的：太大则人评不可行。</span></div></div>
+    <div class="def-item"><div class="dt">实例结构</div><div class="dd">每个实例 = 输入观测 + <strong>隐式任务提示</strong> + <strong>标注的语义目标</strong>。<span class="alt">三件套保证「可判分」：有目标才能定义成功准则。</span></div></div>
+    <div class="def-item"><div class="dt">四类场景</div><div class="dd">包含 Video-based Decision Reasoning、Audio-based Disambiguation Reasoning 等（从结果表述可确认这两类）。<span class="alt">注意：抽取文本中未逐一列出全部四类名称，引用时应以原文为准。</span></div></div>
+    <div class="def-item"><div class="dt">评分方式</div><div class="dd">按任务特定成功准则做<strong>人类评测</strong>，输出成功率。<span class="alt">代价：主观性、标注者间一致性未在抽取段落中报告。</span></div></div>
+  </div>
+  <div class="figure"><svg viewBox="0 0 800 240" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="240" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">517 实例的层级结构</text>
+    <rect x="30" y="70" width="150" height="60" rx="9" fill="#1B4B6F"/>
+    <text x="105" y="96" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="Noto Sans SC">517 实例</text>
+    <text x="105" y="116" text-anchor="middle" font-size="10" fill="#cdd6df" font-family="Noto Sans SC">观测+隐式提示+语义目标</text>
+    <line x1="182" y1="100" x2="226" y2="100" stroke="#5D6D7E" stroke-width="2" marker-end="url(#f1)"/>
+    <rect x="230" y="70" width="150" height="60" rx="9" fill="#5A8F7B"/>
+    <text x="305" y="96" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="Noto Sans SC">4 个推理场景</text>
+    <text x="305" y="116" text-anchor="middle" font-size="10" fill="#eaf3ee" font-family="Noto Sans SC">如视频决策 / 音频消歧</text>
+    <line x1="382" y1="100" x2="426" y2="100" stroke="#5D6D7E" stroke-width="2" marker-end="url(#f1)"/>
+    <rect x="430" y="70" width="160" height="60" rx="9" fill="#C9A86C"/>
+    <text x="510" y="96" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="Noto Sans SC">29 个子类</text>
+    <text x="510" y="116" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">细粒度能力切片</text>
+    <line x1="592" y1="100" x2="636" y2="100" stroke="#5D6D7E" stroke-width="2" marker-end="url(#f1)"/>
+    <rect x="640" y="70" width="130" height="60" rx="9" fill="#E85D4E"/>
+    <text x="705" y="96" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="Noto Sans SC">成功率</text>
+    <text x="705" y="116" text-anchor="middle" font-size="10" fill="#ffe6e2" font-family="Noto Sans SC">人评 · 任务准则</text>
+    <text x="30" y="170" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">设计取舍：实例不多（517），但每例都需要人看「推断是否正确」，</text>
+    <text x="30" y="194" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">因此规模上限由人工成本决定，而非数据可得性。</text>
+    <text x="30" y="220" font-size="11" fill="#95A5A6" font-family="Noto Sans SC">↑ 这也意味着子类样本量可能很少（517/29 ≈ 18），单一子类数字方差大。</text>
+    <defs><marker id="f1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L7,4 L0,8 z" fill="#5D6D7E"/></marker></defs>
+  </svg><div class="figcap"><b>图 2</b> · 基准的层级结构：实例 → 场景 → 子类 → 成功率</div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s4" ><span class="num">04</span> 结果：41.97% 的总体成功率，音频侧最弱</h2>
+  <p>论文给出的核心数字非常集中：</p>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>维度</th><th>成功率</th><th>解读</th></tr></thead>
+    <tbody>
+      <tr><td class="route">总体（517 实例）</td><td><strong>41.97%</strong></td><td>接近一半失败——「统一潜空间 = 理解物理世界」并不成立</td></tr>
+      <tr><td class="route">Video-based Decision Reasoning</td><td><strong>56.00%</strong></td><td>四类中最高：视频证据最直观</td></tr>
+      <tr><td class="route">Audio-based Disambiguation Reasoning</td><td><strong>27.40%</strong></td><td>最低：仅凭音频消歧最难</td></tr>
+    </tbody></table></div>
+  <div class="figure"><svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="280" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">成功率对比（数据取自原文）</text>
+    <!-- bars, max 60% -> 600px -->
+    <g font-family="Noto Sans SC" font-size="11.5">
+      <text x="30" y="76" fill="#5D6D7E">视频决策推理</text>
+      <rect x="180" y="58" width="560" height="26" rx="4" fill="#5A8F7B"/>
+      <text x="620" y="77" fill="#fff" font-weight="700">56.00%</text>
+
+      <text x="30" y="136" fill="#5D6D7E">总体（517 实例）</text>
+      <rect x="180" y="118" width="419.7" height="26" rx="4" fill="#1B4B6F"/>
+      <text x="610" y="137" fill="#fff" font-weight="700">41.97%</text>
+
+      <text x="30" y="196" fill="#5D6D7E">音频消歧推理</text>
+      <rect x="180" y="178" width="274" height="26" rx="4" fill="#E85D4E"/>
+      <text x="464" y="197" fill="#fff" font-weight="700">27.40%</text>
+    </g>
+    <line x1="180" y1="220" x2="740" y2="220" stroke="#95A5A6" stroke-width="1"/>
+    <text x="180" y="240" font-size="10.5" fill="#95A5A6" font-family="JetBrains Mono,monospace">0%</text>
+    <text x="555" y="240" font-size="10.5" fill="#95A5A6" font-family="JetBrains Mono,monospace">37.5%</text>
+    <text x="720" y="240" font-size="10.5" fill="#95A5A6" font-family="JetBrains Mono,monospace">60%</text>
+    <text x="30" y="264" font-size="11" fill="#5D6D7E" font-family="Noto Sans SC">条形已按 0–60% 线性映射；原文未给出其余场景的具体数值。</text>
+  </svg><div class="figcap"><b>图 3</b> · 三类成功率对比（视频推理 &gt; 总体 &gt; 音频消歧）</div></div>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>27.40% 这个数字的真正含义：模态整合失败，而非「音频不重要」</h4>
+    <p>论文自己的判断是「有效的多模态整合仍是充分利用多样输入的关键」。把这句话翻译成机制语言：模型在单模态证据充分时（视频 56%）能推断，但当判断<strong>只能靠音频消歧</strong>时几乎崩掉（27.4%，接近三选一的随机水平）。这说明它的「统一潜空间」并没有真正学到跨模态的<strong>互补</strong>，而更像是在视频通道上做主导推理、音频只做点缀——这与 Ovi 用 λ_a=0.15 的权重倾斜、以及 LTX-2 给音频更强文本引导（s_t=7）形成有意思的对照。</p>
+  </div>
+</section>
+
+<section class="b-section">
+  <h2 id="s5" ><span class="num">05</span> 批判评估：一份好评测，但仍有四处要小心</h2>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>1. 只评一个模型，不能推出「范式」的结论</h4>
+    <p>标题问的是 MiniMax-H3，但论文的隐含结论是「全模态生成 ≠ 物理理解」。只评一个模型就上升到范式判断是有风险的：可能只是该模型训练目标偏渲染。要支持范式级结论，至少需要 2–3 个不同厂商的全模态模型。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>2. 人类评分的标注者间一致性未见报告</h4>
+    <p>「任务特定成功准则」听起来严谨，但若没有 Cohen's κ 之类的标注者一致性数字，41.97% 的可复现性就无法评估。对 517 例、29 子类的细粒度判断，这一项尤其重要。</p></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>3. 子类样本量小，单项数字方差大</h4>
+    <p>517 / 29 ≈ 18 例/子类。在 n≈18 下，单个子类的成功率置信区间宽达数十个百分点。因此「视频 56% vs 音频 27.4%」这个大差距可信，但任何子类级的细微排名都不可靠。</p></div>
+  <div class="figure"><svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="250" fill="#F5F5F0" rx="12"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#2C3E50" font-family="Noto Sans SC">一次失败可能来自三个环节：需要被拆开归因</text>
+    <g>
+      <rect x="24" y="56" width="170" height="60" rx="9" fill="#5A8F7B"/>
+      <text x="109" y="80" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff" font-family="Noto Sans SC">① 没听懂任务</text>
+      <text x="109" y="100" text-anchor="middle" font-size="10" fill="#eaf3ee" font-family="Noto Sans SC">隐式提示歧义</text>
+
+      <rect x="230" y="56" width="170" height="60" rx="9" fill="#1B4B6F"/>
+      <text x="315" y="80" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff" font-family="Noto Sans SC">② 没整合证据</text>
+      <text x="315" y="100" text-anchor="middle" font-size="10" fill="#cdd6df" font-family="Noto Sans SC">模态互补未利用</text>
+
+      <rect x="436" y="56" width="170" height="60" rx="9" fill="#E85D4E"/>
+      <text x="521" y="80" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff" font-family="Noto Sans SC">③ 不会物理推理</text>
+      <text x="521" y="100" text-anchor="middle" font-size="10" fill="#ffe6e2" font-family="Noto Sans SC">因果/时序错误</text>
+
+      <rect x="642" y="56" width="134" height="60" rx="9" fill="#95A5A6"/>
+      <text x="709" y="80" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff" font-family="Noto Sans SC">判分口径</text>
+      <text x="709" y="100" text-anchor="middle" font-size="10" fill="#fff" font-family="Noto Sans SC">标注者差异</text>
+    </g>
+    <text x="20" y="152" font-size="11.5" fill="#2C3E50" font-family="Noto Sans SC">论文报告的是①+②+③(+④) 的<em>合成</em>成功率 41.97%，未做拆分。</text>
+    <text x="20" y="176" font-size="11.5" fill="#5D6D7E" font-family="Noto Sans SC">这意味着：我们无法判断「音频消歧差」是因为听不懂、没整合，还是真不会推理。</text>
+    <text x="20" y="200" font-size="11.5" fill="#C9A86C" font-family="Noto Sans SC">→ 一个「显式提示」对照组即可把 ① 剥离（本文批判 #4 的具体建议）。</text>
+    <text x="20" y="228" font-size="10.5" fill="#95A5A6" font-family="Noto Sans SC">注：本节为对评测方法学的分析，不是原文结论。</text>
+  </svg><div class="figcap"><b>图 4</b> · 失败归因的三段分解（方法学分析）</div></div>
+  <div class="critique-card"><span class="cc-tag">批判评估</span>
+    <h4>4. 隐式提示的定义可能引入「猜题意」噪声</h4>
+    <p>「隐式」意味着模型需要推断任务意图。但如果隐式提示本身有歧义，失败可能来自「没听懂要做什么」而非「物理推理错误」。论文需要用「显式提示」对照组来隔离这两种失败——这在抽取文本中未见。</p></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s6" ><span class="num">06</span> 自主科研问题</h2>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q1</span>
+    <h4>「音频消歧弱」是训练目标的问题，还是表示能力的问题？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>如果只是训练数据里音频标注太少，那么加数据即可；如果是音频 latent 表示不足以承载物理语义，则需改结构。两者的工程含义完全不同。</p>
+      <p><strong>理论分析：</strong>可做一个信息论判别实验：固定视觉输入，仅改变音频，测量模型输出分布的 KL 变化。若 KL 很小，说明音频对决策的<strong>信息贡献</strong>被结构性地抑制了。</p>
+      <p><strong>连接：</strong>MOVA 指出「audio latent 远稠密」，暗示音频信息密度高但语义抽象弱；这与「音频能提供消歧信息、却被模型忽略」是相容的。</p>
+      <p><strong>探究方向：</strong>在 MiniMax-H3 上做「音频替换/静音」对照，量化 27.40% 中因音频未被利用而损失的比例。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q2</span>
+    <h4>能否用「可验证的物理约束」替代人类评分？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>人评是当前唯一可信判据，但它不可扩展、不可复现。若能构造物理约束（守恒、因果时序、遮挡一致性）的自动判据，评测就能规模化。</p>
+      <p><strong>理论分析：</strong>物理事件的可验证性来自约束：如「先因后果」的时序单调性、能量守恒的近似性。可以把每条约束写成可计算的判据函数，并与人评做一致性验证（类似 AVC-Reward 的思路）。</p>
+      <p><strong>连接：</strong>AVC-Reward 的事件级一致性、OHBench（OmniHuman）的三级评测，都是这条路上的尝试。</p>
+      <p><strong>探究方向：</strong>为该基准的 517 例各写 1–2 条可计算约束，比较自动判据与人评的一致率。</p>
+    </div></div>
+  <div class="research-question"><span class="rq-tag">自主科研问题 · Q3</span>
+    <h4>27.40% 的「音频消歧」失败，有多少可归因于训练数据的模态配比？</h4>
+    <div class="rq-body">
+      <p><strong>未知与意义：</strong>若全模态训练集中音频主导的样本只占少数，那么评测的「音频最弱」只是数据配比的镜像，而非能力边界。</p>
+      <p><strong>理论分析：</strong>设训练集中「音频为唯一判据」的样本占比 p_a，则模型学到的先验是 P(用音频消歧) ≈ p_a。评测中音频消歧场景的成功率上界应随 p_a 增长而上升；当 p_a 很小时，成功率会向随机水平（三选一≈33%）退化。27.40% 略低于这一水平，提示可能存在「负迁移」。</p>
+      <p><strong>连接：</strong>Ovi 用 λ_a=0.15 的损失权重、Apollo 用随机模态掩码平衡模态，都可看作对同一配比问题的不同解法。</p>
+      <p><strong>探究方向：</strong>在受控实验中按比例增删「音频判据」样本，测成功率随 p_a 的曲线，判断是否饱和。</p>
+    </div></div>
+</section>
+
+<section class="b-section">
+  <h2 id="s7" ><span class="num">07</span> 代码附录</h2>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 基准实例结构与成功率统计（依据论文描述重建，非官方实现）</span>
+<span class="kw">from</span> dataclasses <span class="kw">import</span> dataclass
+
+<span class="ow">@dataclass</span>
+<span class="kw">class</span> <span class="fn">EvalInstance</span>:
+    observations: dict      <span class="cm"># {"video":..., "audio":..., "image":...} 全模态输入</span>
+    implicit_prompt: str    <span class="cm"># 隐式任务提示（不直接给出目标事件）</span>
+    semantic_target: str    <span class="cm"># 标注的语义目标</span>
+    scenario: str           <span class="cm"># 4 个推理场景之一</span>
+    subcategory: str        <span class="cm"># 29 个子类之一</span>
+
+<span class="kw">def</span> <span class="fn">success_rate</span>(instances, judge):
+    <span class="cm"># judge: 人工按「任务特定成功准则」给 0/1</span>
+    <span class="kw">return</span> sum(judge(i) <span class="kw">for</span> i <span class="kw">in</span> instances) / len(instances)
+
+<span class="cm"># 论文报告：overall 41.97% ；video-decision 56.00% ；audio-disambiguation 27.40%</span></pre>
+  <div class="code-cred skel">[示意性实现]</div>
+  <pre class="code-block"><span class="cm"># 模态贡献度诊断：固定视觉、只改音频，看决策分布变化（本文批判中的建议实验）</span>
+<span class="kw">def</span> <span class="fn">audio_ablation</span>(model, obs, target):
+    p_full  = model.decide(obs)                    <span class="cm"># 全模态</span>
+    obs_mute = {**obs, <span class="st">"audio"</span>: silence_like(obs[<span class="st">"audio"</span>])}
+    p_mute  = model.decide(obs_mute)               <span class="cm"># 静音</span>
+    kl = F.kl_div(p_mute.log(), p_full, reduction=<span class="st">"batchmean"</span>)
+    <span class="kw">return</span> kl, (p_full.argmax() != target), (p_mute.argmax() != target)</pre>
+  <div class="insight-box"><span class="ib-tag">深度洞察</span>
+    <h4>评测论文的最大价值：它把「炫技」逼回「能力」</h4>
+    <p>本领域大量论文用「人评偏好」证明自己更好——但偏好只回答「哪个更讨喜」。这篇论文换了个提问方式：<strong>在必须推断的场景里，你到底答得对不对？</strong> 41.97% 这个数字之所以重要，不是因为它低，而是因为它把一个此前被「人评胜出」掩盖的能力维度摊开了。</p>
+  </div>
+</section>
+
+    <div class="blog-nav">
+      <a class="bn-card" href="../index.html"><div class="bn-dir">← 返回</div><div class="bn-title">全部解读博客</div></a>
+      <a class="bn-card next" href="../index.html#routes"><div class="bn-dir">路线对照 →</div><div class="bn-title">看它落在哪条路线</div></a>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Avatar · Speech 阅读门户</h4>
+        <p style="color:#b9c4ce;font-size:0.92rem;max-width:360px">
+          按白板要点梳理「音视频联合生成」的论文谱系：从 <em>sequential 串行生成</em> 到
+          <em>Vid + Speech 联合生成</em>，覆盖基础模型与语音-视频生成两条主线。
+          风格锁定 Venus 可组合设计系统。
+        </p>
+      </div>
+      <div>
+        <h4>分类</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#av-foundation">音视频基础模型</a></li>
+          <li><a href="../index.html#speech-video">语音-视频生成</a></li>
+          <li><a href="../index.html#routes">路线对照</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>阅读</h4>
+        <ul class="footer-links">
+          <li><a href="../index.html#library">全部解读博客</a></li>
+          <li><a href="../index.html#whiteboard">研究要点地图</a></li>
+          <li><a href="../index.html#recent">近半年新增</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Venus 可组合设计系统 · Palette A 浮世绘蓝调 · 仅供研究学习 · 数据来源于公开论文
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const t=document.getElementById('navToggle'),l=document.getElementById('navLinks');
+  if(t){t.addEventListener('click',()=>l.classList.toggle('open'));}
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>

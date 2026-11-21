@@ -1,0 +1,771 @@
+{
+  "project": "Avatar · Speech — 音视频联合生成论文阅读门户",
+  "subtitle": "Vid + Speech → Joint Generation · 按白板要点梳理",
+  "categories": [
+    {
+      "id": "av-foundation",
+      "name": "音视频基础模型",
+      "en": "Audio-Video Foundation Models",
+      "desc": "通用音视频联合生成基座：双流/单流 DiT、统一 tokenizer、跨模态对齐，输出含语音、音效、音乐的完整音轨。",
+      "whiteboard": "DiT 架构 · LTX 2.5 / AV-GM starting point · A distribution (60% Audio / 40% Speech) · SAV/ASV"
+    },
+    {
+      "id": "speech-video",
+      "name": "语音-视频生成",
+      "en": "Speech-Video Generation",
+      "desc": "说话人/数字人生成：语音驱动口型、说话+倾听、实时流式、表情与身份保持，聚焦单人场景。",
+      "whiteboard": "S+V alignment · 单人场景 speaking/singing · 长尾数据 · user study / benchmark"
+    }
+  ],
+  "papers": [
+    {
+      "slug": "unitalking",
+      "title": "UniTalking: A Unified Audio-Video Framework for Talking Portrait Generation",
+      "short": "UniTalking",
+      "venue": "arXiv 2025 · Preprint",
+      "category": "speech-video",
+      "pages": 10,
+      "pdf": "UniTalking.pdf",
+      "route": "双流联合生成 (Joint Attention + Flow Matching)",
+      "tags": [
+        "joint-generation",
+        "MM-DiT",
+        "flow-matching",
+        "Wan2.2",
+        "talking-portrait"
+      ],
+      "hero_tagline": "双流 MM-DiT × Joint Attention，Flow Matching 联合生成语音与说话人视频",
+      "one_liner": "复用 Wan2.2-5B 视频流 + 同构音频流，拼接音视频 token 做 Joint Attention 共同去噪，文本/身份/音色多条件驱动。",
+      "affiliation": "华为 & 北航"
+    },
+    {
+      "slug": "hallo-live",
+      "title": "Hallo-Live: Real-Time Streaming Joint Audio-Video Avatar Generation with Asynchronous Dual-Stream and Human-Centric Preference Distillation",
+      "short": "Hallo-Live",
+      "venue": "arXiv 2025 · Preprint",
+      "category": "speech-video",
+      "pages": 11,
+      "pdf": "Hallo-Live.pdf",
+      "route": "异步双流 + 人类偏好蒸馏 (streaming)",
+      "tags": [
+        "real-time",
+        "streaming",
+        "dual-stream",
+        "preference-distillation",
+        "avatar"
+      ],
+      "hero_tagline": "异步双流流式生成 × 人类中心偏好蒸馏，实现实时音视频数字人",
+      "one_liner": "面向实时流式场景，异步双流分别推进音视频，配合人类偏好蒸馏提升观感与同步。",
+      "affiliation": "—"
+    },
+    {
+      "slug": "omnimate",
+      "title": "OmniMate: Open-Ended Real-Time Streaming Audio-Visual Generation for Interactive Avatars",
+      "short": "OmniMate",
+      "venue": "arXiv 2025 · Preprint",
+      "category": "speech-video",
+      "pages": 9,
+      "pdf": "OmniMate.pdf",
+      "route": "开放式实时流式交互数字人",
+      "tags": [
+        "real-time",
+        "streaming",
+        "interactive",
+        "open-ended",
+        "avatar"
+      ],
+      "hero_tagline": "开放指令、实时流式、音视觉联合生成的交互数字人",
+      "one_liner": "支持开放指令的实时流式音视觉联合生成，面向交互式数字人应用。",
+      "affiliation": "西安交大 & ...",
+      "note": "AVG/vidgen notes 对应 Unison（视频+speech+背景音效）"
+    },
+    {
+      "slug": "joystreamer",
+      "title": "JoyStreamer: Unlocking Highly Expressive Avatars via Harmonized Text-Audio Conditioning",
+      "short": "JoyStreamer",
+      "venue": "arXiv 2025 · Preprint",
+      "category": "speech-video",
+      "pages": 17,
+      "pdf": "JoyStreamer.pdf",
+      "route": "文本-音频协调条件 (expressive)",
+      "tags": [
+        "expressive",
+        "text-audio",
+        "conditioning",
+        "talking-head"
+      ],
+      "hero_tagline": "文本-音频和谐条件注入，解锁高表现力说话人生成",
+      "one_liner": "通过协调文本与音频条件，生成高表现力（表情/情绪）的说话/唱歌数字人。",
+      "affiliation": "京东科技"
+    },
+    {
+      "slug": "beyond-monologue",
+      "title": "Beyond Monologue: Interactive Talking-Listening Avatar Generation with Conversational Audio Context-Aware Kernels",
+      "short": "Beyond Monologue",
+      "venue": "arXiv 2025 · Preprint",
+      "category": "speech-video",
+      "pages": 10,
+      "pdf": "Beyond Monologue.pdf",
+      "route": "会话式音频上下文感知 (talking-listening)",
+      "tags": [
+        "interactive",
+        "talking-listening",
+        "conversation",
+        "context-kernel"
+      ],
+      "hero_tagline": "从独白到对话：会话音频上下文感知核驱动的说-听数字人",
+      "one_liner": "面向对话场景，用会话音频上下文感知核建模说话+倾听（反应、点头、插话）。",
+      "affiliation": "中科大 & 科大讯飞"
+    },
+    {
+      "slug": "embodiedhead",
+      "title": "EmbodiedHead: Real-Time Listening and Speaking Avatar for Conversational Agents",
+      "short": "EmbodiedHead",
+      "venue": "arXiv 2025 · Preprint",
+      "category": "speech-video",
+      "pages": 26,
+      "pdf": "EmbodiedHead.pdf",
+      "route": "实时听-说具身对话智能体",
+      "tags": [
+        "real-time",
+        "listening",
+        "speaking",
+        "conversational",
+        "embodied"
+      ],
+      "hero_tagline": "面向对话智能体的实时听-说具身数字头",
+      "one_liner": "实时的听+说一体数字头，用于对话式智能体，兼顾倾听反应与说话生成。",
+      "affiliation": "—"
+    },
+    {
+      "slug": "unils",
+      "title": "UniLS: End-to-End Audio-Driven Avatars for Unified Listening and Speaking",
+      "short": "UniLS",
+      "venue": "arXiv 2025 · Preprint",
+      "category": "speech-video",
+      "pages": 13,
+      "pdf": "UniLS.pdf",
+      "route": "端到端统一听-说 (audio-driven)",
+      "tags": [
+        "end-to-end",
+        "audio-driven",
+        "listening",
+        "speaking",
+        "unified"
+      ],
+      "hero_tagline": "端到端音频驱动，统一数字人的倾听与说话",
+      "one_liner": "端到端音频驱动的统一听-说数字人，单一框架内完成倾听反应与说话生成。",
+      "affiliation": "Shanda AI Research Tokyo"
+    },
+    {
+      "slug": "taomate-hd",
+      "title": "TaoMate-HD: Progressive-Resolution Autoregressive Audio-Video Generation",
+      "short": "TaoMate-HD",
+      "venue": "arXiv 2025 · Preprint",
+      "category": "av-foundation",
+      "pages": 14,
+      "pdf": "TaoMate-HD.pdf",
+      "route": "渐进分辨率自回归音视频生成",
+      "tags": [
+        "autoregressive",
+        "progressive-resolution",
+        "audio-video",
+        "foundation"
+      ],
+      "hero_tagline": "渐进分辨率 × 自回归，高清音视频联合生成",
+      "one_liner": "以渐进式分辨率的自回归建模实现高清音视频联合生成。",
+      "affiliation": "阿里巴巴 & 南京大学"
+    },
+    {
+      "slug": "speed-by-simplicity",
+      "title": "Speed by Simplicity: A Single-Stream Architecture for Fast Audio-Video Generative Foundation Model",
+      "short": "Speed by Simplicity",
+      "venue": "arXiv 2025 · Preprint",
+      "category": "av-foundation",
+      "pages": 7,
+      "pdf": "Speed by Simplicity.pdf",
+      "route": "单流架构 (single-stream) 高效基座",
+      "tags": [
+        "single-stream",
+        "fast",
+        "efficient",
+        "foundation",
+        "audio-video"
+      ],
+      "hero_tagline": "大道至简：单流架构打造快速音视频生成基座",
+      "one_liner": "用极简单流架构替代复杂双流/双塔，换取音视频联合生成的速度与效率。",
+      "affiliation": "SII-GAIR & Sand.ai"
+    },
+    {
+      "slug": "vorch-human",
+      "title": "Vorch-Human: Unified Task Representation for Human-Centric Audio-Visual Generation and Long-Horizon Continuation",
+      "short": "Vorch-Human",
+      "venue": "arXiv 2025 · Preprint",
+      "category": "av-foundation",
+      "pages": 26,
+      "pdf": "Vorch-Human.pdf",
+      "route": "统一任务表示 (unified representation) + 长时续写",
+      "tags": [
+        "unified-representation",
+        "human-centric",
+        "long-horizon",
+        "audio-visual"
+      ],
+      "hero_tagline": "统一任务表示，支撑以人为中心的音视觉生成与长时续写",
+      "one_liner": "以统一任务表示刻画多种人类音视觉生成任务，并支持长时程续写。",
+      "affiliation": "—"
+    },
+    {
+      "slug": "mm-sonate",
+      "title": "MM-SONATE: Multimodal Controllable Audio-Video Generation with Zero-Shot Voice Cloning",
+      "short": "MM-SONATE",
+      "venue": "arXiv 2025 · Preprint",
+      "category": "av-foundation",
+      "pages": 18,
+      "pdf": "mm-sonate.pdf",
+      "route": "多模态可控 + 零样本音色克隆",
+      "tags": [
+        "controllable",
+        "zero-shot-voice-clone",
+        "multimodal",
+        "audio-video"
+      ],
+      "hero_tagline": "多模态可控音视频生成 × 零样本音色克隆",
+      "one_liner": "多模态条件可控的音视频联合生成，支持零样本音色克隆。",
+      "affiliation": "—"
+    },
+    {
+      "slug": "landscape-av",
+      "title": "Audio-Video joint generation · 路线总览",
+      "short": "AV 路线总览",
+      "venue": "综述 · 路线梳理",
+      "category": "av-foundation",
+      "pages": 8,
+      "pdf": "vidgen.pdf",
+      "route": "统一/对齐表示 ↔ 双流联合生成 ↔ 多声源分轨",
+      "tags": [
+        "survey",
+        "route-map",
+        "representation",
+        "joint-generation"
+      ],
+      "hero_tagline": "从统一/对齐表示到双流联合生成的音视频生成谱系",
+      "one_liner": "梳理 OmniVAE/AVTok/NAVA/MOVA/Ovi/LTX-2/UniAVGen/Soundwich 的路线对照与研究问题。",
+      "affiliation": "阅读门户 · 梳理笔记"
+    },
+    {
+      "slug": "landscape-speech-video",
+      "title": "Speech-Video joint generation · 路线总览",
+      "short": "Speech-Video 路线总览",
+      "venue": "综述 · 路线梳理",
+      "category": "speech-video",
+      "pages": 11,
+      "pdf": "AVG.pdf",
+      "route": "双流联合生成 ↔ 先对齐后融合 ↔ 多声源分轨",
+      "tags": [
+        "survey",
+        "route-map",
+        "speech-video",
+        "joint-generation"
+      ],
+      "hero_tagline": "从联合生成到多声源分轨的说话人视频谱系",
+      "one_liner": "梳理 UniTalking/JoVA/Unison/OmniVAE/AVTok/NAVA/MOVA/Ovi/LTX-2/UniAVGen/Soundwich 的路线对照。",
+      "affiliation": "阅读门户 · 梳理笔记"
+    },
+    {
+      "slug": "whiteboard-map",
+      "title": "白板要点 · 逐模型梳理（Task Angle · S-A Alignment）",
+      "short": "白板梳理 · 逐模型",
+      "venue": "白板梳理 · 核心",
+      "category": "whiteboard",
+      "pages": 12,
+      "pdf": "whiteboard",
+      "route": "task angle analysis × s-a alignment · 双分类逐模型定位",
+      "tags": [
+        "whiteboard",
+        "taxonomy",
+        "task-angle",
+        "s-a-alignment",
+        "route-map"
+      ],
+      "hero_tagline": "按白板例子逐模型梳理：基础模型 × 语音-视频 × 任务角度 × S-A 对齐",
+      "one_liner": "严格复刻白板整理结构：LTX-2.3/JavisDiT++/OVI/MOVA/VDN/MiniMax-H3 与 OmniForcing/Hallo-Live/Lynn/TaoMate 逐个定位，落点任务角度与语音-音频对齐。",
+      "affiliation": "阅读门户 · 白板梳理"
+    },
+    {
+      "slug": "ltx-2",
+      "title": "LTX-2: Efficient Joint Audio-Visual Foundation Model",
+      "short": "LTX-2",
+      "venue": "arXiv 2026 · 开源基座",
+      "category": "av-foundation",
+      "pages": 14,
+      "arxiv": "2601.03233",
+      "route": "非对称双流 Transformer（14B 视频 + 5B 音频）",
+      "tags": [
+        "dual-stream",
+        "asymmetric",
+        "open-source",
+        "foundation",
+        "audio-video"
+      ],
+      "hero_tagline": "非对称双流 × 14B+5B：开源音视频联合生成基座",
+      "one_liner": "以 14B 视频流 + 5B 音频流的非对称双流 Transformer、双向音视频交叉注意力与 modality-CFG，生成时序同步的高质量音画内容。",
+      "affiliation": "Lightricks",
+      "pdf": "_webpdf/ltx-2"
+    },
+    {
+      "slug": "javisdit",
+      "title": "JavisDiT: Joint Audio-Video Diffusion Transformer with Hierarchical Spatio-Temporal Prior Synchronization",
+      "short": "JavisDiT",
+      "venue": "ICLR 2026 · 正式论文",
+      "category": "av-foundation",
+      "pages": 35,
+      "arxiv": "2503.23377",
+      "route": "联合 DiT + 分层时空同步先验（HiST-Sypo）",
+      "tags": [
+        "dual-stream",
+        "synchronization",
+        "diffusion-transformer",
+        "benchmark",
+        "iclr-2026"
+      ],
+      "hero_tagline": "分层时空同步先验 × 联合音视频 DiT",
+      "one_liner": "用分层时空同步先验估计器引导细粒度音画同步，并给出 10,140 条级 JavisBench 与专用同步指标。",
+      "affiliation": "浙江大学 & 新加坡国立",
+      "pdf": "_webpdf/javisdit"
+    },
+    {
+      "slug": "javisdit-plus",
+      "title": "JavisDiT++: Unified Modeling and Optimization for Joint Audio-Video Generation",
+      "short": "JavisDiT++",
+      "venue": "ICLR 2026 · 正式论文",
+      "category": "av-foundation",
+      "pages": 27,
+      "arxiv": "2602.19163",
+      "route": "统一建模与优化（Joint AV）",
+      "tags": [
+        "dual-stream",
+        "unified",
+        "optimization",
+        "diffusion-transformer",
+        "iclr-2026"
+      ],
+      "hero_tagline": "统一建模 × 统一优化：把音视频联合生成做到一处",
+      "one_liner": "在 JavisDiT 谱系上推进统一建模与优化，统一刻画音视频联合生成的训练与推理。",
+      "affiliation": "浙江大学 & 新加坡国立",
+      "pdf": "_webpdf/javisdit-plus"
+    },
+    {
+      "slug": "ovi",
+      "title": "OVI: Twin Backbone Cross-Modal Fusion for Audio-Video Generation",
+      "short": "Ovi",
+      "venue": "arXiv 2025 · Preprint",
+      "category": "av-foundation",
+      "pages": 12,
+      "arxiv": "2510.01284",
+      "route": "对称双塔 + 逐层双向 Cross-Attention",
+      "tags": [
+        "dual-stream",
+        "twin-backbone",
+        "cross-modal",
+        "foundation"
+      ],
+      "hero_tagline": "双塔同构 × 逐层双向交互：把声音长进视频骨干里",
+      "one_liner": "对称双 DiT（Wan2.2-5B 视频初始化 + 匹配音频塔）逐层双向 Cross-Attention，配合缩放 RoPE 对齐时间，联合生成视频与完整音轨。",
+      "affiliation": "Character AI & Yale",
+      "pdf": "_webpdf/ovi"
+    },
+    {
+      "slug": "mova",
+      "title": "MOVA: Towards Scalable and Synchronized Video–Audio Generation",
+      "short": "MOVA",
+      "venue": "arXiv 2026 · Preprint",
+      "category": "av-foundation",
+      "pages": 38,
+      "arxiv": "2602.08794",
+      "route": "双塔 + Bridge Cross-Attention + Aligned RoPE",
+      "tags": [
+        "bridge",
+        "dual-stream",
+        "aligned-rope",
+        "scalable",
+        "foundation"
+      ],
+      "hero_tagline": "双塔 Bridge × 统一时间轴：可扩展的同步音视频生成",
+      "one_liner": "视频 DiT 与音频 DiT 经双向 Bridge Cross-Attention 交换特征，Aligned RoPE 把两路映射到统一物理时间尺度，输出语音/音效/音乐。",
+      "affiliation": "OpenMOSS",
+      "pdf": "_webpdf/mova"
+    },
+    {
+      "slug": "video-deltanet",
+      "title": "Video DeltaNet: A Video-Native Hybrid Attention for Livestream Video Generation",
+      "short": "VDN",
+      "venue": "arXiv 2026 · Preprint",
+      "category": "av-foundation",
+      "pages": 21,
+      "arxiv": "2609.20744",
+      "route": "混合注意力（DeltaNet 线性 + 全注意力）",
+      "tags": [
+        "streaming",
+        "hybrid-attention",
+        "livestream",
+        "long-video",
+        "efficient"
+      ],
+      "hero_tagline": "为直播而生的混合注意力：线性 + 全注意力的视频原生化",
+      "one_liner": "面向直播长时视频生成，用 video-native 混合注意力在长上下文的效率与质量之间取平衡。",
+      "affiliation": "UC Berkeley & Impossible Inc.",
+      "pdf": "_webpdf/video-deltanet"
+    },
+    {
+      "slug": "minimax-h3",
+      "title": "Can MiniMax-H3 Reason About the Physical World? An Evaluation of Omni-Modal Generation",
+      "short": "MiniMax-H3",
+      "venue": "arXiv 2026 · 评测论文",
+      "category": "av-foundation",
+      "pages": 17,
+      "arxiv": "2609.18323",
+      "route": "统一潜空间框架的物理世界推理评测",
+      "tags": [
+        "evaluation",
+        "unified-representation",
+        "omni-modal",
+        "benchmark"
+      ],
+      "hero_tagline": "统一潜空间能否理解物理世界？对 MiniMax-H3 的评测",
+      "one_liner": "把 MiniMax-H3 作为「多模态理解 + 联合音视频生成共享潜空间」的代表，系统评测其对物理世界的推理能力。",
+      "affiliation": "评测论文（非 MiniMax-H3 模型卡）",
+      "pdf": "_webpdf/minimax-h3"
+    },
+    {
+      "slug": "omniforcing",
+      "title": "OmniForcing: Unleashing Real-time Joint Audio-Visual Generation",
+      "short": "OmniForcing",
+      "venue": "arXiv 2026 · Preprint",
+      "category": "av-foundation",
+      "pages": 18,
+      "arxiv": "2603.11647",
+      "route": "实时化：把双向联合模型转为可流式少步",
+      "tags": [
+        "real-time",
+        "streaming",
+        "distillation",
+        "joint-generation"
+      ],
+      "hero_tagline": "把联合音视频生成压进实时：forcing 式实时化",
+      "one_liner": "通过 forcing/蒸馏思路把双向联合音视频模型转为可流式的少步生成，追求实时联合生成。",
+      "affiliation": "京东探索研究院 & 复旦 & 北大 & 港大",
+      "pdf": "_webpdf/omniforcing"
+    },
+    {
+      "slug": "apollo",
+      "title": "Unified Multi-Task Audio-Video Joint Generation",
+      "short": "Apollo",
+      "venue": "arXiv 2026 · Preprint",
+      "category": "av-foundation",
+      "pages": 12,
+      "arxiv": "2601.04151",
+      "route": "单塔统一 DiT + Omni-Full Attention",
+      "tags": [
+        "single-stream",
+        "multi-task",
+        "unified",
+        "dense-caption"
+      ],
+      "hero_tagline": "单塔 × Omni-Full Attention：一个模型吃掉全部 AV 任务",
+      "one_liner": "以单塔统一 DiT 块 + Omni-Full Attention 与渐进多任务训练，统一 T2AV/V2A/A2V 等任务，并配套大规模密集描述数据集。",
+      "affiliation": "快手科技",
+      "pdf": "_webpdf/apollo"
+    },
+    {
+      "slug": "seedance-2",
+      "title": "Seedance 2.0: Advancing Video Generation for World Complexity",
+      "short": "Seedance 2.0",
+      "venue": "arXiv 2026 · 模型卡",
+      "category": "av-foundation",
+      "pages": 26,
+      "arxiv": "2604.14148",
+      "route": "工业级统一多模态音视频生成（模型卡）",
+      "tags": [
+        "multimodal",
+        "model-card",
+        "unified",
+        "reference-editing"
+      ],
+      "hero_tagline": "面向世界复杂度的工业级多模态音视频生成",
+      "one_liner": "统一大规模多模态音视频联合生成，支持 text/image/audio/video 四模态输入与参考编辑，4–15s、480p–720p。",
+      "affiliation": "ByteDance Seed",
+      "pdf": "_webpdf/seedance-2"
+    },
+    {
+      "slug": "omnihuman",
+      "title": "OmniHuman: A Large-scale Dataset and Benchmark for Human-Centric Video Generation",
+      "short": "OmniHuman",
+      "venue": "arXiv 2026 · 数据集 & Benchmark",
+      "category": "av-foundation",
+      "pages": 19,
+      "arxiv": "2604.18326",
+      "route": "分层标注数据集 + OHBench 三级评测",
+      "tags": [
+        "dataset",
+        "benchmark",
+        "human-centric",
+        "attribute-alignment"
+      ],
+      "hero_tagline": "补上人类中心生成的数据底座：分层标注 + 三级评测",
+      "one_liner": "针对场景/相机多样性、交互建模、个体属性对齐三类缺陷，给出分层标注的大规模人类中心数据集与 OHBench 三级评测。",
+      "affiliation": "北京大学 & 腾讯微信 Lab & 中科院",
+      "pdf": "_webpdf/omnihuman"
+    },
+    {
+      "slug": "flowlong",
+      "title": "FlowLong: Inference-time Long Video Generation via Manifold-constrained Tweedie Matching",
+      "short": "FlowLong",
+      "venue": "arXiv 2026 · Preprint",
+      "category": "av-foundation",
+      "pages": 15,
+      "arxiv": "2605.20910",
+      "route": "训练无关的推理期长视频（Tweedie matching）",
+      "tags": [
+        "long-video",
+        "training-free",
+        "tweedie",
+        "inference-time"
+      ],
+      "hero_tagline": "不训练也能变长：流形约束的 Tweedie 滑窗融合",
+      "one_liner": "用重叠滑窗 + Tweedie matching 融合相邻窗的干净样本估计，在无训练下延长生成时长，并可扩展到音视频联合生成。",
+      "affiliation": "KAIST",
+      "pdf": "_webpdf/flowlong"
+    },
+    {
+      "slug": "omni-liveavatar",
+      "title": "Omni-LiveAvatar: Minute-Level Real-Time Streaming Joint Audio-Video Avatar Generation",
+      "short": "Omni-LiveAvatar",
+      "venue": "arXiv 2026 · Preprint",
+      "category": "speech-video",
+      "pages": 11,
+      "arxiv": "2608.13602",
+      "route": "分钟级实时流式联合音视频数字人",
+      "tags": [
+        "real-time",
+        "streaming",
+        "minute-level",
+        "avatar"
+      ],
+      "hero_tagline": "分钟级 × 实时：把数字人从短片推进到持续交互",
+      "one_liner": "针对双向注意力+多步去噪只能出短片的瓶颈，实现分钟级、实时的流式联合音视频数字人生成。",
+      "affiliation": "—",
+      "pdf": "_webpdf/omni-liveavatar"
+    },
+    {
+      "slug": "salt-pp",
+      "title": "SALT++: Context-Aligned Post-Training for Few-Step Streaming Multimodal Generation",
+      "short": "Salt++",
+      "venue": "arXiv 2026 · Preprint",
+      "category": "av-foundation",
+      "pages": 22,
+      "arxiv": "2609.36995",
+      "route": "上下文对齐后训练（少步流式）",
+      "tags": [
+        "streaming",
+        "few-step",
+        "post-training",
+        "distillation"
+      ],
+      "hero_tagline": "上下文对齐的后训练：少步 + 流式如何不掉质量",
+      "one_liner": "以 context-aligned 后训练把多模态生成压到少步流式，同时维持生成质量。",
+      "affiliation": "香港科技大学 & Vivix Group",
+      "pdf": "_webpdf/salt-pp"
+    },
+    {
+      "slug": "leaptalk",
+      "title": "LeapTalk: Breaking the Latency–Quality Trade-off in Talking Head Generation",
+      "short": "LeapTalk",
+      "venue": "arXiv 2026 · Preprint",
+      "category": "speech-video",
+      "pages": 12,
+      "arxiv": "2608.00079",
+      "route": "延迟–质量权衡的说话头生成",
+      "tags": [
+        "talking-head",
+        "latency",
+        "streaming",
+        "authoring"
+      ],
+      "hero_tagline": "打破延迟与质量的跷跷板：长时实时说话头",
+      "one_liner": "针对多步扩散不流式、自回归易累积误差与身份漂移的矛盾，给出同时兼顾延迟与质量的长时说话头生成方案。",
+      "affiliation": "—",
+      "pdf": "_webpdf/leaptalk"
+    },
+    {
+      "slug": "javis",
+      "title": "JAVIS: Joint Audio-Visual Interaction and Streaming for Real-Time Conversational Agents",
+      "short": "JAVIS",
+      "venue": "arXiv 2026 · Preprint",
+      "category": "speech-video",
+      "pages": 5,
+      "arxiv": "2610.22499",
+      "route": "听说交互 + 流式（实时对话智能体）",
+      "tags": [
+        "conversation",
+        "interaction",
+        "streaming",
+        "real-time"
+      ],
+      "hero_tagline": "像人一样交流：联合音视频交互与流式",
+      "one_liner": "面向实时对话智能体，把「听」与「说」的联合音视频交互建模进流式生成。",
+      "affiliation": "KAIST & 中央大学",
+      "pdf": "_webpdf/javis"
+    },
+    {
+      "slug": "avc-reward",
+      "title": "AVC-REWARD: Event-Centric Audio-Video Consistency Evaluation",
+      "short": "AVC-Reward",
+      "venue": "arXiv 2026 · 评测 & Reward",
+      "category": "av-foundation",
+      "pages": 32,
+      "arxiv": "2610.22321",
+      "route": "事件级音视频一致性评测 / Reward",
+      "tags": [
+        "evaluation",
+        "reward",
+        "event-centric",
+        "consistency-alignment"
+      ],
+      "hero_tagline": "从帧级到事件级：音视频一致性怎么才算评对了",
+      "one_liner": "提出事件中心的音视频一致性评测范式与 AVC-Reward，并验证其与人类感知的一致性及作为生成侧 reward 的潜力。",
+      "affiliation": "浙江大学 & HiThink Research & 复旦",
+      "pdf": "_webpdf/avc-reward"
+    },
+    {
+      "slug": "lynn",
+      "title": "LynnReal-Omni: Native multi-modal Video Generation for Agentic Visual Workflows",
+      "short": "Lynn",
+      "venue": "arXiv 2026 · 技术报告",
+      "category": "speech-video",
+      "pages": 31,
+      "arxiv": "2609.15863",
+      "route": "智能体视觉工作流的原生多模态视频生成（Standard/Flash 双变体）",
+      "tags": [
+        "agentic",
+        "controllable",
+        "multi-modal",
+        "27B-flash",
+        "real-time"
+      ],
+      "hero_tagline": "给参考就能可控生成：面向智能体视觉工作流的多模态视频生成",
+      "one_liner": "用显式参考条件 + 统一模型解决扩散视频的『不可控 + 长时漂移』；含 27B Flash 实时渲染变体与少步蒸馏（强调控制保持）。",
+      "affiliation": "LynnReal AI",
+      "pdf": "_webpdf/Lynn_2609.15863"
+    },
+    {
+      "slug": "duo",
+      "title": "Duo: A Reciprocal World Model for Full-Duplex Interaction",
+      "short": "Duo",
+      "venue": "arXiv 2026 · 技术报告",
+      "category": "speech-video",
+      "pages": 27,
+      "arxiv": "2611.15131",
+      "route": "互惠世界模型：Intent + Realization 全双工交互",
+      "tags": [
+        "world-model",
+        "full-duplex",
+        "intent",
+        "realization",
+        "interaction"
+      ],
+      "hero_tagline": "既能想又能演，还能随时被打断：全双工交互世界模型",
+      "one_liner": "把世界模型拆成 Intent（认知）与 Realization（表现）两个同源能力，在统一时间线上同步，支持自发对话、打断与音视频游戏。",
+      "affiliation": "—",
+      "pdf": "_webpdf/duo_2611.15131"
+    }
+  ],
+  "notes_docs": [
+    {
+      "slug": "landscape-speech-video",
+      "title": "Speech-Video joint generation · 路线梳理笔记",
+      "source": "AVG.pdf",
+      "desc": "已有梳理笔记：UniTalking / JoVA / Unison / OmniVAE / AVTok / NAVA / MOVA / Ovi / LTX-2 / UniAVGen / Soundwich 的路线对照。"
+    },
+    {
+      "slug": "landscape-av",
+      "title": "Audio-Video joint generation · 路线梳理笔记",
+      "source": "vidgen.pdf",
+      "desc": "已有梳理笔记：OmniVAE / AVTok / NAVA / MOVA / Ovi / LTX-2 / UniAVGen / Soundwich 的统一/对齐表示路线对照。"
+    }
+  ],
+  "web_landscape": [
+    {
+      "short": "LTX-2 / LTX-2.3",
+      "route": "非对称双流联合生成",
+      "cat": "av-foundation",
+      "note": "视频14B+音频5B双流，模态感知CFG；白板要点模型之一。"
+    },
+    {
+      "short": "JavisDiT++",
+      "route": "音视频联合 DiT",
+      "cat": "av-foundation",
+      "note": "音视频联合生成基座，Ovi/LTX 等对比对象。"
+    },
+    {
+      "short": "Ovi",
+      "route": "对称双 DiT 逐层双向交互",
+      "cat": "av-foundation",
+      "note": "Wan2.2-5B 视频 + 匹配音频塔，逐层 Cross-Attention。"
+    },
+    {
+      "short": "MOVA",
+      "route": "双塔 + Bridge Cross-Attention",
+      "cat": "av-foundation",
+      "note": "Wan2.2 视频 DiT + 1.3B 音频 DiT，Aligned RoPE。"
+    },
+    {
+      "short": "VDN",
+      "route": "白板要点模型",
+      "cat": "av-foundation",
+      "note": "白板 Audio-Video Foundation Models 列表项。"
+    },
+    {
+      "short": "MiniMax-H3 / Hailuo",
+      "route": "白板要点模型",
+      "cat": "av-foundation",
+      "note": "白板 Foundation Models 列表项（MiniMax H3）。"
+    },
+    {
+      "short": "OmniForcing",
+      "route": "speech-video",
+      "cat": "speech-video",
+      "note": "白板 speech-video generation 列表项。"
+    },
+    {
+      "short": "Lynn",
+      "route": "speech-video",
+      "cat": "speech-video",
+      "note": "白板 speech-video generation 列表项。"
+    },
+    {
+      "short": "NAVA",
+      "route": "先对齐后共享融合 (Align-then-Fuse)",
+      "cat": "av-foundation",
+      "note": "笔记路线：模态对齐 + 共享融合 + 音色上下文。"
+    },
+    {
+      "short": "OmniVAE",
+      "route": "统一/对齐表示",
+      "cat": "av-foundation",
+      "note": "笔记路线：VAE latent 片段级对比对齐 + 语义蒸馏。"
+    },
+    {
+      "short": "AVTok",
+      "route": "统一 tokenizer/codebook",
+      "cat": "av-foundation",
+      "note": "笔记路线：统一 tokenizer + 码本 + 分别还原。"
+    },
+    {
+      "short": "Soundwich",
+      "route": "多声源分轨控制",
+      "cat": "av-foundation",
+      "note": "笔记路线：共享视频 + 多条可编辑音频轨迹。"
+    }
+  ]
+}
